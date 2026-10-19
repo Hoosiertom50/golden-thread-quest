@@ -44,7 +44,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 TOOL_NAME = "ba-ingest-transcript/ingest.py"
-TOOL_VERSION = "1.2.0"
+TOOL_VERSION = "1.3.0"
 TIMESTAMP_FORMAT = "HH:MM:SS, elapsed time from the start of the recording"
 REDACTED = "[REDACTED]"
 
@@ -52,9 +52,12 @@ HEADER_FIELDS = ("Meeting", "Date", "Attendees")
 UTTERANCE = re.compile(r"^\[(?P<ts>\d{2}:[0-5]\d:[0-5]\d)\] (?P<speaker>[^:\[\]]{1,80}): (?P<text>\S.*)$")
 UNCERTAIN_SPEAKERS = {"unknown", "unidentified", "?"}
 # Email: a plain or "quoted" local part, and a domain that may use any letters (e.g. büro.example).
-EMAIL = re.compile(r'(?:"[^"\n]{1,64}"|[\w.%+-]+)@(?:[^\W_](?:[\w-]*[^\W_])?\.)+[^\W\d_]{2,}')
-# Phone: separators may be spaces (repeated, or no-break spaces), tabs, dots or hyphens, but never a line break.
-SEP = r"[ \t\u00a0\u202f.-]*"
+# Email: a plain or "quoted" local part, and a domain that may use any letters (e.g. büro.example)
+# or be an address literal (sam@[192.0.2.1]).
+EMAIL = re.compile(r'(?:"[^"\n]{1,64}"|[\w.%+-]+)@(?:(?:[^\W_](?:[\w-]*[^\W_])?\.)+[^\W\d_]{2,}|\[[^\]\s]{1,64}\])')
+# Phone: separators may be spaces (repeated, or no-break spaces), tabs, dots, or any kind of hyphen or
+# dash (- ‐ ‑ ‒ – — −), but never a line break.
+SEP = r"[ \t\u00a0\u202f.\-\u2010-\u2015\u2212]*"
 PHONE = re.compile(rf"(?<!\d)(?:\+?1{SEP})?\(?\d{{3}}\)?{SEP}\d{{3}}{SEP}\d{{4}}(?!\d)")
 # Phrases that read as an instruction to an assistant or a tool. Matching only flags the line.
 INSTRUCTION_LIKE = re.compile(
@@ -237,7 +240,7 @@ def render_provenance(tid, header, utterances, redacted_total, source_sha, recor
         f"uncertain_speaker_utterances: [{', '.join(u.uid for u in utterances if not u.certain)}]",
         f"capture_source: {yaml_str(capture_source)}",
         f"transcription_tool: {yaml_str(transcription_tool)}",
-        f"original_location: {yaml_str(str(raw_path))}",
+        f"original_location: {yaml_str(redact(str(raw_path))[0])}",
         f"original_tracked_by_git: {tracked_by_git(raw_path)}",
         f"original_sha256: {yaml_str(source_sha)}",
         f"timestamp_format: {yaml_str(TIMESTAMP_FORMAT)}",
@@ -412,7 +415,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         status = 1
     lines.append(f"exit status {status}")
-    text = "\n".join(lines) + "\n"
+    # Everything shown or logged is redacted: file names and error messages can hold contact details too.
+    text = "\n".join(redact(line)[0] for line in lines) + "\n"
     print(text, end="")
     if args.log:
         args.log.parent.mkdir(parents=True, exist_ok=True)
