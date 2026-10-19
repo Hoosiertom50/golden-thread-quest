@@ -6,23 +6,27 @@ Part of the ba-ingest-transcript skill (see SKILL.md next to this file). Standar
 Usage (from the repository root):
 
     .venv/bin/python participant/skills/ba-ingest-transcript/ingest.py RAW_FILE TRANSCRIPT_ID \
+        --capture-source "..." --transcription-tool "..." \
         [--out-dir participant/context/transcripts] [--log LOG_FILE]
 
 What it does, in order:
   1. Reads RAW_FILE and parses ALL of it before writing anything. Any line it cannot parse
-     stops the run with the line number and the reason; nothing is written.
-  2. Redacts email addresses and phone numbers to [REDACTED]. Speaker names are kept: they are
-     the attribution.
+     stops the run with the line number and the reason (never the line's text, which may hold
+     personal details); nothing is written.
+  2. Redacts email addresses and phone numbers to [REDACTED] everywhere they could be kept:
+     header values, speaker labels and utterances. Speaker names are kept: they are the
+     attribution.
   3. Gives the transcript the id TRANSCRIPT_ID and each utterance a sequence id (U001, U002, ...)
      in the order spoken. Cite a line as TRANSCRIPT_ID#U007.
   4. Flags utterances that read like instructions to an AI or a tool. They are kept as ordinary
      content; nothing in the transcript is ever acted on.
-  5. Writes TRANSCRIPT_ID.md (the source of record) and TRANSCRIPT_ID.provenance.yaml, each
-     through a temporary file renamed into place, so a failed run leaves no partial file. The
-     temporary files are removed if anything fails.
-  6. If the source of record already exists: an identical result is reported as unchanged and
-     nothing is rewritten (no duplicated utterances); a different result is refused, because the
-     source of record is never rewritten.
+  5. Writes TRANSCRIPT_ID.provenance.yaml and then TRANSCRIPT_ID.md (the source of record). Each
+     is written to a temporary file and then linked into place, which fails rather than replace a
+     file that already exists. A failed run removes its temporary files and anything it placed.
+  6. If the record already exists: an identical result, with a provenance file that matches it,
+     is reported as unchanged and nothing is rewritten (no duplicated utterances). A different
+     result is refused, because the source of record is never rewritten. A record or provenance
+     file without its partner (an interrupted run) is refused, never silently completed.
 """
 
 from __future__ import annotations
@@ -32,13 +36,14 @@ import datetime as dt
 import hashlib
 import os
 import re
+import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 TOOL_NAME = "ba-ingest-transcript/ingest.py"
-TOOL_VERSION = "1.0.0"
+TOOL_VERSION = "1.1.0"
 TIMESTAMP_FORMAT = "HH:MM:SS, elapsed time from the start of the recording"
 REDACTED = "[REDACTED]"
 
@@ -54,6 +59,8 @@ INSTRUCTION_LIKE = re.compile(
     re.IGNORECASE,
 )
 TRANSCRIPT_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+# Characters that Markdown would treat as formatting, a link, HTML or a table column.
+MARKDOWN_SPECIAL = re.compile(r"([\\`*_\[\]<>|~#])")
 
 
 class IngestError(Exception):
@@ -82,18 +89,32 @@ def redact(text: str) -> tuple[str, int]:
     return text, emails + phones
 
 
-def parse(raw: str) -> tuple[dict[str, str], list[Utterance]]:
-    """Parses the whole transcript, or raises IngestError naming the first problem."""
+def literal(text: str) -> str:
+    """Escapes Markdown so the record shows exactly these characters; [REDACTED] stays as is."""
+    return REDACTED.join(MARKDOWN_SPECIAL.sub(r"\\\1", part) for part in text.split(REDACTED))
+
+
+def parse(raw: str) -> tuple[dict[str, str], list[Utterance], int]:
+    """Parses the whole transcript, or raises IngestError naming the first problem.
+
+    Returns the redacted header, the utterances and how many values were redacted in all.
+    Error messages give line numbers and reasons, never the text of the line.
+    """
     if not raw.strip():
         raise IngestError("the file is empty")
     lines = raw.splitlines()
     header: dict[str, str] = {}
+    redacted_total = 0
     i = 0
     while i < len(lines) and lines[i].strip():
         key, sep, value = lines[i].partition(":")
-        if not sep or key.strip() not in HEADER_FIELDS or not value.strip():
-            raise IngestError(f"line {i + 1}: expected a header line ({', '.join(HEADER_FIELDS)}), got {lines[i][:60]!r}")
-        header[key.strip()] = value.strip()
+        key = key.strip()
+        if not sep or key not in HEADER_FIELDS or not value.strip():
+            raise IngestError(f"line {i + 1}: expected a header line ({', '.join(HEADER_FIELDS)}: value)")
+        if key in header:
+            raise IngestError(f"line {i + 1}: a second '{key}' header line; the transcript must have only one")
+        header[key], count = redact(value.strip())
+        redacted_total += count
         i += 1
     missing = [f for f in HEADER_FIELDS if f not in header]
     if missing:
@@ -101,7 +122,7 @@ def parse(raw: str) -> tuple[dict[str, str], list[Utterance]]:
     try:
         dt.date.fromisoformat(header["Date"])
     except ValueError:
-        raise IngestError(f"header Date {header['Date']!r} is not YYYY-MM-DD") from None
+        raise IngestError("the Date header is not a date in the form YYYY-MM-DD") from None
 
     utterances: list[Utterance] = []
     last = -1
@@ -110,13 +131,16 @@ def parse(raw: str) -> tuple[dict[str, str], list[Utterance]]:
             continue
         m = UTTERANCE.match(line)
         if not m:
-            raise IngestError(f"line {n}: not an utterance of the form '[HH:MM:SS] Speaker: text': {line[:60]!r}")
+            raise IngestError(f"line {n}: not an utterance of the form '[HH:MM:SS] Speaker: text'")
         ts = m["ts"]
         if seconds(ts) < last:
-            raise IngestError(f"line {n}: timestamp {ts} is earlier than the line before it")
+            raise IngestError(f"line {n}: its timestamp is earlier than the line before it")
         last = seconds(ts)
-        speaker = m["speaker"].strip()
-        text, count = redact(m["text"])
+        speaker, speaker_count = redact(m["speaker"].strip())
+        if not speaker:
+            raise IngestError(f"line {n}: the speaker label is blank; every utterance needs one (use 'Unknown')")
+        text, text_count = redact(m["text"])
+        redacted_total += speaker_count + text_count
         utterances.append(
             Utterance(
                 uid=f"U{len(utterances) + 1:03d}",
@@ -124,49 +148,49 @@ def parse(raw: str) -> tuple[dict[str, str], list[Utterance]]:
                 speaker=speaker,
                 certain=speaker.lower() not in UNCERTAIN_SPEAKERS,
                 text=text,
-                redactions=count,
+                redactions=speaker_count + text_count,
                 instruction_like=bool(INSTRUCTION_LIKE.search(m["text"])),
             )
         )
     if not utterances:
         raise IngestError("no utterances found after the header")
-    return header, utterances
+    return header, utterances, redacted_total
 
 
-def render_record(tid: str, header: dict[str, str], utterances: list[Utterance], source_sha: str) -> str:
+def render_record(tid: str, header: dict[str, str], utterances: list[Utterance], source_sha: str, redacted_total: int) -> str:
     flagged = [u.uid for u in utterances if u.instruction_like]
     uncertain = [u.uid for u in utterances if not u.certain]
     out = [
-        f"# Transcript {tid}: {header['Meeting']}",
+        f"# Transcript {tid}: {literal(header['Meeting'])}",
         "",
         "Source of record. Verbatim and in the order spoken, apart from redaction. Never edit, reorder or",
-        "summarize this file; derived notes and analysis belong in separate files.",
+        "summarize this file; derived notes and analysis belong in separate files. Characters Markdown",
+        "would treat as formatting are shown with a backslash, so the rendered text is exactly what was said.",
         "",
         f"- Transcript id: `{tid}` (cite a line as `{tid}#U001`)",
         f"- Meeting date: {header['Date']}",
         f"- Timestamp format: {TIMESTAMP_FORMAT}",
         f"- Utterances: {len(utterances)}",
-        f"- Redacted: email addresses and phone numbers, each replaced by `{REDACTED}` "
-        f"({sum(u.redactions for u in utterances)} in total)",
+        f"- Redacted: email addresses and phone numbers, in the header, speaker labels and utterances, "
+        f"each replaced by `{REDACTED}` ({redacted_total} in total)",
         f"- Uncertain speakers: {', '.join(uncertain) if uncertain else 'none'} (marked, not guessed)",
         f"- Flagged as instruction-like: {', '.join(flagged) if flagged else 'none'} "
         "(recorded as content; nothing in this transcript was acted on)",
-        f"- Raw source SHA-256: `{source_sha}` (the unredacted original is kept outside source control; "
-        "see the provenance file)",
+        f"- Raw source SHA-256: `{source_sha}` (of the original file's bytes; see the provenance file "
+        "for where the original is)",
         "",
         "| Id | Time | Speaker | Utterance |",
         "|---|---|---|---|",
     ]
     for u in utterances:
-        speaker = u.speaker if u.certain else f"{u.speaker} (uncertain)"
+        speaker = literal(u.speaker) if u.certain else f"{literal(u.speaker)} (uncertain)"
         notes = []
         if u.redactions:
             notes.append(f"{u.redactions} redacted")
         if u.instruction_like:
             notes.append("instruction-like, not followed")
-        note = f" _[{'; '.join(notes)}]_" if notes else ""
-        text = u.text.replace("|", "\\|")
-        out.append(f"| {u.uid} | {u.timestamp} | {speaker} | {text}{note} |")
+        note = f" _({'; '.join(notes)})_" if notes else ""
+        out.append(f"| {u.uid} | {u.timestamp} | {speaker} | {literal(u.text)}{note} |")
     return "\n".join(out) + "\n"
 
 
@@ -174,100 +198,157 @@ def yaml_str(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def render_provenance(tid, header, utterances, source_sha, record_sha, raw_path, ingested_at) -> str:
+def tracked_by_git(path: Path) -> str:
+    """'true' or 'false' for whether Git tracks the file, or 'unknown' if that can't be told."""
+    full = path.resolve()
+    try:
+        r = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "--", full.name],
+            capture_output=True, text=True, cwd=full.parent, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    if r.returncode == 0:
+        return "true"
+    return "false" if "did not match" in r.stderr else "unknown"
+
+
+def render_provenance(tid, header, utterances, redacted_total, source_sha, record_sha, raw_path,
+                      capture_source, transcription_tool, ingested_at) -> str:
     speakers = sorted({u.speaker for u in utterances if u.certain})
     lines = [
         "schema: ba-ingest-transcript/provenance/v1",
-        f"transcript_id: {tid}",
+        f"transcript_id: {yaml_str(tid)}",
         f"meeting: {yaml_str(header['Meeting'])}",
-        f"meeting_date: {header['Date']}",
+        f"meeting_date: {yaml_str(header['Date'])}",
         f"participants_listed: {yaml_str(header['Attendees'])}",
         "speakers_attributed:",
         *[f"  - {yaml_str(s)}" for s in speakers],
         f"uncertain_speaker_utterances: [{', '.join(u.uid for u in utterances if not u.certain)}]",
-        "capture_source: \"Synthetic transcript written for this exercise; no recording exists\"",
-        "transcription_tool: \"None; typed by hand\"",
+        f"capture_source: {yaml_str(capture_source)}",
+        f"transcription_tool: {yaml_str(transcription_tool)}",
         f"original_location: {yaml_str(str(raw_path))}",
-        "original_in_source_control: false",
-        f"original_sha256: {source_sha}",
+        f"original_tracked_by_git: {tracked_by_git(raw_path)}",
+        f"original_sha256: {yaml_str(source_sha)}",
         f"timestamp_format: {yaml_str(TIMESTAMP_FORMAT)}",
         f"utterance_count: {len(utterances)}",
         "redaction:",
         "  rules: [email addresses, phone numbers]",
-        f"  replacements: {sum(u.redactions for u in utterances)}",
+        "  applied_to: [header values, speaker labels, utterances]",
+        f"  replacements: {redacted_total}",
         f"  placeholder: {yaml_str(REDACTED)}",
         f"instruction_like_utterances: [{', '.join(u.uid for u in utterances if u.instruction_like)}]",
         "ingestion:",
-        f"  tool: {TOOL_NAME}",
-        f"  tool_version: {TOOL_VERSION}",
-        f"  ingested_at: {ingested_at}",
-        f"  record_sha256: {record_sha}",
+        f"  tool: {yaml_str(TOOL_NAME)}",
+        f"  tool_version: {yaml_str(TOOL_VERSION)}",
+        f"  ingested_at: {yaml_str(ingested_at)}",
+        f"  record_sha256: {yaml_str(record_sha)}",
     ]
     return "\n".join(lines) + "\n"
 
 
-def write_atomically(files: dict[Path, str]) -> None:
-    """Writes every file or none: each goes to a temp file first, then all are renamed into place."""
-    temps: dict[Path, Path] = {}
-    done: list[Path] = []
+def publish(files: list[tuple[Path, str]]) -> None:
+    """Places each file in order, or none. A file that already exists is never replaced.
+
+    Each is written to a temporary file in the same folder, then hard-linked to its name, which
+    fails if that name exists (so two runs can't overwrite each other). On any failure every
+    temporary file, and every file this call placed, is removed.
+    """
+    temps: list[Path] = []
+    placed: list[Path] = []
     try:
-        for target, content in files.items():
+        for target, content in files:
             target.parent.mkdir(parents=True, exist_ok=True)
             fd, name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
-            temps[target] = Path(name)
+            temps.append(Path(name))
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
                 f.write(content)
                 f.flush()
                 os.fsync(f.fileno())
-        for target, temp in temps.items():
-            os.chmod(temp, 0o644)
-            os.replace(temp, target)
-            done.append(target)
+            os.chmod(name, 0o644)
+        for (target, _), temp in zip(files, temps):
+            try:
+                os.link(temp, target)
+            except FileExistsError:
+                raise IngestError(f"{target} appeared while this run was writing (another run?); nothing was replaced") from None
+            placed.append(target)
     except BaseException:
-        for temp in temps.values():
-            temp.unlink(missing_ok=True)
-        for target in done:  # a later rename failed: take back the ones already in place
+        for target in placed:
             target.unlink(missing_ok=True)
         raise
+    finally:
+        for temp in temps:
+            temp.unlink(missing_ok=True)
 
 
-def sha256(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def sha256(data: str | bytes) -> str:
+    return hashlib.sha256(data.encode("utf-8") if isinstance(data, str) else data).hexdigest()
 
 
-def ingest(raw_path: Path, tid: str, out_dir: Path) -> list[str]:
+def provenance_record_sha(provenance: str) -> str | None:
+    m = re.search(r'^  record_sha256: "?([0-9a-f]{64})"?$', provenance, re.MULTILINE)
+    return m[1] if m else None
+
+
+def output_paths(out_dir: Path, tid: str) -> tuple[Path, Path]:
+    return out_dir / f"{tid}.md", out_dir / f"{tid}.provenance.yaml"
+
+
+def same_file(a: Path, b: Path) -> bool:
+    """True if a and b are the same file, including through a symlink or hard link."""
+    try:
+        if a.exists() and b.exists():
+            return os.path.samefile(a, b)
+    except OSError:
+        pass
+    return a.resolve() == b.resolve()
+
+
+def ingest(raw_path: Path, tid: str, out_dir: Path, capture_source: str, transcription_tool: str) -> list[str]:
     """Runs one ingestion; returns the report lines. Raises IngestError when refused."""
     report: list[str] = []
     if not TRANSCRIPT_ID.match(tid):
-        raise IngestError(f"transcript id {tid!r} must be lower-case letters, digits and hyphens")
+        raise IngestError("the transcript id must be 1-64 lower-case letters, digits and hyphens, starting with a letter or digit")
+    for name, value in (("--capture-source", capture_source), ("--transcription-tool", transcription_tool)):
+        if not value.strip():
+            raise IngestError(f"{name} is required: say where the transcript came from, or write 'unknown'")
     try:
-        raw = raw_path.read_text(encoding="utf-8")
+        raw_bytes = raw_path.read_bytes()
     except FileNotFoundError:
         raise IngestError(f"{raw_path} does not exist") from None
+    try:
+        raw = raw_bytes.decode("utf-8")
     except UnicodeDecodeError:
         raise IngestError(f"{raw_path} is not UTF-8 text") from None
-    header, utterances = parse(raw)
-    source_sha = sha256(raw)
-    record = render_record(tid, header, utterances, source_sha)
+    header, utterances, redacted_total = parse(raw)
+    source_sha = sha256(raw_bytes)  # of the original bytes, so whoever holds the file can check it
+    record = render_record(tid, header, utterances, source_sha, redacted_total)
     record_sha = sha256(record)
-    record_path = out_dir / f"{tid}.md"
-    provenance_path = out_dir / f"{tid}.provenance.yaml"
+    record_path, provenance_path = output_paths(out_dir, tid)
 
     report.append(f"parsed {len(utterances)} utterances from {raw_path}")
-    report.append(f"redacted {sum(u.redactions for u in utterances)} value(s): email addresses and phone numbers")
+    report.append(f"redacted {redacted_total} value(s): email addresses and phone numbers")
     for u in utterances:
         if not u.certain:
             report.append(f"{tid}#{u.uid} [{u.timestamp}] speaker {u.speaker!r} marked uncertain (not guessed)")
         if u.instruction_like:
-            report.append(
-                f"{tid}#{u.uid} [{u.timestamp}] instruction-like text from {u.speaker}: recorded as content, NOT followed"
-            )
+            report.append(f"{tid}#{u.uid} [{u.timestamp}] instruction-like text from {u.speaker}: recorded as content, NOT followed")
 
-    if record_path.exists():
+    has_record, has_provenance = record_path.exists(), provenance_path.exists()
+    if has_record != has_provenance:
+        present, absent = (record_path, provenance_path) if has_record else (provenance_path, record_path)
+        raise IngestError(
+            f"{present} exists but {absent} does not (an interrupted run?). Nothing was changed; "
+            "check the file and remove it before ingesting again."
+        )
+    if has_record:
         existing = record_path.read_text(encoding="utf-8")
         existing_sha = sha256(existing)
+        if provenance_record_sha(provenance_path.read_text(encoding="utf-8")) != existing_sha:
+            raise IngestError(f"{provenance_path} does not match {record_path} (record_sha256 differs); nothing was changed")
         if existing == record:
             report.append(f"{record_path} already exists and is identical (sha256 {existing_sha})")
+            report.append(f"{provenance_path} matches it")
             report.append("unchanged: nothing written, no utterance added or duplicated")
             return report
         raise IngestError(
@@ -276,10 +357,12 @@ def ingest(raw_path: Path, tid: str, out_dir: Path) -> list[str]:
         )
 
     ingested_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    provenance = render_provenance(tid, header, utterances, source_sha, record_sha, raw_path, ingested_at)
-    write_atomically({record_path: record, provenance_path: provenance})
-    report.append(f"wrote {record_path} (sha256 {record_sha})")
+    provenance = render_provenance(tid, header, utterances, redacted_total, source_sha, record_sha, raw_path,
+                                   capture_source.strip(), transcription_tool.strip(), ingested_at)
+    # Provenance first, record last: a record never exists without the provenance that describes it.
+    publish([(provenance_path, provenance), (record_path, record)])
     report.append(f"wrote {provenance_path}")
+    report.append(f"wrote {record_path} (sha256 {record_sha})")
     return report
 
 
@@ -287,18 +370,26 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Ingest a meeting transcript into a redacted source of record.")
     ap.add_argument("raw_file", type=Path)
     ap.add_argument("transcript_id")
+    ap.add_argument("--capture-source", required=True,
+                    help="where the transcript came from, e.g. 'Teams recording of the 10-12 refinement' or 'unknown'")
+    ap.add_argument("--transcription-tool", required=True,
+                    help="what turned speech into text, e.g. 'Teams live transcription', 'typed by hand' or 'unknown'")
     ap.add_argument("--out-dir", type=Path, default=Path("participant/context/transcripts"))
     ap.add_argument("--log", type=Path, help="also save this run (command and output) to this file")
     args = ap.parse_args(argv)
 
     started = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    command = "$ " + " ".join([".venv/bin/python", TOOL_NAME.replace("ba-ingest-transcript/", "participant/skills/ba-ingest-transcript/"), *(argv if argv is not None else sys.argv[1:])])
-    lines = [command, f"# run at {started} by {TOOL_NAME} {TOOL_VERSION}"]
+    shown = [a if " " not in a else f'"{a}"' for a in (argv if argv is not None else sys.argv[1:])]
+    lines = [f"$ .venv/bin/python participant/skills/{TOOL_NAME} {' '.join(shown)}",
+             f"# run at {started} by {TOOL_NAME} {TOOL_VERSION}"]
+    record_path, provenance_path = output_paths(args.out_dir, args.transcript_id)
+    if args.log and any(same_file(args.log, p) for p in (args.raw_file, record_path, provenance_path)):
+        print("REFUSED: --log must not name the raw transcript or either output file; nothing was run")
+        return 2
     try:
-        lines += ingest(args.raw_file, args.transcript_id, args.out_dir)
+        lines += ingest(args.raw_file, args.transcript_id, args.out_dir, args.capture_source, args.transcription_tool)
         status = 0
     except IngestError as e:
-        record_path = args.out_dir / f"{args.transcript_id}.md"
         lines.append(f"REFUSED: {e}")
         lines.append(
             f"no record written: {record_path} "

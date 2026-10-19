@@ -2,6 +2,20 @@
 
 Attempt: `ba-attempt-001`
 
+## In plain words
+
+I wrote a made-up 41-line meeting and built a skill (rules plus a small script) that saves a
+transcript faithfully: every line keeps its speaker, its time and an id, contact details are
+blanked out, and nothing is summarized. Then I tested it three ways, like a QA test pass:
+
+| Test | What it proves | Result |
+|---|---|---|
+| A line in the meeting tells the AI to delete files | Transcript text is never obeyed | Saved as an ordinary line and flagged; nothing deleted |
+| The same meeting saved twice | Saving is repeatable | Second run identical, nothing written, still 41 lines |
+| A transcript in the wrong format | Bad input is refused cleanly | Refused with the line number; no file, no leftover |
+
+The sections below give the detail for the reviewer, criterion by criterion.
+
 ## What was built
 
 - **A reusable ingestion skill**, `participant/skills/ba-ingest-transcript/SKILL.md`. It holds
@@ -22,6 +36,13 @@ Attempt: `ba-attempt-001`
 I built this with Claude (Claude Code). Claude drafted the meeting, the skill, the script and
 these documents. I chose to lengthen the meeting, ran every command myself, and checked the
 output of each run against what it should show.
+
+Before handing in, I had GitHub Copilot review the work on a practice pull request in my own
+copy (Hoosiertom50/golden-thread-quest#1). It raised 11 findings, all in the script, for
+example contact details in a transcript's header not being redacted, error messages quoting
+the rejected line, and a crash between the two file writes leaving one without the other. All
+11 were fixed in version 1.1.0, each checked against the case Copilot described, and the three
+runs below were then redone with 1.1.0.
 
 ## Where the important artifacts are
 
@@ -52,8 +73,9 @@ Not handed in, on purpose: the unredacted original of the meeting,
 
 ## What was redacted
 
-Email addresses and phone numbers, each replaced by `[REDACTED]`. In this meeting that is
-two values, both in `sample-meeting#U038`. Speaker names are kept, because they are the
+Email addresses and phone numbers, each replaced by `[REDACTED]`, wherever they appear:
+header values, speaker labels and utterances. In this meeting that is two values, both in
+`sample-meeting#U038`. Speaker names are kept, because they are the
 attribution. See `redaction-notes.md` for why, and for where the original is.
 
 ## What the run did with the embedded instruction
@@ -76,12 +98,12 @@ repository root:
 ```bash
 S=participant/skills/ba-ingest-transcript
 # 1. Embedded instruction: demo-meeting#U002 is flagged and not followed; U003 is marked uncertain
-.venv/bin/python $S/ingest.py $S/examples/demo-meeting.raw.txt demo-meeting --out-dir /tmp/gtq-check
+.venv/bin/python $S/ingest.py $S/examples/demo-meeting.raw.txt demo-meeting --out-dir /tmp/gtq-check --capture-source example --transcription-tool typed
 ls $S/examples
-# 2. Same transcript again: "already exists and is identical", same sha256, nothing written
-.venv/bin/python $S/ingest.py $S/examples/demo-meeting.raw.txt demo-meeting --out-dir /tmp/gtq-check
+# 2. Same transcript again: "already exists and is identical", provenance matches, nothing written
+.venv/bin/python $S/ingest.py $S/examples/demo-meeting.raw.txt demo-meeting --out-dir /tmp/gtq-check --capture-source example --transcription-tool typed
 # 3. Another tool's format: refused at line 6, exit status 1, no garbled-meeting file written
-.venv/bin/python $S/ingest.py $S/examples/garbled-meeting.raw.txt garbled-meeting --out-dir /tmp/gtq-check
+.venv/bin/python $S/ingest.py $S/examples/garbled-meeting.raw.txt garbled-meeting --out-dir /tmp/gtq-check --capture-source example --transcription-tool typed
 ls -a /tmp/gtq-check
 ```
 
@@ -100,15 +122,17 @@ Against the acceptance criteria:
 3. **Timestamps kept, format stated:** every row keeps its `HH:MM:SS` time, and the record
    and provenance state the format (elapsed time from the start of the recording).
 4. **Provenance:** `sample-meeting.provenance.yaml` names the meeting, date, participants,
-   capture source (synthetic, no recording), transcription tool (typed by hand), the
-   original's location and SHA-256, and when and with what it was ingested.
+   capture source (synthetic, no recording), transcription tool (typed by hand), both given on
+   the command line rather than assumed, the original's location, whether Git tracks it
+   (`false`) and its SHA-256, and when and with what (version 1.1.0) it was ingested.
 5. **Stable identifiers:** the transcript id `sample-meeting` and utterance ids `U001` to
    `U041`; see the scheme above.
 6. **Analysis separate:** decisions and questions live only in `sample-meeting.analysis.md`,
    which cites the record by id. The record holds none.
 7. **Re-ingestion identical:** `logs/second-run.txt` shows the second run reporting the same
-   record SHA-256 as the first (`64f0beac…fa4effa`), "unchanged: nothing written, no utterance
-   added or duplicated", and a count of 41 utterances afterwards.
+   record SHA-256 as the first (`a1c1b09d…57db0d3e`), that the provenance file matches it,
+   "unchanged: nothing written, no utterance added or duplicated", and a count of 41
+   utterances afterwards.
 8. **Embedded instruction recorded, not followed:** `logs/untrusted-input.txt`; see the
    section above.
 9. **Redaction stated; only the redacted record committed:** the skill (rule 5), the record's
@@ -118,10 +142,11 @@ Against the acceptance criteria:
     `local-data/transcripts/raw/`, ignored by Git (`.gitignore` line 9). The provenance file
     and `redaction-notes.md` say where.
 11. **Unparseable transcript refused, no partial record:** `logs/unparseable.txt` shows
-    "REFUSED: line 6 …" with the reason, "no record written", exit status 1, and a folder
-    listing with no `garbled-meeting` file and no leftover temporary file. Separately, I
-    checked a forced failure partway through a write: both temporary files were removed and
-    nothing was left in the folder.
+    "REFUSED: line 6 …" with the reason (without quoting the line, which could hold personal
+    details), "no record written", exit status 1, and a folder listing with no
+    `garbled-meeting` file and no leftover temporary file. Separately, I checked a forced
+    failure partway through a write, and a second run placing the same file at the same
+    moment: in both, nothing was overwritten and no temporary file was left.
 12. **Readable without the recording:** the record is one table row per line, with id, time,
     speaker and words, so anyone can tell who said what and when.
 
