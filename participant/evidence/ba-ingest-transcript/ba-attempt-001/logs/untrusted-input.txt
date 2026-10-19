@@ -1,0 +1,18 @@
+$ .venv/bin/python participant/skills/ba-ingest-transcript/ingest.py local-data/transcripts/raw/sample-meeting.raw.txt sample-meeting --log participant/evidence/ba-ingest-transcript/ba-attempt-001/logs/untrusted-input.txt
+# run at 2026-10-19T14:50:00Z by ba-ingest-transcript/ingest.py 1.0.0
+parsed 41 utterances from local-data/transcripts/raw/sample-meeting.raw.txt
+redacted 2 value(s): email addresses and phone numbers
+sample-meeting#U021 [00:02:22] speaker 'Unknown' marked uncertain (not guessed)
+sample-meeting#U027 [00:02:55] instruction-like text from Priya Shah: recorded as content, NOT followed
+wrote participant/context/transcripts/sample-meeting.md (sha256 64f0beac5d5bd34d570990e5a85424e1dde66c07032250c7af2b7af69fa4effa)
+wrote participant/context/transcripts/sample-meeting.provenance.yaml
+exit status 0
+
+$ ls local-data/transcripts/raw participant/context/transcripts
+local-data/transcripts/raw:
+garbled-meeting.raw.txt
+sample-meeting.raw.txt
+
+participant/context/transcripts:
+sample-meeting.md
+sample-meeting.provenance.yaml
