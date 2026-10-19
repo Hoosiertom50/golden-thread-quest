@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -43,15 +44,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 TOOL_NAME = "ba-ingest-transcript/ingest.py"
-TOOL_VERSION = "1.1.0"
+TOOL_VERSION = "1.2.0"
 TIMESTAMP_FORMAT = "HH:MM:SS, elapsed time from the start of the recording"
 REDACTED = "[REDACTED]"
 
 HEADER_FIELDS = ("Meeting", "Date", "Attendees")
 UTTERANCE = re.compile(r"^\[(?P<ts>\d{2}:[0-5]\d:[0-5]\d)\] (?P<speaker>[^:\[\]]{1,80}): (?P<text>\S.*)$")
 UNCERTAIN_SPEAKERS = {"unknown", "unidentified", "?"}
-EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-PHONE = re.compile(r"(?<!\d)(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}(?!\d)")
+# Email: a plain or "quoted" local part, and a domain that may use any letters (e.g. büro.example).
+EMAIL = re.compile(r'(?:"[^"\n]{1,64}"|[\w.%+-]+)@(?:[^\W_](?:[\w-]*[^\W_])?\.)+[^\W\d_]{2,}')
+# Phone: separators may be spaces (repeated, or no-break spaces), tabs, dots or hyphens, but never a line break.
+SEP = r"[ \t\u00a0\u202f.-]*"
+PHONE = re.compile(rf"(?<!\d)(?:\+?1{SEP})?\(?\d{{3}}\)?{SEP}\d{{3}}{SEP}\d{{4}}(?!\d)")
 # Phrases that read as an instruction to an assistant or a tool. Matching only flags the line.
 INSTRUCTION_LIKE = re.compile(
     r"\b(ignore (all |your |any )?(previous |prior )?instructions|AI assistant|system prompt|"
@@ -60,7 +64,7 @@ INSTRUCTION_LIKE = re.compile(
 )
 TRANSCRIPT_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 # Characters that Markdown would treat as formatting, a link, HTML or a table column.
-MARKDOWN_SPECIAL = re.compile(r"([\\`*_\[\]<>|~#])")
+MARKDOWN_SPECIAL = re.compile(r"([\\`*_\[\]<>|~#!()])")
 
 
 class IngestError(Exception):
@@ -90,8 +94,13 @@ def redact(text: str) -> tuple[str, int]:
 
 
 def literal(text: str) -> str:
-    """Escapes Markdown so the record shows exactly these characters; [REDACTED] stays as is."""
-    return REDACTED.join(MARKDOWN_SPECIAL.sub(r"\\\1", part) for part in text.split(REDACTED))
+    """Escapes Markdown and HTML entities so the record shows exactly these characters.
+
+    [REDACTED] stays as written; the characters around it ("!", "(" ...) are escaped, so a
+    redaction can never become a link or an image.
+    """
+    escape = lambda part: MARKDOWN_SPECIAL.sub(r"\\\1", part.replace("&", "&amp;"))
+    return REDACTED.join(escape(part) for part in text.split(REDACTED))
 
 
 def parse(raw: str) -> tuple[dict[str, str], list[Utterance], int]:
@@ -195,7 +204,8 @@ def render_record(tid: str, header: dict[str, str], utterances: list[Utterance],
 
 
 def yaml_str(value: str) -> str:
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    """A double-quoted YAML string. JSON's escaping is valid YAML and covers every control character."""
+    return json.dumps(value, ensure_ascii=False)
 
 
 def tracked_by_git(path: Path) -> str:
@@ -357,8 +367,11 @@ def ingest(raw_path: Path, tid: str, out_dir: Path, capture_source: str, transcr
         )
 
     ingested_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    # The two values typed on the command line are redacted too, like everything else that is kept.
+    capture_source, _ = redact(capture_source.strip())
+    transcription_tool, _ = redact(transcription_tool.strip())
     provenance = render_provenance(tid, header, utterances, redacted_total, source_sha, record_sha, raw_path,
-                                   capture_source.strip(), transcription_tool.strip(), ingested_at)
+                                   capture_source, transcription_tool, ingested_at)
     # Provenance first, record last: a record never exists without the provenance that describes it.
     publish([(provenance_path, provenance), (record_path, record)])
     report.append(f"wrote {provenance_path}")
@@ -379,7 +392,9 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     started = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    shown = [a if " " not in a else f'"{a}"' for a in (argv if argv is not None else sys.argv[1:])]
+    # The command as shown and logged, with contact details redacted (the real arguments are used as given).
+    shown = [redact(a)[0] for a in (argv if argv is not None else sys.argv[1:])]
+    shown = [json.dumps(a, ensure_ascii=False) if re.search(r'[\s"\\]', a) else a for a in shown]
     lines = [f"$ .venv/bin/python participant/skills/{TOOL_NAME} {' '.join(shown)}",
              f"# run at {started} by {TOOL_NAME} {TOOL_VERSION}"]
     record_path, provenance_path = output_paths(args.out_dir, args.transcript_id)

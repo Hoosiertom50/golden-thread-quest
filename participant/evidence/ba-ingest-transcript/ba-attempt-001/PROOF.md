@@ -44,6 +44,14 @@ the rejected line, and a crash between the two file writes leaving one without t
 11 were fixed in version 1.1.0, each checked against the case Copilot described, and the three
 runs below were then redone with 1.1.0.
 
+A second Copilot review confirmed all 11 resolved and raised 6 more, all about unusual input:
+quoted or accented email addresses, phone numbers with doubled or no-break spaces, contact
+details typed into the command's own options, characters that could still render as a link,
+and control characters in the provenance. All 6 were fixed in version 1.2.0 and checked
+against Copilot's examples. They don't affect this meeting: 1.2.0 produces a byte-identical
+record (same SHA-256, `a1c1b09d…57db0d3e`), so the three runs were not repeated, and their
+logs and the provenance file show version 1.1.0, the version that made them.
+
 ## Where the important artifacts are
 
 | Artifact | Path |
@@ -157,8 +165,11 @@ any of the handed-in files.
 
 - One input format only (`[HH:MM:SS] Speaker: text` with a short header). Others, such as
   WebVTT exports, are refused rather than converted.
-- Redaction covers email addresses and phone numbers. Other personal details, such as street
-  addresses, are not detected and would need a manual check before committing.
+- Redaction covers email addresses and phone numbers, including the unusual forms the second
+  review found. Other personal details, such as street addresses or names spoken inside an
+  utterance, are not detected and would need a manual check before committing.
+- Two rounds of Copilot review each found new edge cases. More may exist; the ones found are
+  fixed and listed above.
 - "Instruction-like" flagging is a short list of phrases. It helps the reader. The real
   protection is the skill's rule that nothing in a transcript is ever followed.
 - Sequence ids depend on the record never changing. A corrected transcript has to be ingested
