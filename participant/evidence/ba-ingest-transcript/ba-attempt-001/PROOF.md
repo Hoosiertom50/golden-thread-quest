@@ -52,13 +52,18 @@ against Copilot's examples. They don't affect this meeting: 1.2.0 produces a byt
 record (same SHA-256, `a1c1b09d…57db0d3e`), so the three runs were not repeated, and their
 logs and the provenance file show version 1.1.0, the version that made them.
 
-Before the third and last review I set a stop rule, the one I use at work: fix every High
-finding, list the Medium and Low ones as limitations, and hand in. The third review raised 4
+Before the third review I set a stop rule, the one I use at work: fix every High finding and
+list the Medium and Low ones as limitations. After the third review still found Highs, I
+extended it: keep reviewing until a round finds no High at all. The third review raised 4
 High findings, all about contact details getting through: email addresses written as an
 address literal (`name@[192.0.2.1]`), phone numbers using typographic dashes (– —), and contact
 details inside a file name reaching the provenance file, the screen or the log. All 4 are fixed
 in version 1.3.0, which also produces a byte-identical record for this meeting. Its 4 Medium
 findings are listed under Remaining limitations.
+
+The fourth review found no High findings and no open issues, and confirmed the 4 Highs
+resolved. It noted 2 more Medium findings, also listed under Remaining limitations. That met
+the stop rule, so the review ended there.
 
 ## Where the important artifacts are
 
@@ -176,13 +181,19 @@ any of the handed-in files.
 - Redaction covers email addresses and phone numbers, including the unusual forms the second
   review found. Other personal details, such as street addresses or names spoken inside an
   utterance, are not detected and would need a manual check before committing.
-- Four Medium findings from the third Copilot review are not fixed (by the stop rule above):
+- Six Medium findings from the third and fourth Copilot reviews are not fixed (by the stop
+  rule above):
   - a few rare control characters (DEL and the C1 range) in a title or command option can
     still make the provenance file invalid YAML;
   - a transcript id ending in a line break is accepted;
   - a speaker label holding terminal control codes is printed to the terminal as is;
   - an existing record whose line endings were changed by hand would still be reported as
-    unchanged, because it is compared as text rather than as bytes.
+    unchanged, because it is compared as text rather than as bytes;
+  - a mistyped command makes Python's own option parser print its error before redaction, so
+    an email typed into a bad option is shown on screen;
+  - a system error (an unreadable or unwritable file or folder, or a folder given where a file
+    is expected) is shown as Python reports it, unredacted, so a path holding contact details
+    could appear on screen or in the log.
 - Each Copilot round found new edge cases in unusual input. More may exist.
 - "Instruction-like" flagging is a short list of phrases. It helps the reader. The real
   protection is the skill's rule that nothing in a transcript is ever followed.
