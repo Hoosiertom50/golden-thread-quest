@@ -1,0 +1,16 @@
+schema_version: 1
+participant:
+  id: participant
+  display_name: thomascarter
+selected_track: pilot-analysts-and-testers
+attempts:
+- attempt_id: ba-attempt-001
+  quest_id: ba-ingest-transcript
+  quest_version: 4
+  content_hash: sha256:237610e383705248804a8bcc80cf44ba44ab1b14e560816f01fb38623147976e
+  state: submitted
+  started_at: '2026-10-19T14:13:10Z'
+  updated_at: '2026-10-19T16:28:45Z'
+  evidence_path: participant/evidence/ba-ingest-transcript/ba-attempt-001
+  submission_id: submission-20261019162845-0a428e
+updated_at: '2026-10-19T16:28:45Z'
