@@ -13,7 +13,8 @@ real is touched. Every run follows the rules a real integration must:
 
   1. Credentials come only from the environment: FAKE_BUG_TRACKER_TOKEN must be set. It is never
      printed, logged or stored.
-  2. A write is previewed first and only happens after the person types exactly "yes".
+  2. A write is previewed first and only happens after the person types exactly "yes" at a
+     terminal. An answer piped or redirected in is refused, so a script can't say yes for them.
   3. Each defect has a key; if that key already exists, nothing is filed (no duplicates).
   4. Before writing, the intended write is noted in local-data/fake-bug-tracker/pending.json. A run
      that is cut off part way is settled by the next run: if the defect was written, it is not
@@ -40,7 +41,7 @@ import tempfile
 from pathlib import Path
 
 TOOL = "participant/tools/fake-bug-tracker.py"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 STORE_DIR = Path("local-data/fake-bug-tracker")
 STORE = STORE_DIR / "defects.json"
 PENDING = STORE_DIR / "pending.json"
@@ -148,6 +149,7 @@ def settle_pending(defects: list[dict]) -> None:
 def cmd_list() -> int:
     require_token()
     defects = load_items()
+    settle_pending(defects)  # a list straight after a cut-off run settles it too
     print(f"read {len(defects)} defect(s) from the fake bug tracker")
     for d in defects:
         print(f"  {d['key']} [{d['severity']}]: {d['title']} (filed {d['filed_at']})")
@@ -156,7 +158,7 @@ def cmd_list() -> int:
 
 
 def cmd_file(key: str, severity: str, title: str) -> int:
-    if not KEY.match(key):
+    if not KEY.fullmatch(key):
         raise Refused("the key must look like BUG-101: 2 to 10 capital letters or digits, a hyphen, then 1 to 6 digits")
     title = " ".join(title.split())
     if not title or len(title) > 200:
@@ -175,6 +177,9 @@ def cmd_file(key: str, severity: str, title: str) -> int:
     print("preview: this defect would be filed in the fake bug tracker:")
     print("  " + json.dumps({k: defect[k] for k in ("key", "severity", "title")}, ensure_ascii=False))
     audit("preview", key, f"would file [{severity}]: {title}", "asked")
+    if not sys.stdin.isatty():
+        # Confirmation has to come from a person at the keyboard, not from piped or redirected input.
+        raise Refused("confirmation must be typed at a terminal; piped or redirected input can't confirm a write")
     try:
         answer = input('Type "yes" to file it, anything else to cancel: ')
     except EOFError:
@@ -192,9 +197,10 @@ def cmd_file(key: str, severity: str, title: str) -> int:
         print(f"SIMULATED CRASH: stopped right after writing {key}, before recording that the run finished")
         sys.stdout.flush()
         os._exit(CRASH_EXIT)
+    # Record the confirmed write before removing the note, so a run cut off in between is still settled.
+    audit("file defect", key, f"filed [{severity}]: {title}", "yes")
     PENDING.unlink()
     print(f"filed {key}")
-    audit("file defect", key, f"filed [{severity}]: {title}", "yes")
     return 0
 
 

@@ -28,12 +28,14 @@ The sections below give the detail for the reviewer, criterion by criterion.
   `local-data/fake-bug-tracker/`, which Git ignores, so nothing real is ever touched. It:
   - takes its credential only from the environment (`FAKE_BUG_TRACKER_TOKEN`), and never
     prints, logs or stores it;
-  - previews every write and only writes after the person types exactly `yes`;
+  - previews every write and only writes after the person types exactly `yes` at a terminal
+    (a `yes` piped or redirected in is refused, so a script can't confirm for a person);
   - refuses to file a defect whose key is already filed, so a rerun never duplicates;
   - notes each write in `local-data/fake-bug-tracker/pending.json` before doing it, so the
     next run can settle a run that was cut off;
-  - writes every file through a temporary file that is always removed, so a failed write
-    leaves nothing behind;
+  - writes every file through a temporary file and renames it into place, so a file is never
+    half-replaced; if a write fails with an error, the temporary file is removed (an abrupt
+    stop, such as a power cut, can still leave one behind; see the limitations);
   - adds a row to the audit log for every read, preview, write, skip, cancellation, refusal
     and recovery.
 - **An audit log**, `participant/context/audit-log.md`, written by the tracker: 9 rows from my
@@ -45,6 +47,16 @@ I built this with Claude (Claude Code). Claude drafted the ownership document, t
 this proof, and I decided how I appear in the audit log, what the fake defects are, and to do
 the optional interruption demonstration. I ran every command myself and checked each output.
 I did not look at anyone else's solution to this quest.
+
+Before handing in, I had GitHub Copilot review the work on a practice pull request in my own
+copy (Hoosiertom50/golden-thread-quest#2). It found no High findings and 10 Medium ones. I
+fixed the three where my documents claimed more than was true (credentials can't be
+committed "even by mistake"; the app "never commits"; temporary files are "always" removed)
+and four small code issues: a piped `yes` could confirm a write without anyone at the
+keyboard, a `list` right after a crash didn't settle it, the "filed" audit row came after the
+pending note was removed, and a key with a hidden line break was accepted. That is version
+1.1.0, and I redid every run with it. The other three are listed under Remaining
+limitations.
 
 ## Where the important artifacts are
 
@@ -96,7 +108,7 @@ These commands add rows to the audit log in whichever copy they are run in.
   A list showed exactly 2 defects and the folder held only `defects.json`
   (`logs/recovery-run.txt`).
 - **What the audit log shows for the crash:** there is no "filed" row for BUG-102, because
-  the crashed run never got to write one. The `recover` row at 19:23:50Z records that the
+  the crashed run never got to write one. The `recover` row at 19:39:22Z records that the
   write had happened. I left it that way rather than inventing a row afterwards.
 
 ## What was tested or validated
@@ -120,8 +132,9 @@ Against the acceptance criteria:
 7. **Understandable without asking the AI:** the ownership document is written for a person,
    with tables and a "How to check this is true" section of commands anyone can run.
 
-The registered validator, `validate-repository-foundation`, is run from the evidence page; its
-result is saved in this attempt's `validation/` folder. The application's own secret scan
+The registered validator, `validate-repository-foundation`, is run from the evidence page as
+the last step before submitting. The app saves its result in this attempt's `validation/`
+folder, so it is in the hand-in but not in earlier drafts. The application's own secret scan
 found nothing in any of the files above.
 
 **Reflection** (the quest's question): code enforces the confirmation prompt, the no-duplicate
@@ -134,8 +147,18 @@ structure enforces what reaches Git, through `.gitignore` and keeping private da
 
 - The "outside system" is a local file. A real tracker would add network failures, rate
   limits and permissions, which this does not exercise.
-- Recovery covers one interrupted write at a time (one pending note). Two runs at the same
-  moment are not prevented.
+- Recovery covers one interrupted write at a time (one pending note).
+- Two runs at the same moment are not prevented, and are worse than a duplicate: if one run
+  waits at its prompt while another files a defect, confirming the first would overwrite the
+  file without the second defect. A real integration would lock the tracker for the whole
+  operation.
+- The tool writes to fixed paths and follows folder shortcuts (symlinks). If someone replaced
+  `local-data/fake-bug-tracker` or `participant/context` with a link, writes would follow it
+  outside the repository. The quest app itself guards against this; this small tool does not.
+- A temporary file left by an abrupt stop (power cut, killed process) is not cleaned up
+  automatically. One left under `participant/` would be committed by `gtq hand-in`, so
+  `git status --short participant` is worth a look first.
+- The terminal check proves someone typed at a keyboard, not who they were.
 - The crash is simulated at one point, right after the write. A crash before the write is
   also handled (the pending note is cleared and nothing was filed), but I did not record a
   run of it.
