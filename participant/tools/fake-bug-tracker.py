@@ -14,7 +14,8 @@ real is touched. Every run follows the rules a real integration must:
   1. Credentials come only from the environment: FAKE_BUG_TRACKER_TOKEN must be set. It is never
      printed, logged or stored.
   2. A write is previewed first and only happens after the person types exactly "yes" at a
-     terminal. An answer piped or redirected in is refused, so a script can't say yes for them.
+     terminal. An answer piped or redirected in is refused. (A program that fakes a terminal could
+     still answer; this stops the simple case, not a determined one.)
   3. Each defect has a key; if that key already exists, nothing is filed (no duplicates).
   4. Before writing, the intended write is noted in local-data/fake-bug-tracker/pending.json. A run
      that is cut off part way is settled by the next run: if the defect was written, it is not

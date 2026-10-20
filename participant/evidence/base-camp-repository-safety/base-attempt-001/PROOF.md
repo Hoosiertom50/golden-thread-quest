@@ -29,7 +29,8 @@ The sections below give the detail for the reviewer, criterion by criterion.
   - takes its credential only from the environment (`FAKE_BUG_TRACKER_TOKEN`), and never
     prints, logs or stores it;
   - previews every write and only writes after the person types exactly `yes` at a terminal
-    (a `yes` piped or redirected in is refused, so a script can't confirm for a person);
+    (a `yes` piped or redirected in is refused; this stops the simple way of confirming
+    without anyone at the keyboard, though a determined program could still fake a terminal);
   - refuses to file a defect whose key is already filed, so a rerun never duplicates;
   - notes each write in `local-data/fake-bug-tracker/pending.json` before doing it, so the
     next run can settle a run that was cut off;
@@ -134,8 +135,10 @@ Against the acceptance criteria:
 
 The registered validator, `validate-repository-foundation`, is run from the evidence page as
 the last step before submitting. The app saves its result in this attempt's `validation/`
-folder, so it is in the hand-in but not in earlier drafts. The application's own secret scan
-found nothing in any of the files above.
+folder, so it is in the hand-in but not in earlier drafts.
+
+Claude ran the application's secret-scanning function for me over every file under `participant/`, not
+just the evidence files the app's own scan covers. It found nothing.
 
 **Reflection** (the quest's question): code enforces the confirmation prompt, the no-duplicate
 rule, the pending-note recovery and the credential coming from the environment. Repository
@@ -158,7 +161,9 @@ structure enforces what reaches Git, through `.gitignore` and keeping private da
 - A temporary file left by an abrupt stop (power cut, killed process) is not cleaned up
   automatically. One left under `participant/` would be committed by `gtq hand-in`, so
   `git status --short participant` is worth a look first.
-- The terminal check proves someone typed at a keyboard, not who they were.
+- The terminal check refuses ordinary piped or redirected input. It does not prove a person
+  typed the answer: a program can create a fake terminal and send `yes`, and it says nothing
+  about who was at the keyboard. Human approval still depends on the person running it.
 - The crash is simulated at one point, right after the write. A crash before the write is
   also handled (the pending note is cleared and nothing was filed), but I did not record a
   run of it.
