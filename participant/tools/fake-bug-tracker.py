@@ -42,7 +42,7 @@ import tempfile
 from pathlib import Path
 
 TOOL = "participant/tools/fake-bug-tracker.py"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 STORE_DIR = Path("local-data/fake-bug-tracker")
 STORE = STORE_DIR / "defects.json"
 PENDING = STORE_DIR / "pending.json"
@@ -114,6 +114,15 @@ def load_items() -> list[dict]:
         raise Refused(f"{STORE} is not valid JSON; it was left as it is") from None
     if not isinstance(data, list):
         raise Refused(f"{STORE} is not a list of defects; it was left as it is")
+    # Every entry must be a whole defect, so a damaged file is refused clearly instead of crashing.
+    for n, d in enumerate(data, start=1):
+        if not (
+            isinstance(d, dict)
+            and isinstance(d.get("key"), str) and KEY.fullmatch(d["key"])
+            and d.get("severity") in SEVERITIES
+            and all(isinstance(d.get(f), str) and d[f] for f in ("title", "filed_at", "filed_by"))
+        ):
+            raise Refused(f"{STORE} entry {n} is not a complete defect; the file was left as it is for a person to check")
     return data
 
 
@@ -136,6 +145,8 @@ def settle_pending(defects: list[dict]) -> None:
     try:
         pending = json.loads(PENDING.read_text(encoding="utf-8"))
         key = pending["key"]
+        if not (isinstance(key, str) and KEY.fullmatch(key)):
+            raise TypeError
     except (json.JSONDecodeError, KeyError, TypeError):
         raise Refused(f"{PENDING} is unreadable; it was left as it is for a person to check") from None
     if find(defects, key):
@@ -185,6 +196,11 @@ def cmd_file(key: str, severity: str, title: str) -> int:
         answer = input('Type "yes" to file it, anything else to cancel: ')
     except EOFError:
         answer = ""
+    except KeyboardInterrupt:
+        # Ctrl-C at the prompt is a cancellation like any other, and is audited as one.
+        print("\ncancelled with Ctrl-C: nothing written")
+        audit("file defect", key, "cancelled by the person (Ctrl-C), nothing written", "no")
+        return 1
     print(f"answer: {answer!r}")
     if answer.strip() != "yes":
         print("cancelled: nothing written")

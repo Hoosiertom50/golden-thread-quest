@@ -55,9 +55,15 @@ fixed the three where my documents claimed more than was true (credentials can't
 committed "even by mistake"; the app "never commits"; temporary files are "always" removed)
 and four small code issues: a piped `yes` could confirm a write without anyone at the
 keyboard, a `list` right after a crash didn't settle it, the "filed" audit row came after the
-pending note was removed, and a key with a hidden line break was accepted. That is version
-1.1.0, and I redid every run with it. The other three are listed under Remaining
-limitations.
+pending note was removed, and a key with a hidden line break was accepted. That was version
+1.1.0. The other three are listed under Remaining limitations.
+
+A second Copilot review confirmed those 10 resolved, found no High, and raised 5 new Medium
+findings. My bar was no High and at most 3 Mediums, so I fixed two claims that overstated
+things (the terminal check, and how far the secret scan reached) and two code issues I judged
+worth it: pressing Ctrl-C at the prompt cancelled without an audit row, and a damaged data
+file wasn't checked entry by entry. That is version 1.2.0, and every run in this hand-in was
+redone with it. The fifth, about power-loss durability, is listed under Remaining limitations.
 
 ## Where the important artifacts are
 
@@ -158,6 +164,8 @@ structure enforces what reaches Git, through `.gitignore` and keeping private da
 - The tool writes to fixed paths and follows folder shortcuts (symlinks). If someone replaced
   `local-data/fake-bug-tracker` or `participant/context` with a link, writes would follow it
   outside the repository. The quest app itself guards against this; this small tool does not.
+- After a write the tool forces the file onto the disk but not the folder's record of it, so a
+  power cut in that split second could lose the last save (it could not duplicate it).
 - A temporary file left by an abrupt stop (power cut, killed process) is not cleaned up
   automatically. One left under `participant/` would be committed by `gtq hand-in`, so
   `git status --short participant` is worth a look first.

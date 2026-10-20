@@ -1,4 +1,0 @@
-$ .venv/bin/python participant/tools/fake-bug-tracker.py list
-# run at 2026-10-20T19:37:59Z by participant/tools/fake-bug-tracker.py 1.1.0
-read 0 defect(s) from the fake bug tracker
-exit status 0
