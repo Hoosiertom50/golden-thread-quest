@@ -316,6 +316,9 @@ Labyrinth 20, and 7 hidden challenges.
   capability as its own scope item.
 - **Recommendation:** decide how many regions to build after the pilot. The full 128 is a
   plan, not a promise.
+- **Plan:** `08-curriculum-plan.md` (2026-10-20) orders the regions and sizes the 120 unbuilt quests.
+  At the program owner's instruction, step C1 (Base Camp, 8 quests) was built on 2026-10-20 while
+  the pilot runs; it is unreleased until the next gate.
 
 ### Phase 5: Engineering hygiene
 
