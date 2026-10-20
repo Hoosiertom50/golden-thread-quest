@@ -110,7 +110,7 @@ def load_items() -> list[dict]:
         return []
     try:
         data = json.loads(STORE.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         raise Refused(f"{STORE} is not valid JSON; it was left as it is") from None
     if not isinstance(data, list):
         raise Refused(f"{STORE} is not a list of defects; it was left as it is")
@@ -147,7 +147,7 @@ def settle_pending(defects: list[dict]) -> None:
         key = pending["key"]
         if not (isinstance(key, str) and KEY.fullmatch(key)):
             raise TypeError
-    except (json.JSONDecodeError, KeyError, TypeError):
+    except (json.JSONDecodeError, UnicodeDecodeError, KeyError, TypeError):
         raise Refused(f"{PENDING} is unreadable; it was left as it is for a person to check") from None
     if find(defects, key):
         print(f"recovery: an earlier run was cut off after filing {key}; it is there, so it is not filed again")

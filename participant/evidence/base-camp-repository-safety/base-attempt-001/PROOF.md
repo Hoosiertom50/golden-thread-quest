@@ -62,7 +62,10 @@ A second Copilot review confirmed those 10 resolved, found no High, and raised 5
 findings. My bar was no High and at most 3 Mediums, so I fixed two claims that overstated
 things (the terminal check, and how far the secret scan reached) and two code issues I judged
 worth it: pressing Ctrl-C at the prompt cancelled without an audit row, and a damaged data
-file wasn't checked entry by entry. That is version 1.2.0, and every run in this hand-in was
+file wasn't checked entry by entry. A third review found no High and three Mediums: the run
+records were missing (I had cleared them to redo the runs), a data file of garbled bytes
+crashed the tool instead of being refused (fixed, as part of the same damaged-file fix), and a
+mistyped command isn't audited (listed under Remaining limitations). That is version 1.2.0, and every run in this hand-in was
 redone with it. The fifth, about power-loss durability, is listed under Remaining limitations.
 
 ## Where the important artifacts are
@@ -164,6 +167,8 @@ structure enforces what reaches Git, through `.gitignore` and keeping private da
 - The tool writes to fixed paths and follows folder shortcuts (symlinks). If someone replaced
   `local-data/fake-bug-tracker` or `participant/context` with a link, writes would follow it
   outside the repository. The quest app itself guards against this; this small tool does not.
+- A mistyped command (for example an unknown severity) is refused by Python's own option
+  parser before the tool starts, so it writes nothing but also adds no "refused" audit row.
 - After a write the tool forces the file onto the disk but not the folder's record of it, so a
   power cut in that split second could lose the last save (it could not duplicate it).
 - A temporary file left by an abrupt stop (power cut, killed process) is not cleaned up
