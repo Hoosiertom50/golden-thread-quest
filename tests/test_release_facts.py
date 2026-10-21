@@ -165,6 +165,12 @@ EXPECTED_WRITE_QUESTS = {
     "github-close-reopen",
     "github-link-delivery",
     "github-idempotent-write",
+    "trello-create-card",
+    "trello-add-checklist-item",
+    "trello-add-comment",
+    "trello-move-card",
+    "trello-update-card",
+    "trello-idempotent-write",
 }
 
 
