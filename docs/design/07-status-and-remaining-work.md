@@ -316,6 +316,10 @@ Labyrinth 20, and 7 hidden challenges.
   capability as its own scope item.
 - **Recommendation:** decide how many regions to build after the pilot. The full 128 is a
   plan, not a promise.
+- **Plan:** `08-curriculum-plan.md` (2026-10-20) orders the regions and sizes the 120 unbuilt quests.
+  At the program owner's instruction, all nine steps (C1 to C9) were built, audited and merged on
+  2026-10-20 and 2026-10-21 while the pilot runs, and released as 0.3.0. The curriculum now has
+  128 quests in nine regions. See `docs/audits/curriculum-final-audit.md`.
 
 ### Phase 5: Engineering hygiene
 

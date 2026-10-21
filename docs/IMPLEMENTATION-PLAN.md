@@ -471,6 +471,7 @@ Update this section whenever work pauses.
 
 | Date/time | Branch | Current stage | Last completed item | Next action | Blockers |
 |---|---|---:|---|---|---|
+| 2026-10-21 | release/0.3.0 | C1-C9 | All nine curriculum steps built, audited and merged (128 quests, nine regions); final audit written; version 0.3.0 | Pilot continues on 0.3.0; Gate 2 decides what comes next, including reviewer load and sandbox access for write quests | Nobody outside the project has read the quest content |
 | 2026-09-30 | phase-2a1/non-technical-onboarding | 2A.1 | Participants are BAs and manual testers: `install.sh`, `gtq start`/`hand-in`/`get-review`, `PILOT.md` rewritten, release 0.2.1. Verify pass: two high findings fixed, cycle 2 clean | Program owner runs `install.sh` on their Mac and asks participants which computer they use; then sends the invitation (Phase 2B) | Windows participants: WSL only |
 | 2026-10-04 | phase-2a2/first-day-fixes | 2A.2 | Hand-in names ignored files, no unsigned API call in setup, transcript quest first on a pilot track, release 0.2.2. Verify pass: two high and two medium findings fixed | Program owner runs the `v0.2.2` setup line (demo), then sends the invitation (Phase 2B) | Windows participants: WSL only |
 | 2026-10-05 | phase-2a2/gate | 2A.2 gate | Demo on real GitHub: setup's fork check fixed (0.2.3), idle-connection log lines quieted (0.2.4); Phase 2A.2 gate passed, design guide 2.3.0 | Program owner sends the invitation for 0.2.4 (Phase 2B) | None |

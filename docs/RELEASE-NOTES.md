@@ -1,10 +1,37 @@
 # Release Notes: Pilot Release
 
-**Version:** 0.2.4
-**Date:** 2026-10-05
+**Version:** 0.3.0
+**Date:** 2026-10-21
 **Status:** released to a small invited pilot, not for general use. The release checklist
 passed (`docs/audits/phase-01-verify.md`), and the program owner released it at Gate 1
 (`docs/audits/final-audit.md`). Pilot participants start with `docs/guides/PILOT.md`.
+
+## What changed in 0.3.0
+
+- **The whole curriculum.** 128 quests across nine regions, up from eight quests, one per
+  region: Base Camp 9, BA Ruins 13, Scrum Village 9, Context Library 12, Playwright Labyrinth
+  20, Jira Jungle 23, GitHub Caverns 18, Trello Islands 17, and a new region, Trap Cards, with
+  7 adversarial challenges. Every row of `docs/CURRICULUM-BACKLOG.md` now has a quest. The
+  quests are content only: no application code, schema, template or validator changed.
+- **Nineteen quests write to an outside system, to a sandbox.** They are the first that
+  declare `risk.external_write: true` (Jira 7, GitHub 6, Trello 6). Each requires a preview of
+  the target and exact changes, permission and duplicate checks, a confirmation tied to the
+  preview, a result record with identifiers and a time, rerun safety and a sandbox allowlist.
+  The application still performs no write; these are controls the participant builds and the
+  reviewer reads. `tests/test_release_facts.py` now holds them in the content: it names the
+  nineteen quests and fails if any control is missing from a quest's required proof, if a
+  write quest is untagged, or if one is added without being named. The old test, which said no
+  quest writes, is replaced by this stricter one. `docs/SECURITY-AND-PRIVACY.md` says what is
+  and is not enforced.
+- **A test helper handles shared prerequisites.** `unlock` in the integration tests skips a
+  prerequisite already verified, so a quest reachable by two paths can be tested.
+- **The pilot quest is unchanged.** `ba-ingest-transcript` keeps its version, and so do the
+  seven other original quests. A participant's existing progress is unaffected.
+
+What this release does not do: nobody outside the project has reviewed the content of the new
+quests, only independent audit passes (`docs/audits/curriculum-final-audit.md`). Participants
+who want to do a write quest need a sandbox Jira project, GitHub repository or Trello board;
+who provides them is not yet decided.
 
 ## What changed in 0.2.4
 
@@ -134,7 +161,7 @@ them. It does not own them.
 
 | | |
 |---|---|
-| Tests | 1414 under `make check`, plus 57 browser-driven under `make test-ui`. Both are collected counts; a run also reports whatever it skipped. |
+| Tests | 1654 under `make check`, plus 57 browser-driven under `make test-ui`. Both are collected counts; a run also reports whatever it skipped. |
 | Screens | 11, plus tag pages |
 | Schemas | 10 |
 | Sample validators | 3 quest-facing, plus 2 registered environment probes and one unregistered slow probe used only to prove the timeout |
