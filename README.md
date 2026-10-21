@@ -70,10 +70,10 @@ address. Open it.
 
 | | |
 |---|---|
-| Tests | 1697 — 1640 under `make check`, 57 driving a real browser. The line `make check` prints counts skips too, and it can read higher than the total above: a module that skips itself as a whole because an optional dependency is missing (`pytest.importorskip`) counts as one skip, not one per test it would have contained. |
+| Tests | 1711 — 1654 under `make check`, 57 driving a real browser. The line `make check` prints counts skips too, and it can read higher than the total above: a module that skips itself as a whole because an optional dependency is missing (`pytest.importorskip`) counts as one skip, not one per test it would have contained. |
 | Screens | 13 page templates, 11 reusable components |
 | Schemas | 10, validating content, progress, reviews, validation results and the validator registry |
-| Sample curriculum | 8 regions, 121 quests, 4 badges, 2 tracks |
+| Sample curriculum | 9 regions, 128 quests, 4 badges, 2 tracks |
 | Sample validators | 3 quest-facing, plus 2 registered probes and one unregistered slow probe used only by the tests |
 | Build time | the shipped curriculum plus 200 synthetic quests, in under a second |
 
@@ -118,7 +118,7 @@ checklist, and at Gate 1 the program owner released 0.2.0 to a pilot.
 `docs/audits/` holds every audit. An external review, early in that
 history, left the engine a release candidate and the participant journey short: three quests
 across eight regions was a demonstration rather than a journey. Since then every region has a
-quest — eight quests, one per region.
+quest — eight quests, one per region. The curriculum has since been built out to the full backlog: 128 quests across nine regions.
 
 The application works end to end today. What is not signed off is putting it in front of a
 cohort. Curriculum depth is no longer zero anywhere, but one quest per region is a first
