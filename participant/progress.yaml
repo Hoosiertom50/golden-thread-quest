@@ -14,4 +14,13 @@ attempts:
   evidence_path: participant/evidence/ba-ingest-transcript/ba-attempt-001
   submission_id: submission-20261019162845-0a428e
   review_id: review-20261020182805-3a5480
-updated_at: '2026-10-20T18:28:05Z'
+- attempt_id: base-attempt-001
+  quest_id: base-camp-repository-safety
+  quest_version: 2
+  content_hash: sha256:961a703db315b6da63e2a0e8f9cd3bc8db210f269a6451505236a78d84d250b3
+  state: submitted
+  started_at: '2026-10-20T19:14:21Z'
+  updated_at: '2026-10-21T15:23:17Z'
+  evidence_path: participant/evidence/base-camp-repository-safety/base-attempt-001
+  submission_id: submission-20261021152317-5bbdaa
+updated_at: '2026-10-21T15:23:17Z'
