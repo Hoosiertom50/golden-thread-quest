@@ -159,6 +159,12 @@ EXPECTED_WRITE_QUESTS = {
     "jira-transition-status",
     "jira-link-work",
     "jira-idempotent-create",
+    "github-create-issue",
+    "github-add-comment",
+    "github-update-metadata",
+    "github-close-reopen",
+    "github-link-delivery",
+    "github-idempotent-write",
 }
 
 
