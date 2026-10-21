@@ -18,9 +18,10 @@ attempts:
   quest_id: base-camp-repository-safety
   quest_version: 2
   content_hash: sha256:961a703db315b6da63e2a0e8f9cd3bc8db210f269a6451505236a78d84d250b3
-  state: submitted
+  state: verified
   started_at: '2026-10-20T19:14:21Z'
-  updated_at: '2026-10-21T15:23:17Z'
+  updated_at: '2026-10-21T17:28:04Z'
   evidence_path: participant/evidence/base-camp-repository-safety/base-attempt-001
   submission_id: submission-20261021152317-5bbdaa
-updated_at: '2026-10-21T15:23:17Z'
+  review_id: review-20261021172804-2b2f7b
+updated_at: '2026-10-21T17:28:04Z'
