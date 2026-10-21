@@ -118,7 +118,7 @@ These commands add rows to the audit log in whichever copy they are run in.
   A list showed exactly 2 defects and the folder held only `defects.json`
   (`logs/recovery-run.txt`).
 - **What the audit log shows for the crash:** there is no "filed" row for BUG-102, because
-  the crashed run never got to write one. The `recover` row at 19:39:22Z records that the
+  the crashed run never got to write one. The `recover` row at 15:07:50Z records that the
   write had happened. I left it that way rather than inventing a row afterwards.
 
 ## What was tested or validated
