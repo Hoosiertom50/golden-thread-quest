@@ -70,10 +70,10 @@ address. Open it.
 
 | | |
 |---|---|
-| Tests | 1549 — 1492 under `make check`, 57 driving a real browser. The line `make check` prints counts skips too, and it can read higher than the total above: a module that skips itself as a whole because an optional dependency is missing (`pytest.importorskip`) counts as one skip, not one per test it would have contained. |
+| Tests | 1587 — 1530 under `make check`, 57 driving a real browser. The line `make check` prints counts skips too, and it can read higher than the total above: a module that skips itself as a whole because an optional dependency is missing (`pytest.importorskip`) counts as one skip, not one per test it would have contained. |
 | Screens | 13 page templates, 11 reusable components |
 | Schemas | 10, validating content, progress, reviews, validation results and the validator registry |
-| Sample curriculum | 8 regions, 47 quests, 4 badges, 2 tracks |
+| Sample curriculum | 8 regions, 66 quests, 4 badges, 2 tracks |
 | Sample validators | 3 quest-facing, plus 2 registered probes and one unregistered slow probe used only by the tests |
 | Build time | the shipped curriculum plus 200 synthetic quests, in under a second |
 
