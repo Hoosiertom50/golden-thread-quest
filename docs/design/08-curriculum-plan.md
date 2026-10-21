@@ -59,7 +59,9 @@ Steps C2 to C9 are sketches until their gate and are planned in full only then.
 ## 8.4 Definition of done for a region
 
 - Every backlog row for the region has a quest file with its proposed ID, name and level.
-- Prerequisites are acyclic and every quest is reachable from `base-camp-repository-safety`.
+- Prerequisites are acyclic and every quest is reachable from a quest with no prerequisites. A
+  region may have its own first quest (BA Ruins starts at `ba-ingest-transcript`, which the
+  pilot's analysts take first) rather than forcing every participant through Base Camp.
 - A reviewer can decide each quest without facilitator knowledge.
 - Quests that write to an external system declare it in `risk` and require preview and
   confirmation.
