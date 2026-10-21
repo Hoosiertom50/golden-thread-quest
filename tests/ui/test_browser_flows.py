@@ -180,7 +180,16 @@ class TestCatalogFiltering:
         page.wait_for_timeout(150)
         assert page.input_value("#filter-region") == "jira-jungle"
         shown = page.eval_on_selector_all("[data-search]:not([hidden])", "n => n.length")
-        assert shown == 1
+        # The expected number is what the content tree holds for the region, not a constant:
+        # this assertion used to say 1 when every region had one quest.
+        in_region = len(
+            list(
+                (Path(__file__).resolve().parents[2] / "content" / "quests" / "jira-jungle").glob(
+                    "*.md"
+                )
+            )
+        )
+        assert shown == in_region
         page.close()
 
     def test_sorting_reorders_the_results(self, browser: object, served: str) -> None:
