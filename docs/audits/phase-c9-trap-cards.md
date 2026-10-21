@@ -8,4 +8,4 @@ Result: no Blocking and no High findings. Five Medium findings were fixed: a nea
 
 Known weaknesses: `accent: teal` repeats the Trello region's, because the schema allows eight accents and all are in use; the `trap` icon has no dedicated rendering.
 
-Tests: 1688 non-browser tests passed in total (static checks; 280 quest-chain tests in 8 shards; 1373 others in the concurrent run plus the one concurrency-sensitive test rerun alone and passing). The browser tests were not run.
+Tests: 1654 non-browser tests passed in total (static checks; 280 quest-chain tests in 8 shards; 1373 others in the concurrent run plus the one concurrency-sensitive test rerun alone and passing). The browser tests were not run.
