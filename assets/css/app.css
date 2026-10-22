@@ -564,7 +564,14 @@ textarea { min-height: 8rem; resize: vertical; }
 :root {
   /* Map palette: muted, drawn from the ink and paper tokens. Region colour comes from the
      region's accent, never from here. */
-  --map-sea: #d9e6ea;
+  --map-sea: #cfdfe2;
+  --map-shallow: #e1ede9;
+  --map-land: #efe0b6;
+  --map-ink: #4d3a24;
+  --map-river: #5f9fc0;
+  --map-ridge: #9a8f7c;
+  --map-ridge-dark: #7a705f;
+  --map-pine: #4b7a52;
   --map-rock: #8d9298;
   --map-rock-dark: #6d737b;
   --map-snow: #f4f6f8;
@@ -582,22 +589,39 @@ textarea { min-height: 8rem; resize: vertical; }
 
 .map-symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
 
-.map-scroll { overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--map-sea); }
+.map-scroll { overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--map-ink); background: var(--map-sea); }
 /* The ratio matches CANVAS_WIDTH / CANVAS_HEIGHT in quest_app/map_layout.py; a test holds them
    together. It lives here, not in a style attribute, because the Content Security Policy
    allows stylesheets from this origin only. */
 .map-board { min-width: 56rem; width: 100%; aspect-ratio: 1000 / 640; }
 .map-art { width: 100%; height: 100%; display: block; }
 .map-sea { fill: var(--map-sea); }
-.compass-ring { fill: none; stroke: var(--ink-600); stroke-width: 1.5; opacity: 0.7; }
-.compass-needle { fill: var(--ink-600); opacity: 0.55; }
-.compass-north { fill: var(--ink-900); opacity: 0.8; }
+.m-wave { fill: none; stroke: #7d9fab; stroke-width: 2.4; stroke-linecap: round; opacity: 0.8; }
+.continent-halo { fill: var(--map-shallow); stroke: var(--map-shallow); stroke-width: 34; stroke-linejoin: round; opacity: 0.9; }
+.continent-edge { fill: var(--map-land); stroke: var(--map-ink); stroke-width: 5; stroke-linejoin: round; }
+.continent-fill { fill: var(--map-land); stroke: none; }
+.map-lake { fill: #a6cfdc; stroke: var(--map-river); stroke-width: 1.6; }
+.map-river-bank { fill: none; stroke: var(--map-ink); stroke-width: 6.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.35; }
+.map-river { fill: none; stroke: var(--map-river); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.m-ridge { fill: var(--map-ridge); stroke: var(--map-ink); stroke-width: 3; stroke-linejoin: round; }
+.m-ridge-dark { fill: var(--map-ridge-dark); }
+.m-pine { fill: var(--map-pine); stroke: #2f5236; stroke-width: 2.5; stroke-linejoin: round; }
+.m-trunk { fill: var(--map-wood); }
+.map-paper { fill: none; pointer-events: none; }
+.map-vignette { fill: url(#map-vignette); pointer-events: none; }
+.map-frame { fill: none; stroke: var(--map-ink); stroke-width: 3; pointer-events: none; }
+.map-frame-inner { stroke-width: 1.2; }
+.compass-ring { fill: #f3e8c8; fill-opacity: 0.75; stroke: var(--map-ink); stroke-width: 1.6; }
+.compass-inner { fill: none; stroke-width: 1; }
+.compass-needle { fill: var(--map-ink); opacity: 0.6; }
+.compass-north { fill: var(--map-flag); }
+.compass-n { font: 700 17px Georgia, serif; fill: var(--map-ink); }
 
 .land-link { cursor: pointer; }
 .land-shape {
   fill: var(--surface-muted);
-  fill: color-mix(in srgb, var(--region-accent, var(--ink-500)) 40%, var(--surface));
-  stroke: var(--ink-700);
+  fill: color-mix(in srgb, var(--region-accent, var(--ink-500)) 46%, var(--map-land));
+  stroke: var(--map-ink);
   stroke-width: 1.6;
   stroke-linejoin: round;
   transition: filter var(--duration-fast) var(--easing);

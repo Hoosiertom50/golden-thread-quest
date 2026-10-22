@@ -14,6 +14,7 @@ reading the drawing (`docs/ui/SCREEN-SPECS.md`, U02).
 from __future__ import annotations
 
 import hashlib
+import heapq
 import math
 from dataclasses import dataclass
 
@@ -69,12 +70,27 @@ class MapLand:
 
 
 @dataclass(frozen=True, slots=True)
+class MapDecor:
+    """The scenery under and between the regions. Decoration only: nothing in it is data."""
+
+    continent: tuple[str, ...] = ()
+    rivers: tuple[str, ...] = ()
+    lakes: tuple[str, ...] = ()
+    mountains: tuple[tuple[float, float, float], ...] = ()
+    trees: tuple[tuple[float, float, float], ...] = ()
+    waves: tuple[tuple[float, float], ...] = ()
+    ships: tuple[tuple[float, float], ...] = ()
+    compass: tuple[float, float] = (0.0, 0.0)
+
+
+@dataclass(frozen=True, slots=True)
 class MapLayout:
     width: float
     height: float
     lands: tuple[MapLand, ...]
     label_width: float = LABEL_WIDTH
     label_height: float = LABEL_HEIGHT
+    decor: MapDecor = MapDecor()
 
 
 def _unit(seed: str, index: int) -> float:
@@ -83,16 +99,22 @@ def _unit(seed: str, index: int) -> float:
     return int.from_bytes(digest[:4], "big") / 2**32
 
 
-def _blob(cx: float, cy: float, radius: float, seed: str) -> str:
+def _blob(
+    cx: float,
+    cy: float,
+    radius: float,
+    seed: str,
+    bulge: float = _BULGE,
+    count: int = _COAST_POINTS,
+) -> str:
     """A smooth closed outline around a centre: Catmull-Rom through noisy radial points."""
     points = []
-    for i in range(_COAST_POINTS):
-        angle = 2 * math.pi * i / _COAST_POINTS
-        wobble = 1 + _BULGE * (2 * _unit(seed, i) - 1)
+    for i in range(count):
+        angle = 2 * math.pi * i / count
+        wobble = 1 + bulge * (2 * _unit(seed, i) - 1)
         points.append(
             (cx + radius * wobble * math.cos(angle), cy + radius * wobble * math.sin(angle) * 0.9)
         )
-    count = len(points)
     path = [f"M{points[0][0]:.1f},{points[0][1]:.1f}"]
     for i in range(count):
         p0, p1, p2, p3 = (
@@ -269,4 +291,276 @@ def build_layout(items: list[MapRegionInput]) -> MapLayout:
                 label_y=round(cy + radius * _LABEL_TOP + LABEL_HEIGHT / 2, 1),
             )
         )
-    return MapLayout(CANVAS_WIDTH, CANVAS_HEIGHT, tuple(lands))
+    layout = MapLayout(CANVAS_WIDTH, CANVAS_HEIGHT, tuple(lands))
+    return MapLayout(layout.width, layout.height, layout.lands, decor=_scenery(layout))
+
+
+# ---------------------------------------------------------------------------------------
+# Scenery. A continent under the regions, and rivers, lakes, mountains, forests, waves and
+# ships in whatever room is left. Every piece is placed by rejection against the lands and
+# their labels, from numbers seeded by the layout, so the same map comes out every build and
+# nothing is ever drawn where it could hide a region or its name.
+# ---------------------------------------------------------------------------------------
+
+_SCENE = "scenery"
+_EDGE = 30.0  # nothing is placed nearer the canvas edge than this
+_COAST_INSET = 52.0  # the continent's coast stays this far inside the frame
+
+
+def _reach_of(land: MapLand) -> float:
+    return land.radius * (_ARCHIPELAGO_REACH if land.terrain == "islands" else 1 + _BULGE)
+
+
+def _clearance(x: float, y: float, layout: MapLayout) -> float:
+    """How far a point is from the nearest land or label, negative when it is on one."""
+    best = math.inf
+    half_w, half_h = layout.label_width / 2, layout.label_height / 2
+    for land in layout.lands:
+        best = min(best, math.hypot(x - land.cx, y - land.cy) - _reach_of(land))
+        dx = max(abs(x - land.label_x) - half_w, 0.0)
+        dy = max(abs(y - land.label_y) - half_h, 0.0)
+        best = min(best, math.hypot(dx, dy) if (dx or dy) else -1.0)
+    return best
+
+
+def _continent_discs(layout: MapLayout) -> list[tuple[float, float, float]]:
+    """Discs whose union is the continent: each land, grown, plus a bridge to its neighbours."""
+
+    def held(cx: float, cy: float, wanted: float, least: float) -> float:
+        """Grow a disc as far as `wanted`, but keep its coast clear of the frame."""
+        room = min(
+            cx - _COAST_INSET,
+            layout.width - _COAST_INSET - cx,
+            cy - _COAST_INSET,
+            layout.height - _COAST_INSET - cy,
+        )
+        return max(least, min(wanted, room))
+
+    discs = [
+        (land.cx, land.cy, held(land.cx, land.cy, _reach_of(land) * 1.5, _reach_of(land) * 1.1))
+        for land in layout.lands
+    ]
+    for land in layout.lands:
+        others = sorted(
+            (other for other in layout.lands if other is not land),
+            key=lambda o: math.hypot(o.cx - land.cx, o.cy - land.cy),
+        )
+        for other in others[:2]:
+            gap = math.hypot(other.cx - land.cx, other.cy - land.cy)
+            mx, my = (land.cx + other.cx) / 2, (land.cy + other.cy) / 2
+            discs.append((mx, my, held(mx, my, gap * 0.42, 0.0)))
+    return discs
+
+
+def _on_continent(
+    x: float, y: float, discs: list[tuple[float, float, float]], scale: float = 1.0
+) -> bool:
+    return any(math.hypot(x - cx, y - cy) <= r * scale for cx, cy, r in discs)
+
+
+def _smooth_open(points: list[tuple[float, float]]) -> str:
+    if len(points) < 3:
+        return ""
+    path = [f"M{points[0][0]:.1f},{points[0][1]:.1f}"]
+    last = len(points) - 1
+    for i in range(last):
+        p0, p1 = points[max(i - 1, 0)], points[i]
+        p2, p3 = points[i + 1], points[min(i + 2, last)]
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
+        path.append(f"C{c1[0]:.1f},{c1[1]:.1f} {c2[0]:.1f},{c2[1]:.1f} {p2[0]:.1f},{p2[1]:.1f}")
+    return "".join(path)
+
+
+def _inside(x: float, y: float, layout: MapLayout, margin: float = _EDGE) -> bool:
+    return margin <= x <= layout.width - margin and margin <= y <= layout.height - margin
+
+
+def _scenery(layout: MapLayout) -> MapDecor:
+    if not layout.lands:
+        return MapDecor()
+    discs = _continent_discs(layout)
+    continent = tuple(
+        _blob(cx, cy, r, f"{_SCENE}:c{i}", bulge=0.2, count=22)
+        for i, (cx, cy, r) in enumerate(discs)
+    )
+
+    # Mountain ranges: a short curved row of peaks, set where there is room.
+    mountains: list[tuple[float, float, float]] = []
+    ranges: list[tuple[float, float]] = []
+    for i in range(400):
+        if len(ranges) >= 9:
+            break
+        x = _EDGE + (layout.width - 2 * _EDGE) * _unit(f"{_SCENE}:mx", i)
+        y = _EDGE + (layout.height - 2 * _EDGE) * _unit(f"{_SCENE}:my", i)
+        if not _on_continent(x, y, discs, 0.95) or _clearance(x, y, layout) < 34:
+            continue
+        if any(math.hypot(x - rx, y - ry) < 150 for rx, ry in ranges):
+            continue
+        ranges.append((x, y))
+        tilt = 2 * math.pi * _unit(f"{_SCENE}:mt", i)
+        for k in range(-2, 3):
+            size = 15 + 7 * _unit(f"{_SCENE}:ms", i * 7 + k)
+            px = x + k * 17 * math.cos(tilt) + 5 * math.sin(k * 1.7)
+            py = y + k * 17 * math.sin(tilt) * 0.6 + 6 * math.cos(k * 1.3)
+            if _inside(px, py, layout) and _clearance(px, py, layout) > 14:
+                mountains.append((round(px, 1), round(py, 1), round(size, 1)))
+
+    # Forests: small clusters of trees.
+    trees: list[tuple[float, float, float]] = []
+    woods: list[tuple[float, float]] = []
+    for i in range(500):
+        if len(woods) >= 13:
+            break
+        x = _EDGE + (layout.width - 2 * _EDGE) * _unit(f"{_SCENE}:fx", i)
+        y = _EDGE + (layout.height - 2 * _EDGE) * _unit(f"{_SCENE}:fy", i)
+        if not _on_continent(x, y, discs, 0.95) or _clearance(x, y, layout) < 26:
+            continue
+        if any(math.hypot(x - wx, y - wy) < 58 for wx, wy in woods) or any(
+            math.hypot(x - mx, y - my) < 30 for mx, my, _ in mountains
+        ):
+            continue
+        woods.append((x, y))
+        for k in range(9):
+            angle = 2 * math.pi * _unit(f"{_SCENE}:fa{i}", k)
+            reach = 24 * math.sqrt(_unit(f"{_SCENE}:fr{i}", k))
+            px, py = x + reach * math.cos(angle), y + reach * math.sin(angle) * 0.8
+            if _inside(px, py, layout) and _clearance(px, py, layout) > 9:
+                trees.append(
+                    (round(px, 1), round(py, 1), round(8 + 5 * _unit(f"{_SCENE}:fs{i}", k), 1))
+                )
+
+    # Lakes.
+    lakes: list[str] = []
+    for i in range(300):
+        if len(lakes) >= 2:
+            break
+        x = _EDGE + (layout.width - 2 * _EDGE) * _unit(f"{_SCENE}:lx", i)
+        y = _EDGE + (layout.height - 2 * _EDGE) * _unit(f"{_SCENE}:ly", i)
+        if _on_continent(x, y, discs, 0.9) and _clearance(x, y, layout) > 30:
+            if all(math.hypot(x - mx, y - my) > 40 for mx, my, _ in mountains):
+                lakes.append(
+                    _blob(
+                        x,
+                        y,
+                        15 + 8 * _unit(f"{_SCENE}:lr", i),
+                        f"{_SCENE}:lake{i}",
+                        bulge=0.3,
+                        count=12,
+                    )
+                )
+
+    # Rivers: each runs from the foot of a mountain range to the sea, by the cheapest way
+    # through the gaps between the regions (a grid search whose costs are jittered, so it
+    # wanders like water), and never over a region or its label.
+    cell = 12.0
+    cols, rows = int(layout.width // cell), int(layout.height // cell)
+    free: dict[tuple[int, int], float] = {}
+    land_cells: set[tuple[int, int]] = set()
+    for j in range(rows):
+        for i in range(cols):
+            cx, cy = (i + 0.5) * cell, (j + 0.5) * cell
+            if _on_continent(cx, cy, discs, 0.96):
+                land_cells.add((i, j))
+            if _inside(cx, cy, layout, 20):
+                free[(i, j)] = _clearance(cx, cy, layout)
+    # Sea is water that connects to the edge of the map; a gap inside the continent is not.
+    sea: set[tuple[int, int]] = set()
+    edge = [
+        (i, j) for i in range(cols) for j in range(rows) if i in (0, cols - 1) or j in (0, rows - 1)
+    ]
+    pending = [cell_ for cell_ in edge if cell_ not in land_cells]
+    sea.update(pending)
+    while pending:
+        i, j = pending.pop()
+        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nxt = (i + di, j + dj)
+            if (
+                0 <= nxt[0] < cols
+                and 0 <= nxt[1] < rows
+                and nxt not in land_cells
+                and nxt not in sea
+            ):
+                sea.add(nxt)
+                pending.append(nxt)
+    found: list[tuple[int, str]] = []
+    for index, (sx, sy) in enumerate(ranges):
+        start = min(
+            free,
+            key=lambda c, sx=sx, sy=sy: math.hypot(
+                (c[0] + 0.5) * cell - sx, (c[1] + 0.5) * cell - sy + 14
+            ),
+            default=None,
+        )
+        if start is None:
+            continue
+        best_cost: dict[tuple[int, int], float] = {start: 0.0}
+        came: dict[tuple[int, int], tuple[int, int]] = {}
+        queue: list[tuple[float, tuple[int, int]]] = [(0.0, start)]
+        goal: tuple[int, int] | None = None
+        while queue:
+            cost, here = heapq.heappop(queue)
+            if cost > best_cost.get(here, math.inf):
+                continue
+            if here in sea:
+                goal = here
+                break
+            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                nxt = (here[0] + di, here[1] + dj)
+                room = free.get(nxt)
+                if room is None:
+                    continue
+                jitter = 1 + 0.9 * _unit(f"{_SCENE}:rv{index}", nxt[0] * 131 + nxt[1])
+                # Over a region or its label costs a lot, because the river is hidden there;
+                # beside one costs a little, so it keeps to the open ground.
+                crowding = 14.0 if room < 0 else (6.0 - min(room, 6.0)) * 0.25
+                step = (1.41 if di and dj else 1.0) * jitter + crowding
+                if cost + step < best_cost.get(nxt, math.inf):
+                    best_cost[nxt] = cost + step
+                    came[nxt] = here
+                    heapq.heappush(queue, (cost + step, nxt))
+        if goal is None:
+            continue
+        cells = [goal]
+        while cells[-1] in came:
+            cells.append(came[cells[-1]])
+        cells.reverse()
+        if len(cells) < 9:
+            continue
+        points = [((i + 0.5) * cell, (j + 0.5) * cell) for i, j in cells[::2]]
+        found.append((len(points), _smooth_open(points)))
+    rivers = [path for _, path in sorted(found, key=lambda f: -f[0])[:3]]
+
+    # Open sea: wave marks, and a ship or two.
+    waves: list[tuple[float, float]] = []
+    for i in range(600):
+        if len(waves) >= 30:
+            break
+        x = 24 + (layout.width - 48) * _unit(f"{_SCENE}:wx", i)
+        y = 24 + (layout.height - 48) * _unit(f"{_SCENE}:wy", i)
+        if _on_continent(x, y, discs, 1.1) or _clearance(x, y, layout) < 30:
+            continue
+        if all(math.hypot(x - wx, y - wy) > 62 for wx, wy in waves):
+            waves.append((round(x, 1), round(y, 1)))
+    ships = tuple(waves[i] for i in (3, 11) if i < len(waves))
+    waves = [w for w in waves if w not in ships]
+
+    # The compass goes in whichever corner has the most room.
+    corners = [
+        (layout.width - 62, 62),
+        (62, 62),
+        (62, layout.height - 62),
+        (layout.width - 62, layout.height - 62),
+    ]
+    compass = max(corners, key=lambda c: _clearance(c[0], c[1], layout))
+
+    return MapDecor(
+        continent=continent,
+        rivers=tuple(rivers),
+        lakes=tuple(lakes),
+        mountains=tuple(mountains),
+        trees=tuple(trees),
+        waves=tuple(waves),
+        ships=ships,
+        compass=compass,
+    )

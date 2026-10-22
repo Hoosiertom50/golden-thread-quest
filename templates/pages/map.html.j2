@@ -26,13 +26,31 @@
   <div class="map-scroll">
     <div class="map-board">
       <svg class="map-art" viewBox="0 0 {{ layout.width | int }} {{ layout.height | int }}" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Map of the regions. Each region's label is a link.">
-        <g aria-hidden="true">
-          <rect class="map-sea" x="0" y="0" width="{{ layout.width | int }}" height="{{ layout.height | int }}" rx="14"/>
-          <g class="map-compass" transform="translate({{ (layout.width - 70) | int }},78)">
-            <circle r="26" class="compass-ring"/>
-            <polygon class="compass-needle" points="0,-22 6,0 0,22 -6,0"/>
-            <polygon class="compass-north" points="0,-22 6,0 -6,0"/>
+        <defs>
+          <clipPath id="map-clip"><rect x="0" y="0" width="{{ layout.width | int }}" height="{{ layout.height | int }}" rx="14"/></clipPath>
+          <filter id="map-paper" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise"/>
+            <feColorMatrix type="matrix" values="0 0 0 0 0.36  0 0 0 0 0.27  0 0 0 0 0.15  0 0 0 0.2 0"/>
+          </filter>
+          <radialGradient id="map-vignette" cx="0.5" cy="0.5" r="0.72">
+            <stop offset="0.62" stop-color="#5b4326" stop-opacity="0"/>
+            <stop offset="1" stop-color="#5b4326" stop-opacity="0.42"/>
+          </radialGradient>
+        </defs>
+        <g aria-hidden="true" clip-path="url(#map-clip)">
+          <rect class="map-sea" x="0" y="0" width="{{ layout.width | int }}" height="{{ layout.height | int }}"/>
+          {% for x, y in layout.decor.waves %}<use href="#decor-wave" x="{{ x - 22 }}" y="{{ y - 9 }}" width="44" height="18"/>{% endfor %}
+          {% for x, y in layout.decor.ships %}<use href="#decor-ship" x="{{ x - 17 }}" y="{{ y - 17 }}" width="34" height="34"/>{% endfor %}
+          <g class="continent">
+            {% for d in layout.decor.continent %}<path class="continent-halo" d="{{ d }}"/>{% endfor %}
+            {% for d in layout.decor.continent %}<path class="continent-edge" d="{{ d }}"/>{% endfor %}
+            {% for d in layout.decor.continent %}<path class="continent-fill" d="{{ d }}"/>{% endfor %}
           </g>
+          {% for d in layout.decor.lakes %}<path class="map-lake" d="{{ d }}"/>{% endfor %}
+          {% for d in layout.decor.rivers %}<path class="map-river-bank" d="{{ d }}"/><path class="map-river" d="{{ d }}"/>{% endfor %}
+          {% for x, y, s in layout.decor.mountains %}<use href="#decor-mountain" x="{{ x - s }}" y="{{ y - s }}" width="{{ s * 2 }}" height="{{ s * 2 }}"/>{% endfor %}
+          {% for x, y, s in layout.decor.trees %}<use href="#decor-tree" x="{{ x - s / 2 }}" y="{{ y - s }}" width="{{ s }}" height="{{ s * 1.5 }}"/>{% endfor %}
+          <rect class="map-paper" x="0" y="0" width="{{ layout.width | int }}" height="{{ layout.height | int }}" filter="url(#map-paper)"/>
           {% for land in layout.lands %}
           {% set card = cards[land.id] %}
           <a class="land-link" href="{{ url(card.route) }}" data-region-dialog="map-dialog-{{ land.id }}" tabindex="-1">
@@ -42,6 +60,17 @@
             </g>
           </a>
           {% endfor %}
+          <g class="map-compass" transform="translate({{ layout.decor.compass[0] }},{{ layout.decor.compass[1] }})">
+            <circle r="34" class="compass-ring"/>
+            <circle r="26" class="compass-ring compass-inner"/>
+            <polygon class="compass-needle" points="0,-30 7,0 0,30 -7,0"/>
+            <polygon class="compass-needle" points="-30,0 0,-7 30,0 0,7"/>
+            <polygon class="compass-north" points="0,-30 7,0 -7,0"/>
+            <text class="compass-n" y="-39" text-anchor="middle">N</text>
+          </g>
+          <rect class="map-vignette" x="0" y="0" width="{{ layout.width | int }}" height="{{ layout.height | int }}"/>
+          <rect class="map-frame" x="9" y="9" width="{{ (layout.width - 18) | int }}" height="{{ (layout.height - 18) | int }}" rx="8"/>
+          <rect class="map-frame map-frame-inner" x="15" y="15" width="{{ (layout.width - 30) | int }}" height="{{ (layout.height - 30) | int }}" rx="5"/>
         </g>
         {% for land in layout.lands %}
         {% set card = cards[land.id] %}
