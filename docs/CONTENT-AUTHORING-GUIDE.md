@@ -47,14 +47,17 @@ A quest that creates or changes something in Jira, GitHub, Trello or any other s
   production is out of bounds and what to do without a sandbox;
 - require in its **required proof** a preview of the target and exact changes, the result of a
   permission check and a duplicate check, a confirmation tied to the preview that is refused when
-  missing, different, expired or aimed at a non-sandbox target, a result record with a timestamp,
-  and a second run (`second time`) that creates no duplicate. The test looks for those words.
+  missing, different, expired or aimed at a non-sandbox target (`allowlist`), a result record with
+  a timestamp, and a second run (`second time`) that creates no duplicate. The test checks seven
+  words in the pooled proof descriptions: `preview`, `confirmation`, `permission check`,
+  `duplicate`, `timestamp`, `second time` and `allowlist`. The rest, such as the four refusals,
+  is not checked by the test and is read by a reviewer, so write it into the proof anyway.
 
 The existing Jira, GitHub and Trello write quests are the pattern to copy.
 
-Every acceptance criterion needs a required proof item whose description would show it. That was
-the most common defect found when 120 quests were audited, so check each criterion against the
-proof list before opening a pull request.
+Every acceptance criterion needs a required proof item whose description would show it. Audits of
+the 120 quests added in 0.3.0 found this missing again and again, so check each criterion against
+the proof list before opening a pull request.
 
 ## Write a strong mission
 

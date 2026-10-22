@@ -115,7 +115,8 @@ evidence:
 
 1. **A preview** of the exact target and the exact changes, with nothing written and the
    system shown unchanged afterwards.
-2. **A permission check and a duplicate check**, or a stated reason one is not possible.
+2. **A permission check and a duplicate check.** A duplicate check may be replaced by a stated
+   limit where the system cannot support one; a permission check may not.
 3. **A confirmation tied to that preview**, and the refusals that show it matters: missing, a
    change that differs, a preview that has expired, and a target that is not on the sandbox
    allowlist.

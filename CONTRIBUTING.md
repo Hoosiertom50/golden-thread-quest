@@ -47,7 +47,7 @@ minutes in one process; `make test-shard SHARD_COUNT=8 SHARD_INDEX=3` runs one e
 
 | Command | What it does |
 |---|---|
-| `make check` | Everything CI's `check` job runs |
+| `make check` | The static checks and every non-browser test (CI's `check` and `tests` jobs) |
 | `make format` | Rewrite code to the project style |
 | `make lint` | Static lint |
 | `make typecheck` | `mypy --strict` |

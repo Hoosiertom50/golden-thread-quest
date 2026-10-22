@@ -426,6 +426,7 @@ reasons, is in `docs/RELEASE-NOTES.md`.
     provide. The application itself performs no external write, so the preview, the
     confirmation and the result record are your evidence and a reviewer reads them; nothing
     in the product stops a write to the wrong place.
+
 ---
 
 ## 13. Where to go next
