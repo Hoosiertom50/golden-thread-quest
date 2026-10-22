@@ -36,10 +36,14 @@ you can run yourself, so nothing it does is hidden.
 
 ## Commands
 
-Run `make` with no arguments to list them. `make check` is exactly CI's `check` job, target for
-target, so a green `make check` locally means a green `check` job. CI also runs a `browser` job
-(`make test-ui`) and a `clean-export` job (`make verify-package`), which `make check` does not
-cover.
+Run `make` with no arguments to list them. `make check` is the static checks (CI's `check` job)
+plus every non-browser test (CI's `tests` job, which runs the same tests split into eight
+shards per Python version, because one job outgrew GitHub's six-hour limit once the
+curriculum reached 128 quests). A green `make check` locally means green `check` and `tests`
+jobs. CI also runs a `browser` job (`make test-ui`) and a `clean-export` job
+(`make verify-package`), which `make check` does not cover. The full suite takes about 90
+minutes in one process; `make test-shard SHARD_COUNT=8 SHARD_INDEX=3` runs one eighth of it, and
+`--shard-count` and `--shard-index` work on any `pytest` command.
 
 | Command | What it does |
 |---|---|

@@ -22,7 +22,8 @@ Write quests as professional, demonstrable work—not trivia and not instruction
     documents state about the project, and `make check` fails on purpose until they are
     corrected:
     - README.md's release-facts table: the **Sample curriculum** row (regions, quests,
-      badges, tracks) and the **Tests** row's `make check`/browser counts — a new quest
+      badges, tracks; a new region changes the region count, and the prose that says how many
+      regions there are, in `README.md` and `PACKAGE-MANIFEST.md`) and the **Tests** row's `make check`/browser counts — a new quest
       usually adds parametrized cases to existing test files, so the total moves even
       though no test file changed.
     - docs/RELEASE-NOTES.md's release-facts table: the same **Tests** row.
@@ -32,6 +33,28 @@ Write quests as professional, demonstrable work—not trivia and not instruction
     the front page's own claims about the project stay true.
 
 Do not edit templates, Python, JavaScript, or CSS merely to make a normal quest appear.
+
+## A quest that writes to an outside system
+
+A quest that creates or changes something in Jira, GitHub, Trello or any other service sets
+`risk.external_write: true`, and `tests/test_release_facts.py` then holds it to the controls in
+`docs/SECURITY-AND-PRIVACY.md`. A write quest must:
+
+- carry the tag `write`, and be named in `EXPECTED_WRITE_QUESTS` in that test, so adding one is a
+  deliberate edit;
+- follow `base-camp-write-preview`, directly or through a preview quest;
+- say in `risk.notes` that the target is a sandbox, and say in its safety constraints that
+  production is out of bounds and what to do without a sandbox;
+- require in its **required proof** a preview of the target and exact changes, the result of a
+  permission check and a duplicate check, a confirmation tied to the preview that is refused when
+  missing, different, expired or aimed at a non-sandbox target, a result record with a timestamp,
+  and a second run (`second time`) that creates no duplicate. The test looks for those words.
+
+The existing Jira, GitHub and Trello write quests are the pattern to copy.
+
+Every acceptance criterion needs a required proof item whose description would show it. That was
+the most common defect found when 120 quests were audited, so check each criterion against the
+proof list before opening a pull request.
 
 ## Write a strong mission
 

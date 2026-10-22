@@ -125,7 +125,10 @@ document stays a complete map of what is tested, rather than only of what was sp
 | A reviewer can approve, request changes or reject without a browser, on the same vocabulary and the same guards | `cli.py`, `review.record_decision` | `::test_a_reviewer_can_approve_without_a_browser`, `::test_approval_without_a_statement_is_refused`, `::test_a_malformed_finding_is_refused_rather_than_dropped`, `::test_approving_changed_evidence_needs_the_acknowledgement` |
 | A quest that declares no validators still reaches `submitted`, and one that declares them is still refused without a qualifying run | `actions.py` `_require_qualifying_validation` | `::test_a_quest_declaring_no_validators_can_still_reach_submitted`, `::test_a_quest_declaring_a_validator_is_refused_without_a_qualifying_run` |
 | The commands the guides tell a participant to type are installed and run | `pyproject.toml` entry points | `::test_the_commands_the_guides_name_are_actually_installed`, `::test_the_installed_command_runs` |
-| Python 3.10, the declared floor, runs the suite | `quest_app/compat.py` | the `3.10` leg of the `check` matrix in `.github/workflows/ci.yml` |
+| Python 3.10, the declared floor, runs the suite | `quest_app/compat.py` | the `3.10` legs of the `tests` matrix in `.github/workflows/ci.yml` |
+| A quest that declares an external write carries the five controls in its content (preview, permission and duplicate checks, confirmation tied to the preview, result record, rerun safety) plus a sandbox allowlist, follows the preview quest, is tagged `write` and is named in the test; the application itself still performs no write | `content/quests/{jira-jungle,github-caverns,trello-islands}/*` write quests; `docs/SECURITY-AND-PRIVACY.md` | `test_release_facts.py::test_a_quest_that_writes_to_an_external_system_carries_the_stated_controls` |
+| A quest reachable by two prerequisite paths can be unlocked in a test | `tests/integration/test_cli_actions.py::unlock` | every `test_cli_actions.py` test that parametrizes over the quests |
+| The test suite can be split into shards that partition the selection exactly, so CI fits GitHub's job limit | `tests/conftest.py` (`--shard-count`, `--shard-index`), `Makefile` `test-shard`, the `tests` job in `.github/workflows/ci.yml` | `unit/test_sharding.py` |
 
 ## Criterion coverage
 

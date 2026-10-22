@@ -12,6 +12,12 @@ Participants are business analysts and manual testers. Setup is one pasted line
 on Linux, and inside WSL on Windows. It does not install WSL, and native Windows is not
 supported yet. A Windows participant needs WSL set up already, or a Mac to borrow.
 
+**The application now holds 128 quests, but the pilot is still two.** The invitation asks for the
+transcript quest and, if there is time, Base Camp. Participants will see the other 126 in the
+catalog and the home page may recommend them; `docs/guides/PILOT.md` tells them to stop after
+the two. If a participant asks to try more, the Jira, GitHub and Trello quests need accounts
+and the 19 that write need a sandbox, which nobody has yet been assigned to provide.
+
 Fill in the date and paste this into Slack. The link points at the pilot guide exactly as
 tagged for 0.3.0, so it will not change under anyone.
 

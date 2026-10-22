@@ -92,8 +92,11 @@ was, with nothing straight after it: `token: [REDACTED]`. If the check still fla
 line, reword it as "the token was redacted".
 
 **The second quest.** After the transcript quest is verified, the home page recommends
-Base Camp. After Base Camp it may suggest a Jira quest, which needs a Jira account; that one
-is not part of the pilot.
+Base Camp. The application now lists 128 quests, and after Base Camp the home page may suggest
+others. Only the two quests above are part of the pilot, so stop after them. Many of the
+others need an account on Jira, GitHub or Trello, and 19 of them write to those systems and
+need a sandbox you would have to be given. If you are curious, you can read any quest page,
+but please do not start one unless your pilot lead has asked you to.
 
 ## Step 3: Hand in your work
 
