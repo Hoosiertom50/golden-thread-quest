@@ -576,6 +576,10 @@ before a participant opened it. Two colors, no third.
   Avoid: any number other than 9 and 3, a verified figure larger than the claimed figure,
     trophies, medals, stars, ribbons, a single progress bar merging the two values,
     percentage rings, confetti, document stacks, large empty areas, any sentence-length text
+- **Result**: Generated 2026-10-22 after the program owner approved the plan. Nine marks, six
+  outlined and three gold, "claimed 9" and "verified 3", and the only other text is
+  "passport". Gemini reported 2,026 tokens and an estimated cost of $0.14 (the plan quoted
+  about $0.12). The guide now uses this file; v2 stays on disk for comparison.
 
 ---
 
@@ -771,7 +775,7 @@ round-1 takes until this table existed. It is the record of what the guide actua
 | 4 — The eight states | `02-state-authority-v2.png` | v1 placed `locally validated` in the reviewer column, contradicting the one rule the image exists to state. |
 | 6 — What the application writes | `03-ownership-zones-v4.png` | Round 4 take; the first one with no misleading text. See below. |
 | 7 — Evidence | `04-evidence-package.png` | Correct in round 1; never superseded. |
-| 11 — Knowing when you are finished | `05-passport-outcome-v2.png` | v1 read `claimed 10601 / verified 10602`, showing verified exceeding claimed, which the application cannot produce. |
+| 11 — Knowing when you are finished | `05-passport-outcome-v3.png` | v3 draws nine region marks to match the nine regions since 0.3.0; v2 drew eight. v1 read `claimed 10601 / verified 10602`, showing verified exceeding claimed, which the application cannot produce; v2 fixed that and v3 keeps it (claimed 9, verified 3). |
 
 ### Why section 6 ships the v4 take
 

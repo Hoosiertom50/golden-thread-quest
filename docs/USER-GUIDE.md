@@ -390,7 +390,7 @@ There is no completion certificate, and that is the point. What you have at the 
 That is the thing you show someone. It is worth more than a score because none of it is
 self-assessed.
 
-![The passport shows claimed and verified progress as two separate totals that are never added together: an illustrative row of eight region marks (the application has nine regions), five outlined for claimed and three filled amber for verified, with claimed at eight and verified at three kept deliberately apart.](media/images/05-passport-outcome-v2.png)
+![The passport shows claimed and verified progress as two separate totals that are never added together: nine region marks, six outlined for claimed and three filled amber for verified, with claimed at nine and verified at three kept deliberately apart.](media/images/05-passport-outcome-v3.png)
 
 ---
 
