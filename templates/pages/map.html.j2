@@ -30,21 +30,29 @@
           <clipPath id="map-clip"><rect x="0" y="0" width="{{ layout.width | int }}" height="{{ layout.height | int }}" rx="14"/></clipPath>
           <filter id="map-paper" x="0" y="0" width="100%" height="100%">
             <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise"/>
-            <feColorMatrix type="matrix" values="0 0 0 0 0.36  0 0 0 0 0.27  0 0 0 0 0.15  0 0 0 0.2 0"/>
+            <feColorMatrix type="matrix" values="0 0 0 0 0.36  0 0 0 0 0.27  0 0 0 0 0.15  0 0 0 0.18 0"/>
           </filter>
+          <radialGradient id="map-sea-gradient" cx="0.5" cy="0.5" r="0.75">
+            <stop offset="0" stop-color="#2f5d70"/>
+            <stop offset="1" stop-color="#14293a"/>
+          </radialGradient>
           <radialGradient id="map-vignette" cx="0.5" cy="0.5" r="0.72">
-            <stop offset="0.62" stop-color="#5b4326" stop-opacity="0"/>
-            <stop offset="1" stop-color="#5b4326" stop-opacity="0.42"/>
+            <stop offset="0.6" stop-color="#0a141d" stop-opacity="0"/>
+            <stop offset="1" stop-color="#0a141d" stop-opacity="0.55"/>
           </radialGradient>
         </defs>
         <g aria-hidden="true" clip-path="url(#map-clip)">
           <rect class="map-sea" x="0" y="0" width="{{ layout.width | int }}" height="{{ layout.height | int }}"/>
           {% for x, y in layout.decor.waves %}<use href="#decor-wave" x="{{ x - 22 }}" y="{{ y - 9 }}" width="44" height="18"/>{% endfor %}
+          {% for word, x, y, turn in layout.decor.sea_names %}<text class="map-sea-name" x="{{ x }}" y="{{ y }}" text-anchor="middle" transform="rotate({{ turn }} {{ x }} {{ y }})">{{ word }}</text>{% endfor %}
           {% for x, y in layout.decor.ships %}<use href="#decor-ship" x="{{ x - 17 }}" y="{{ y - 17 }}" width="34" height="34"/>{% endfor %}
           <g class="continent">
             {% for d in layout.decor.continent %}<path class="continent-halo" d="{{ d }}"/>{% endfor %}
+            {% for land in layout.lands if land.terrain == 'islands' %}{% for d in land.paths %}<path class="continent-halo" d="{{ d }}"/>{% endfor %}{% endfor %}
             {% for d in layout.decor.continent %}<path class="continent-edge" d="{{ d }}"/>{% endfor %}
+            {% for land in layout.lands if land.terrain == 'islands' %}{% for d in land.paths %}<path class="continent-edge" d="{{ d }}"/>{% endfor %}{% endfor %}
             {% for d in layout.decor.continent %}<path class="continent-fill" d="{{ d }}"/>{% endfor %}
+            {% for land in layout.lands if land.terrain == 'islands' %}{% for d in land.paths %}<path class="continent-fill" d="{{ d }}"/>{% endfor %}{% endfor %}
           </g>
           {% for d in layout.decor.lakes %}<path class="map-lake" d="{{ d }}"/>{% endfor %}
           {% for d in layout.decor.rivers %}<path class="map-river-bank" d="{{ d }}"/><path class="map-river" d="{{ d }}"/>{% endfor %}
@@ -56,6 +64,8 @@
           <a class="land-link" href="{{ url(card.route) }}" data-region-dialog="map-dialog-{{ land.id }}" tabindex="-1">
             <g class="land accent-{{ card.region.accent }} terrain-{{ land.terrain }}">
               {% for d in land.paths %}<path class="land-shape" d="{{ d }}"/>{% endfor %}
+              <circle class="land-medal" cx="{{ land.medal_x }}" cy="{{ land.medal_y }}" r="{{ land.medal_radius }}"/>
+              <circle class="land-medal-ring" cx="{{ land.medal_x }}" cy="{{ land.medal_y }}" r="{{ land.medal_radius - 4 }}"/>
               <use href="#terrain-{{ land.terrain }}" x="{{ land.emblem_x }}" y="{{ land.emblem_y }}" width="{{ land.emblem_size }}" height="{{ land.emblem_size }}"/>
             </g>
           </a>

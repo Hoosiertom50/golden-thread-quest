@@ -65,6 +65,9 @@ class MapLand:
     emblem_x: float
     emblem_y: float
     emblem_size: float
+    medal_x: float
+    medal_y: float
+    medal_radius: float
     label_x: float
     label_y: float
 
@@ -80,6 +83,7 @@ class MapDecor:
     trees: tuple[tuple[float, float, float], ...] = ()
     waves: tuple[tuple[float, float], ...] = ()
     ships: tuple[tuple[float, float], ...] = ()
+    sea_names: tuple[tuple[str, float, float, float], ...] = ()
     compass: tuple[float, float] = (0.0, 0.0)
 
 
@@ -157,6 +161,17 @@ def _reach_factor(region: MapRegionInput) -> float:
     return _ARCHIPELAGO_REACH if region.terrain == "islands" else 1 + _BULGE
 
 
+def _separation(first: MapRegionInput, second: MapRegionInput) -> float:
+    """How many times their combined reach two lands keep apart.
+
+    Islands lie out at sea, so an island region keeps well clear of the continent that grows
+    around every other region, and the water between them is wide enough to read as water.
+    """
+    if (first.terrain == "islands") != (second.terrain == "islands"):
+        return 2.25
+    return 1 + _GAP
+
+
 def _label_box(x: float, y: float, radius: float) -> tuple[float, float, float, float]:
     top = y + radius * _LABEL_TOP
     return (x - LABEL_WIDTH / 2, top, x + LABEL_WIDTH / 2, top + LABEL_HEIGHT)
@@ -184,6 +199,7 @@ def _pack(items: list[MapRegionInput], scale: float) -> dict[str, tuple[float, f
     placed: dict[str, tuple[float, float]] = {}
     radius = {i.id: scale * _radius(i.quest_count) for i in items}
     reach = {i.id: radius[i.id] * _reach_factor(i) for i in items}
+    kinds = {i.id: i for i in items}
     boxes: dict[str, tuple[float, float, float, float]] = {}
     ordered = sorted(items, key=lambda r: (-r.quest_count, r.order, r.id))
     first = ordered[0].id
@@ -205,7 +221,8 @@ def _pack(items: list[MapRegionInput], scale: float) -> dict[str, tuple[float, f
                 y = distance * math.sin(angle)
                 box = _label_box(x, y, radius[own])
                 if all(
-                    math.hypot(x - ox, y - oy) >= (reach[own] + reach[other]) * (1 + _GAP)
+                    math.hypot(x - ox, y - oy)
+                    >= (reach[own] + reach[other]) * _separation(region, kinds[other])
                     and not _box_hits_disc(box, ox, oy, reach[other])
                     and not _box_hits_disc(boxes[other], x, y, reach[own])
                     and not _boxes_hit(box, boxes[other])
@@ -275,7 +292,9 @@ def build_layout(items: list[MapRegionInput]) -> MapLayout:
             if item.terrain == "islands"
             else (_blob(cx, cy, radius, item.id),)
         )
-        size = radius * 1.34
+        islands = item.terrain == "islands"
+        size = radius * (0.92 if islands else 1.12)
+        medal_x, medal_y = cx, cy - radius * 0.1
         lands.append(
             MapLand(
                 id=item.id,
@@ -284,9 +303,12 @@ def build_layout(items: list[MapRegionInput]) -> MapLayout:
                 cy=round(cy, 1),
                 radius=round(radius, 1),
                 paths=paths,
-                emblem_x=round(cx - size / 2, 1),
-                emblem_y=round(cy - size / 2 - radius * 0.12, 1),
+                emblem_x=round(medal_x - size / 2, 1),
+                emblem_y=round(medal_y - size / 2, 1),
                 emblem_size=round(size, 1),
+                medal_x=round(medal_x, 1),
+                medal_y=round(medal_y, 1),
+                medal_radius=round(size * 0.62, 1),
                 label_x=round(cx, 1),
                 label_y=round(cy + radius * _LABEL_TOP + LABEL_HEIGHT / 2, 1),
             )
@@ -303,6 +325,12 @@ def build_layout(items: list[MapRegionInput]) -> MapLayout:
 # ---------------------------------------------------------------------------------------
 
 _SCENE = "scenery"
+# Each sea has names in order of preference; the longest that fits the open water is used.
+SEA_NAMES = (
+    ("THE GOLDEN SEA", "GOLDEN SEA", "THE DEEP"),
+    ("THE SEA OF EVIDENCE", "SEA OF PROOF", "THE SHALLOWS"),
+)
+_SEA_LETTER = 21.0  # width of one letter of a sea name, with its spacing
 _EDGE = 30.0  # nothing is placed nearer the canvas edge than this
 _COAST_INSET = 52.0  # the continent's coast stays this far inside the frame
 
@@ -336,13 +364,14 @@ def _continent_discs(layout: MapLayout) -> list[tuple[float, float, float]]:
         )
         return max(least, min(wanted, room))
 
+    mainland = [land for land in layout.lands if land.terrain != "islands"]
     discs = [
         (land.cx, land.cy, held(land.cx, land.cy, _reach_of(land) * 1.5, _reach_of(land) * 1.1))
-        for land in layout.lands
+        for land in mainland
     ]
-    for land in layout.lands:
+    for land in mainland:
         others = sorted(
-            (other for other in layout.lands if other is not land),
+            (other for other in mainland if other is not land),
             key=lambda o: math.hypot(o.cx - land.cx, o.cy - land.cy),
         )
         for other in others[:2]:
@@ -385,6 +414,43 @@ def _scenery(layout: MapLayout) -> MapDecor:
         for i, (cx, cy, r) in enumerate(discs)
     )
 
+    cell = 12.0
+    cols, rows = int(layout.width // cell), int(layout.height // cell)
+    free: dict[tuple[int, int], float] = {}
+    land_cells: set[tuple[int, int]] = set()
+    for j in range(rows):
+        for i in range(cols):
+            cx, cy = (i + 0.5) * cell, (j + 0.5) * cell
+            if _on_continent(cx, cy, discs, 1.12):
+                land_cells.add((i, j))
+            if _inside(cx, cy, layout, 20):
+                free[(i, j)] = _clearance(cx, cy, layout)
+    # Sea is water that connects to the edge of the map; a gap inside the continent is not.
+    sea: set[tuple[int, int]] = set()
+    edge = [
+        (i, j) for i in range(cols) for j in range(rows) if i in (0, cols - 1) or j in (0, rows - 1)
+    ]
+    pending = [cell_ for cell_ in edge if cell_ not in land_cells]
+    sea.update(pending)
+    while pending:
+        i, j = pending.pop()
+        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nxt = (i + di, j + dj)
+            if (
+                0 <= nxt[0] < cols
+                and 0 <= nxt[1] < rows
+                and nxt not in land_cells
+                and nxt not in sea
+            ):
+                sea.add(nxt)
+                pending.append(nxt)
+
+    sea_points = [((i + 0.5) * cell, (j + 0.5) * cell) for i, j in sea]
+
+    def coast_gap(x: float, y: float) -> float:
+        """Distance from a point to the nearest open sea."""
+        return min((math.hypot(x - sx, y - sy) for sx, sy in sea_points), default=math.inf)
+
     # Mountain ranges: a short curved row of peaks, set where there is room.
     mountains: list[tuple[float, float, float]] = []
     ranges: list[tuple[float, float]] = []
@@ -396,6 +462,9 @@ def _scenery(layout: MapLayout) -> MapDecor:
         if not _on_continent(x, y, discs, 0.95) or _clearance(x, y, layout) < 34:
             continue
         if any(math.hypot(x - rx, y - ry) < 150 for rx, ry in ranges):
+            continue
+        # The first ranges are where rivers rise, so they are set well back from the coast.
+        if len(ranges) < 4 and i < 250 and coast_gap(x, y) < 60:
             continue
         ranges.append((x, y))
         tilt = 2 * math.pi * _unit(f"{_SCENE}:mt", i)
@@ -453,36 +522,6 @@ def _scenery(layout: MapLayout) -> MapDecor:
     # Rivers: each runs from the foot of a mountain range to the sea, by the cheapest way
     # through the gaps between the regions (a grid search whose costs are jittered, so it
     # wanders like water), and never over a region or its label.
-    cell = 12.0
-    cols, rows = int(layout.width // cell), int(layout.height // cell)
-    free: dict[tuple[int, int], float] = {}
-    land_cells: set[tuple[int, int]] = set()
-    for j in range(rows):
-        for i in range(cols):
-            cx, cy = (i + 0.5) * cell, (j + 0.5) * cell
-            if _on_continent(cx, cy, discs, 0.96):
-                land_cells.add((i, j))
-            if _inside(cx, cy, layout, 20):
-                free[(i, j)] = _clearance(cx, cy, layout)
-    # Sea is water that connects to the edge of the map; a gap inside the continent is not.
-    sea: set[tuple[int, int]] = set()
-    edge = [
-        (i, j) for i in range(cols) for j in range(rows) if i in (0, cols - 1) or j in (0, rows - 1)
-    ]
-    pending = [cell_ for cell_ in edge if cell_ not in land_cells]
-    sea.update(pending)
-    while pending:
-        i, j = pending.pop()
-        for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            nxt = (i + di, j + dj)
-            if (
-                0 <= nxt[0] < cols
-                and 0 <= nxt[1] < rows
-                and nxt not in land_cells
-                and nxt not in sea
-            ):
-                sea.add(nxt)
-                pending.append(nxt)
     found: list[tuple[int, str]] = []
     for index, (sx, sy) in enumerate(ranges):
         start = min(
@@ -525,11 +564,56 @@ def _scenery(layout: MapLayout) -> MapDecor:
         while cells[-1] in came:
             cells.append(came[cells[-1]])
         cells.reverse()
-        if len(cells) < 9:
+        if len(cells) < 5:
             continue
-        points = [((i + 0.5) * cell, (j + 0.5) * cell) for i, j in cells[::2]]
+        kept = cells if len(cells) < 14 else cells[::2]
+        points = [((i + 0.5) * cell, (j + 0.5) * cell) for i, j in kept]
         found.append((len(points), _smooth_open(points)))
     rivers = [path for _, path in sorted(found, key=lambda f: -f[0])[:3]]
+
+    # Names for the sea go in its widest open stretches, never over a land.
+    def open_water(cell_: tuple[int, int]) -> float:
+        cx, cy = (cell_[0] + 0.5) * cell, (cell_[1] + 0.5) * cell
+        shore = min((math.hypot(cx - dx, cy - dy) - r for dx, dy, r in discs), default=math.inf)
+        return min(shore, _clearance(cx, cy, layout))
+
+    def water_along(x: float, y: float, half: float) -> bool:
+        """True when open sea runs the whole length of a name centred here."""
+        for step in range(-int(half), int(half) + 1, 14):
+            px = x + step
+            if not _inside(px, y, layout, 40) or (int(px // cell), int(y // cell)) not in sea:
+                return False
+            if min((math.hypot(px - dx, y - dy) - r for dx, dy, r in discs), default=math.inf) < 30:
+                return False
+            if _clearance(px, y, layout) < 36:
+                return False
+        return True
+
+    sea_names: list[tuple[str, float, float, float]] = []
+    for choices in SEA_NAMES:
+        placed_name = False
+        for word in choices:
+            half = len(word) * _SEA_LETTER / 2
+            spots: list[tuple[int, int]] = []
+            for y in range(70, int(layout.height) - 60, 18):
+                for x in range(int(half) + 50, int(layout.width) - int(half) - 50, 18):
+                    if water_along(float(x), float(y), half) and all(
+                        math.hypot(x - ox, y - oy) > 150 for _, ox, oy, _ in sea_names
+                    ):
+                        spots.append((x, y))
+            if spots:
+                x, y = max(
+                    spots,
+                    key=lambda s: (
+                        min(_clearance(s[0], s[1], layout), 80)
+                        + _unit(f"{_SCENE}:sp", s[0] * 7 + s[1])
+                    ),
+                )
+                turn = round(-3 + 6 * _unit(f"{_SCENE}:sn", len(sea_names)), 1)
+                sea_names.append((word, float(x), float(y), turn))
+                placed_name = True
+                break
+        del placed_name
 
     # Open sea: wave marks, and a ship or two.
     waves: list[tuple[float, float]] = []
@@ -562,5 +646,6 @@ def _scenery(layout: MapLayout) -> MapDecor:
         trees=tuple(trees),
         waves=tuple(waves),
         ships=ships,
+        sea_names=tuple(sea_names),
         compass=compass,
     )
