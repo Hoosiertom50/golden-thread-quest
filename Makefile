@@ -5,7 +5,7 @@
 VENV := .venv
 BIN := $(VENV)/bin
 
-.PHONY: help setup setup-ui format format-check lint typecheck secret-scan yaml-safe test test-ui build serve validate-content update-check migrate clean check
+.PHONY: help setup setup-ui format format-check lint typecheck secret-scan yaml-safe test test-quick test-ui build serve validate-content update-check migrate clean check
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-16s %s\n", $$1, $$2}'
@@ -44,6 +44,9 @@ SHARD_COUNT ?= 1
 SHARD_INDEX ?= 0
 test-shard: ## Run one shard of the non-browser tests: make test-shard SHARD_COUNT=8 SHARD_INDEX=3
 	$(BIN)/pytest -m "not ui" --shard-count=$(SHARD_COUNT) --shard-index=$(SHARD_INDEX)
+
+test-quick: ## About a minute: the unit, contract, semantic and release-fact tests. What a pull request runs in CI
+	$(BIN)/pytest -m "not ui" tests/unit tests/contract tests/semantic tests/test_release_facts.py
 
 test-ui: ## Run the browser-driven tests (requires make setup-ui)
 	$(BIN)/pytest -m ui

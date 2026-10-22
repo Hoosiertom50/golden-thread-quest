@@ -45,6 +45,14 @@ jobs. CI also runs a `browser` job (`make test-ui`) and a `clean-export` job
 minutes in one process; `make test-shard SHARD_COUNT=8 SHARD_INDEX=3` runs one eighth of it, and
 `--shard-count` and `--shard-index` work on any `pytest` command.
 
+**What CI runs.** To keep GitHub Actions time down, a pull request runs only the static checks on
+Python 3.13, `make test-quick` (about a minute), the browser tests and the clean-export job. The
+full suite on every supported Python runs nightly, from the Actions tab (Run workflow), and on
+a pull request labelled `full-test`. Nothing runs on a push to `main`, and a change that touches
+only `docs/`, `participant/` or Markdown files runs nothing. So run the full suite locally
+(`make check`) before a change that touches code or quest content, and the quick set for
+anything smaller.
+
 | Command | What it does |
 |---|---|
 | `make check` | The static checks and every non-browser test (CI's `check` and `tests` jobs) |
@@ -52,6 +60,7 @@ minutes in one process; `make test-shard SHARD_COUNT=8 SHARD_INDEX=3` runs one e
 | `make lint` | Static lint |
 | `make typecheck` | `mypy --strict` |
 | `make test` | Every test except the browser-driven ones |
+| `make test-quick` | About a minute of unit, contract, semantic and release-fact tests: what a pull request runs in CI |
 | `make test-ui` | Playwright flows |
 | `make validate-content` | Validate authored content and participant state without building |
 | `make build` | Generate the site into `generated/` |
