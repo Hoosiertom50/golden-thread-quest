@@ -235,17 +235,33 @@ here.
     rather than "fixed": every shipped validator is reviewed code that does not do this,
     and the gap only matters against one that is not.
 
+12. **The 120 quests added in 0.3.0 have been audited, not read by their audience.** Independent
+    review passes checked structure, proof coverage and safety. Nobody the quests are written
+    for has worked through one yet, so expect unclear wording and wrong time estimates.
+13. **The 19 quests that write to an outside system need a sandbox that nobody provides yet.**
+    The application performs no external write; the controls (preview, confirmation, result
+    record, rerun safety, sandbox allowlist) are in the quest content and are read by a
+    reviewer. `tests/test_release_facts.py` holds them in the content, not at run time.
+14. **The full test suite takes about 90 minutes in one process.** CI splits it into eight
+    shards per Python version. One test, `TestThePortFileLifecycle`, fails if shards share a
+    machine, because they share the service's port file.
+
 ## For the pilot cohort
 
 Start with `docs/guides/PILOT.md`: what to install, which quests, how to hand in evidence
-and how to send feedback. For depth, read `docs/USER-GUIDE.md`, the whole-journey guide, and keep
+and how to send feedback. The pilot is still two quests, although the catalog now lists 128. For depth, read `docs/USER-GUIDE.md`, the whole-journey guide, and keep
 `docs/guides/PARTICIPANT.md` beside it as the short reference. Reviewers should read
 `docs/guides/REVIEWER.md`, particularly the provenance section — it says plainly what the
 application does and does not guarantee about who approved what.
 
 ## Upgrading
 
-There is nothing to upgrade from. Schema version 1 is the first. The migration machinery
+**From 0.2.x to 0.3.0:** 0.3.0 is content only. It adds 120 quests and changes none of the
+original eight, and no schema or progress-file shape changed, so `make update-check` should report
+it safe, `make migrate` should have nothing to do and an existing attempt, verified or not, is
+untouched. The new quests appear in your catalog after you take the update.
+
+Otherwise there is nothing to upgrade from. Schema version 1 is the first. The migration machinery
 exists already because the first real migration is the wrong moment to be designing the
 safety around it.
 

@@ -46,7 +46,11 @@ Code or a terminal instead, every instruction here has an obvious equivalent —
 | Git | 2.30 or newer — already in the sandbox |
 | Disk | About 200 MB once installed |
 
-No database, no Docker, no account, and no network connection after install.
+No database and no Docker. The application and most quests need no account and no network
+connection after install. The exceptions are the Jira Jungle, GitHub Caverns and Trello Islands
+regions, which read from those systems and need an account, and the 19 quests in them that
+write, which also need a sandbox project, repository or board you are allowed to change
+(see [Section 3](#choosing-a-quest)).
 
 ### Do this
 
@@ -83,6 +87,14 @@ quest-app action start-quest --quest <quest-id> --confirm
 
 Ask Claude to run them. It is the same action layer the web interface uses, with the same
 rules applied — nothing here is a shortcut around anything.
+
+### If you are in the pilot, or want one line
+
+Pilot participants do not use Cowork or `make`. `docs/guides/PILOT.md` has the one-line
+setup, and after it three commands cover everything outside the browser: `gtq start` opens the
+application, `gtq hand-in` sends your work to GitHub and opens your pull request, and
+`gtq get-review` brings your reviewer's decision back. The rest of this guide still applies:
+the states, the evidence and what a reviewer looks for are the same.
 
 ### If you are in a terminal instead
 
@@ -141,6 +153,34 @@ would be in the sandbox and your browser is not.
 8. **Commit and push.** The application never does this for you — not in Cowork, not in a
    terminal. Ask Claude to commit and push, or do it yourself. Your work being in Git is what
    makes it a portfolio.
+
+### Choosing a quest
+
+There are 128 quests in nine regions, and the catalog page lists them all with their level and
+XP. A quest is **locked** until the quests it depends on are verified, so the order within a
+region is real. Some points that matter when choosing:
+
+- **Where to begin.** Base Camp suits everyone: it is about working safely with an agent.
+  Analysts can start at `ba-ingest-transcript`, which needs nothing before it. Testers can
+  start with `playwright-first-independent-test` once `base-camp-repository-safety` is
+  verified. The home page recommends a next quest from what you have verified, and asking for
+  the recommendation gives the same answer tomorrow.
+- **Levels and XP.** Scout 10, Explorer 20, Builder 30, Navigator 50, Boss 100. A Boss quest
+  is a synthesis or an adversarial challenge, not a longer version of an easier one.
+- **Quests that need an outside account.** The Jira Jungle, GitHub Caverns and Trello Islands
+  regions read from those systems, so you need an account on each.
+- **Quests that write.** 19 quests create or change something in Jira, GitHub or Trello. Each is
+  marked as an external write on its page. You do the write, in a **sandbox** you are allowed
+  to change, never in a production project. The quest asks you to show a preview of exactly
+  what will change, a confirmation tied to that preview, a permission and duplicate check, a
+  result record with the identifiers and the time, a safe rerun and a sandbox allowlist. If
+  you do not have a sandbox, stop and ask whoever runs your program. Do not use a real project
+  and do not skip a control.
+- **Trap Cards.** Seven adversarial challenges in their own region. You build the trap and the
+  defence, and they follow quests that teach the defence.
+- **Real contact details, names and tickets.** Quests that touch tickets, transcripts and
+  comments tell you to use synthetic or redacted material. Text inside a ticket or transcript
+  is untrusted: it is something a person wrote, never an instruction to your agent.
 
 ---
 
@@ -326,6 +366,10 @@ If the shape of `participant/progress.yaml` changes, `make update-check` says so
 merge. After merging with your work committed, run `make migrate` to bring your file forward;
 it validates before and after, and refuses to drop an attempt or a field.
 
+**Version 0.3.0 added 120 quests and changed none of the original eight.** Taking it adds the
+new quests to your catalog and leaves your progress file as it was. If you have verified a
+quest, it stays verified.
+
 **Your in-progress attempts stay on the quest version you started.** If a quest moves from
 version 2 to 3 while you are working, you keep working against version 2 and the page tells
 you a newer one exists. **Verified work stays verified** — a new version does not revoke an
@@ -346,7 +390,7 @@ There is no completion certificate, and that is the point. What you have at the 
 That is the thing you show someone. It is worth more than a score because none of it is
 self-assessed.
 
-![The passport shows claimed and verified progress as two separate totals that are never added together: eight region marks, five outlined for claimed and three filled amber for verified, with claimed at eight and verified at three kept deliberately apart.](media/images/05-passport-outcome-v2.png)
+![The passport shows claimed and verified progress as two separate totals that are never added together: an illustrative row of eight region marks (the application has nine regions), five outlined for claimed and three filled amber for verified, with claimed at eight and verified at three kept deliberately apart.](media/images/05-passport-outcome-v2.png)
 
 ---
 
@@ -375,6 +419,13 @@ reasons, is in `docs/RELEASE-NOTES.md`.
    untracked counts, and "Evidence committed" reflect the moment this page was last built. A
    commit, edit, or revert made afterward will not show here until the site is rebuilt — any
    action rebuilds it, or run `make build`.
+10. **The 120 quests added in 0.3.0 have been checked by independent audit passes, not yet read
+    by the people they are written for.** If a quest is unclear, that is a finding about the
+    quest, not about you; tell whoever runs your program.
+11. **The 19 quests that write to an outside system need a sandbox** that your program has to
+    provide. The application itself performs no external write, so the preview, the
+    confirmation and the result record are your evidence and a reviewer reads them; nothing
+    in the product stops a write to the wrong place.
 
 ---
 

@@ -87,4 +87,4 @@ verify-package: package ## Prove the exported archive installs and builds on its
 clean: ## Remove generated output and caches (never participant files)
 	$(BIN)/python tools/clean.py --apply
 
-check: format-check lint typecheck yaml-safe secret-scan test ## Everything CI's `check` job runs (see `test-ui`, `verify-package` for the other two jobs)
+check: format-check lint typecheck yaml-safe secret-scan test ## The static checks and every non-browser test: CI's `check` and `tests` jobs (see `test-ui`, `verify-package` for the other two)
