@@ -391,6 +391,19 @@ def _on_continent(
     return any(math.hypot(x - cx, y - cy) <= r * scale for cx, cy, r in discs)
 
 
+def _nearest_cell(
+    cells: dict[tuple[int, int], float], cell: float, point: tuple[float, float]
+) -> tuple[int, int] | None:
+    """The grid cell whose centre is nearest a point, if there is any cell."""
+    best: tuple[int, int] | None = None
+    best_distance = math.inf
+    for i, j in cells:
+        distance = math.hypot((i + 0.5) * cell - point[0], (j + 0.5) * cell - point[1])
+        if distance < best_distance:
+            best, best_distance = (i, j), distance
+    return best
+
+
 def _smooth_open(points: list[tuple[float, float]]) -> str:
     if len(points) < 3:
         return ""
@@ -458,14 +471,14 @@ def _scenery(layout: MapLayout) -> MapDecor:
     # Mountain ranges: a short curved row of peaks, set where there is room.
     mountains: list[tuple[float, float, float]] = []
     ranges: list[tuple[float, float]] = []
-    for i in range(400):
+    for i in range(1200):
         if len(ranges) >= 11:
             break
         x = _EDGE + (layout.width - 2 * _EDGE) * _unit(f"{_SCENE}:mx", i)
         y = _EDGE + (layout.height - 2 * _EDGE) * _unit(f"{_SCENE}:my", i)
         if not _on_continent(x, y, discs, 0.95) or _clearance(x, y, layout) < 26:
             continue
-        if any(math.hypot(x - rx, y - ry) < 105 for rx, ry in ranges):
+        if any(math.hypot(x - rx, y - ry) < 82 for rx, ry in ranges):
             continue
         # The first ranges are where rivers rise, so they are set well back from the coast.
         if len(ranges) < 4 and i < 250 and coast_gap(x, y) < 60:
@@ -476,7 +489,12 @@ def _scenery(layout: MapLayout) -> MapDecor:
             size = 13 + 10 * _unit(f"{_SCENE}:ms", i * 7 + k)
             px = x + k * 17 * math.cos(tilt) + 5 * math.sin(k * 1.7)
             py = y + k * 17 * math.sin(tilt) * 0.6 + 6 * math.cos(k * 1.3)
-            if _inside(px, py, layout) and _clearance(px, py, layout) > 8:
+            if (
+                _inside(px, py, layout)
+                and _clearance(px, py, layout) > 8
+                and _on_continent(px, py, discs, 0.82)
+                and coast_gap(px, py) >= 30
+            ):
                 mountains.append((round(px, 1), round(py, 1), round(size, 1)))
 
     # Forests: small clusters of trees.
@@ -498,7 +516,12 @@ def _scenery(layout: MapLayout) -> MapDecor:
             angle = 2 * math.pi * _unit(f"{_SCENE}:fa{i}", k)
             reach = 28 * math.sqrt(_unit(f"{_SCENE}:fr{i}", k))
             px, py = x + reach * math.cos(angle), y + reach * math.sin(angle) * 0.8
-            if _inside(px, py, layout) and _clearance(px, py, layout) > 9:
+            if (
+                _inside(px, py, layout)
+                and _clearance(px, py, layout) > 9
+                and _on_continent(px, py, discs, 0.85)
+                and coast_gap(px, py) >= 22
+            ):
                 trees.append(
                     (round(px, 1), round(py, 1), round(6.5 + 5 * _unit(f"{_SCENE}:fs{i}", k), 1))
                 )
@@ -510,31 +533,30 @@ def _scenery(layout: MapLayout) -> MapDecor:
             break
         x = _EDGE + (layout.width - 2 * _EDGE) * _unit(f"{_SCENE}:lx", i)
         y = _EDGE + (layout.height - 2 * _EDGE) * _unit(f"{_SCENE}:ly", i)
-        if _on_continent(x, y, discs, 0.9) and _clearance(x, y, layout) > 30:
-            if all(math.hypot(x - mx, y - my) > 40 for mx, my, _ in mountains):
-                lakes.append(
-                    _blob(
-                        x,
-                        y,
-                        15 + 8 * _unit(f"{_SCENE}:lr", i),
-                        f"{_SCENE}:lake{i}",
-                        bulge=0.3,
-                        count=12,
-                    )
+        if (
+            _on_continent(x, y, discs, 0.8)
+            and _clearance(x, y, layout) > 30
+            and coast_gap(x, y) >= 34
+            and all(math.hypot(x - mx, y - my) > 40 for mx, my, _ in mountains)
+        ):
+            lakes.append(
+                _blob(
+                    x,
+                    y,
+                    15 + 8 * _unit(f"{_SCENE}:lr", i),
+                    f"{_SCENE}:lake{i}",
+                    bulge=0.3,
+                    count=12,
                 )
+            )
 
     # Rivers: each runs from the foot of a mountain range to the sea, by the cheapest way
     # through the gaps between the regions (a grid search whose costs are jittered, so it
     # wanders like water), and never over a region or its label.
-    found: list[tuple[int, str]] = []
+    found: list[tuple[int, str, list[tuple[float, float]]]] = []
     for index, (sx, sy) in enumerate(ranges):
-        start = min(
-            free,
-            key=lambda c, sx=sx, sy=sy: math.hypot(
-                (c[0] + 0.5) * cell - sx, (c[1] + 0.5) * cell - sy + 14
-            ),
-            default=None,
-        )
+        spring = (sx, sy + 14)
+        start = _nearest_cell(free, cell, spring)
         if start is None:
             continue
         best_cost: dict[tuple[int, int], float] = {start: 0.0}
@@ -580,8 +602,16 @@ def _scenery(layout: MapLayout) -> MapDecor:
             jx = 5 * (_unit(f"{_SCENE}:rj{index}", k * 2) - 0.5)
             jy = 5 * (_unit(f"{_SCENE}:rj{index}", k * 2 + 1) - 0.5)
             points.append(((i + 0.5) * cell + sway + jx, (j + 0.5) * cell - sway * 0.6 + jy))
-        found.append((len(points), _smooth_open(points)))
-    rivers = [path for _, path in sorted(found, key=lambda f: -f[0])[:3]]
+        found.append((len(points), _smooth_open(points), points))
+    chosen = sorted(found, key=lambda f: -f[0])[:3]
+    rivers = [path for _, path, _ in chosen]
+    river_points = [point for _, _, line in chosen for point in line]
+
+    def on_river(x: float, y: float, margin: float) -> bool:
+        return any(math.hypot(x - rx, y - ry) < margin for rx, ry in river_points)
+
+    mountains = [(x, y, s) for x, y, s in mountains if not on_river(x, y, s * 0.8 + 8)]
+    trees = [(x, y, s) for x, y, s in trees if not on_river(x, y, 11)]
 
     # Names for the sea go in its widest open stretches, never over a land.
     def open_water(cell_: tuple[int, int]) -> float:
