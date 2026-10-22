@@ -165,6 +165,16 @@ region is real. Some points that matter when choosing:
   start with `playwright-first-independent-test` once `base-camp-repository-safety` is
   verified. The home page recommends a next quest from what you have verified, and asking for
   the recommendation gives the same answer tomorrow.
+- **The Quest Map.** The map page draws the curriculum as a map. Each region is a stretch of land,
+  larger for regions with more quests, with a picture of its own (Base Camp at the foot of a
+  mountain, GitHub Caverns at a cave mouth, Trello Islands out at sea) and its name with how many
+  of its quests a reviewer has verified (for example "0 of 18 verified"). The dotted gold trail
+  joins the regions in the order the curriculum suggests, and a region's marker glows brighter as
+  more of its quests are verified. Select a region to open its card, or use the list under the
+  map. The rivers, mountains and forests are decoration; everything the map tells you is also in
+  the labels and the list.
+
+  ![The Quest Map: nine regions drawn as land on a dark sea, each with a round picture and a name plate reading, for example, 0 of 9 verified. Base Camp sits at the foot of a mountain, GitHub Caverns at a cave mouth, and Trello Islands is a separate island in the north-west. A dotted gold trail joins the regions in curriculum order.](media/images/06-quest-map.png)
 - **Levels and XP.** Scout 10, Explorer 20, Builder 30, Navigator 50, Boss 100. A Boss quest
   is a synthesis or an adversarial challenge, not a longer version of an easier one.
 - **Quests that need an outside account.** The Jira Jungle, GitHub Caverns and Trello Islands

@@ -6,6 +6,7 @@ summary: Build repeatable Jira read and synchronization workflows that keep ever
 order: 20
 accent: blue
 icon: jira
+terrain: jungle
 outcomes:
   - Read Jira into traceable local Markdown without hardcoding who you are, following pagination to the end and resynchronizing without duplicating comments or overwriting your notes.
   - Keep local analysis, report conflicts between local and Jira values instead of choosing one, and account for every item as synchronized, missing, stale, conflicted or failed.

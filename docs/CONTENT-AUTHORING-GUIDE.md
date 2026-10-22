@@ -7,7 +7,7 @@ Write quests as professional, demonstrable work—not trivia and not instruction
 ## Add a quest
 
 1. Choose a stable ID.
-2. Select an existing region or add a region definition.
+2. Select an existing region or add a region definition. A new region names a `terrain` (mountain, cave, jungle, ruins, village, library, maze, islands, swamp or plain) for the Quest Map; leave it out for plain land. The map's size and placement come from the region's quest count, so nothing else needs doing.
 3. Copy a representative quest file from `content/quests/`.
 4. Complete the YAML front matter.
 5. Write the Markdown body using the canonical headings.
