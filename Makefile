@@ -40,6 +40,11 @@ yaml-safe: ## Fail if YAML is parsed with anything but safe_load (ADR-025)
 test: ## Run every test except the browser-driven ones
 	$(BIN)/pytest -m "not ui"
 
+SHARD_COUNT ?= 1
+SHARD_INDEX ?= 0
+test-shard: ## Run one shard of the non-browser tests: make test-shard SHARD_COUNT=8 SHARD_INDEX=3
+	$(BIN)/pytest -m "not ui" --shard-count=$(SHARD_COUNT) --shard-index=$(SHARD_INDEX)
+
 test-ui: ## Run the browser-driven tests (requires make setup-ui)
 	$(BIN)/pytest -m ui
 
