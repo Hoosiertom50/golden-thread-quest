@@ -8,9 +8,13 @@ passed (`docs/audits/phase-01-verify.md`), and the program owner released it at 
 
 ## Since 0.3.0
 
-- **The Quest Map is a drawn map.** Each region is land sized by its quest count, with a picture
+- **The Quest Map is a drawn map.** An atlas-style picture: a continent with a rough coast and
+  shaded relief, rivers, lakes, mountains and forests, a dark sea, and a dotted trail through the
+  regions in curriculum order. Each region is land sized by its quest count, with a picture
   chosen by a new optional `terrain` field on the region (Base Camp at the foot of a mountain,
-  GitHub Caverns at a cave mouth, and so on) and a label reading, for example, "0 of 18 verified".
+  GitHub Caverns at a cave mouth, Trello Islands out at sea as its own island) and a label
+  reading, for example, "0 of 18 verified". A region's marker glows brighter as more of its
+  quests are verified.
   Selecting a region opens its card in a dialog; without scripting the label goes to the region page.
   The card list stays below the map for anyone who prefers text. The layout is computed from
   quest counts alone, in `quest_app/map_layout.py`, and is the same on every build. This is
@@ -172,7 +176,7 @@ them. It does not own them.
 
 | | |
 |---|---|
-| Tests | 1677 under `make check`, plus 62 browser-driven under `make test-ui`. Both are collected counts; a run also reports whatever it skipped. |
+| Tests | 1688 under `make check`, plus 65 browser-driven under `make test-ui`. Both are collected counts; a run also reports whatever it skipped. |
 | Screens | 11, plus tag pages |
 | Schemas | 10 |
 | Sample validators | 3 quest-facing, plus 2 registered environment probes and one unregistered slow probe used only to prove the timeout |

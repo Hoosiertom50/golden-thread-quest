@@ -156,3 +156,80 @@ def test_the_stylesheet_uses_the_canvas_ratio() -> None:
         int(map_layout.CANVAS_WIDTH),
         int(map_layout.CANVAS_HEIGHT),
     )
+
+
+# --- The scenery -----------------------------------------------------------------------
+
+
+def pairs(path: str) -> list[tuple[float, float]]:
+    """Every coordinate pair in an SVG path, control points included."""
+    numbers = [float(n) for n in re.findall(r"-?\d+(?:\.\d+)?", path)]
+    return list(zip(numbers[0::2], numbers[1::2], strict=False))
+
+
+def test_the_island_region_lies_out_at_sea_clear_of_the_continent() -> None:
+    layout = build_layout(REGIONS)
+    island = next(land for land in layout.lands if land.terrain == "islands")
+    others = MapLayout(
+        layout.width, layout.height, tuple(land for land in layout.lands if land is not island)
+    )
+    for cx, cy, radius in map_layout._continent_discs(layout):
+        gap = math.hypot(island.cx - cx, island.cy - cy) - radius - reach(island)
+        assert gap > 12, "the island is joined to the continent"
+    assert others.lands, "the continent is made of the other regions"
+
+
+def test_no_scenery_sits_on_a_land_or_a_label() -> None:
+    layout = build_layout(REGIONS)
+    for x, y, _ in layout.decor.mountains + layout.decor.trees:
+        assert map_layout._clearance(x, y, layout) > 0, (x, y)
+
+
+def test_scenery_stays_well_inside_the_coast() -> None:
+    """The coast is roughened when it is drawn, so a peak at the edge would end up in the sea."""
+    layout = build_layout(REGIONS)
+    discs = map_layout._continent_discs(layout)
+    for x, y, _ in layout.decor.mountains:
+        assert map_layout._on_continent(x, y, discs, 0.82), (x, y)
+    for x, y, _ in layout.decor.trees:
+        assert map_layout._on_continent(x, y, discs, 0.85), (x, y)
+
+
+def test_no_mountain_or_tree_stands_in_a_river() -> None:
+    layout = build_layout(REGIONS)
+    assert layout.decor.rivers, "the sample map has rivers, or this test proves nothing"
+    points = [point for river in layout.decor.rivers for point in pairs(river)]
+    for x, y, size in layout.decor.mountains:
+        assert min(math.hypot(x - px, y - py) for px, py in points) > size * 0.8, (x, y)
+    for x, y, _ in layout.decor.trees:
+        assert min(math.hypot(x - px, y - py) for px, py in points) > 11, (x, y)
+
+
+def test_a_sea_name_has_open_water_along_its_whole_length() -> None:
+    layout = build_layout(REGIONS)
+    assert layout.decor.sea_names, "the sample map has room for a sea name"
+    for word, x, y, _ in layout.decor.sea_names:
+        half = len(word) * map_layout._SEA_LETTER / 2
+        for step in range(-int(half), int(half) + 1, 20):
+            assert map_layout._clearance(x + step, y, layout) > 20, (word, step)
+
+
+def test_the_trail_joins_the_regions_in_order_and_hops_to_the_island_by_sea() -> None:
+    layout = build_layout(REGIONS)
+    decor = layout.decor
+    assert len(decor.trails) + len(decor.sea_routes) == len(layout.lands) - 1
+    assert len(decor.sea_routes) == 2, "one hop onto the island and one off it"
+    assert all("M" in path for path in decor.trails + decor.sea_routes)
+
+
+def test_a_map_with_no_island_has_no_sea_route() -> None:
+    plain = [MapRegionInput(r.id, r.order, r.quest_count, "plain") for r in REGIONS]
+    assert build_layout(plain).decor.sea_routes == ()
+
+
+def test_the_scenery_is_the_same_every_time() -> None:
+    assert build_layout(REGIONS).decor == build_layout(list(reversed(REGIONS))).decor
+
+
+def test_an_empty_map_has_no_scenery() -> None:
+    assert build_layout([]).decor == map_layout.MapDecor()

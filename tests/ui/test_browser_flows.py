@@ -157,7 +157,7 @@ class TestQuestMap:
         label.click()
         dialog = page.locator("dialog.region-dialog[open]")
         assert dialog.count() == 1
-        assert name in dialog.inner_text()
+        assert name.lower() in dialog.inner_text().lower()
         assert "verified" in dialog.inner_text().lower()
         page.keyboard.press("Escape")
         assert page.locator("dialog.region-dialog[open]").count() == 0

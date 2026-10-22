@@ -44,11 +44,22 @@ def test_the_drawing_is_hidden_from_assistive_technology_and_the_labels_are_not(
     config: AppConfig,
 ) -> None:
     page = built_map(config)
-    drawing = re.search(r'<g aria-hidden="true">(.*?)</g>\s*<foreignObject', page, re.S)
-    assert drawing, "the drawn land must sit in an aria-hidden group"
-    assert "map-label" not in drawing.group(1)
-    assert 'class="land-link"' in drawing.group(1)
+    hidden = page.index('<g aria-hidden="true"')
+    first_label = page.index("<foreignObject")
+    assert 'class="land-link"' in page[hidden:first_label]
+    assert "map-label" not in page[hidden:first_label], (
+        "a label must not be inside the hidden group"
+    )
     assert page.count('class="land-link"') == page.count('<a class="map-label ')
+    # The scenery is decoration, so it sits inside the hidden group.
+    for decoration in (
+        "continent-land",
+        "map-river",
+        "map-trail",
+        "map-sea-name",
+        "decor-mountain",
+    ):
+        assert decoration in page[hidden:first_label], decoration
 
 
 def test_the_map_page_uses_no_style_attribute_because_the_policy_blocks_it(

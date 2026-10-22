@@ -768,6 +768,7 @@ round-1 takes until this table existed. It is the record of what the guide actua
 | Section | File the guide references | Why |
 |---|---|---|
 | 3 — The first hour | `01-first-hour-flow-v3.png` | Round 3 take; v1 and v2 superseded. |
+| 3 — Choosing a quest | `06-quest-map.png` | Not generated: a screenshot of the Quest Map, taken by `scripts/screenshot_quest_map.py` after `make build`. Retake it whenever the map changes. |
 | 4 — The eight states | `02-state-authority-v2.png` | v1 placed `locally validated` in the reviewer column, contradicting the one rule the image exists to state. |
 | 6 — What the application writes | `03-ownership-zones-v4.png` | Round 4 take; the first one with no misleading text. See below. |
 | 7 — Evidence | `04-evidence-package.png` | Correct in round 1; never superseded. |
