@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
-from tools.review_check import check_files
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+
+from review_check import check_files
 
 
 def _file(name: str, status: str = "added", previous: str = "") -> dict[str, str]:
