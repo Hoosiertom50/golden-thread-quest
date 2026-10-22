@@ -4,7 +4,7 @@
 **Curriculum:** The AI Context Engineer Journey
 **Tagline:** From human intent to verified delivery.
 
-> **Status: work in progress. Pilot release 0.3.0: not for general use.**
+> **Status: work in progress. Pilot release 0.3.1: not for general use.**
 >
 > It is released to a small invited pilot.
 >
