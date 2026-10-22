@@ -6,6 +6,7 @@ summary: Apply the same context-engineering discipline to boards, lists, cards, 
 order: 30
 accent: teal
 icon: trello
+terrain: islands
 outcomes:
   - Normalize Trello work without erasing Trello-specific structure, including lists and their order, checklists, labels, members, dates and archived cards.
   - Read a board into local context without changing a card, and follow its activity so moves and archives are not missed.

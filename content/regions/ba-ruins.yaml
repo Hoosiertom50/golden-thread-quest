@@ -6,6 +6,7 @@ summary: Recover intent from conversations and turn it into clear decisions, req
 order: 60
 accent: rust
 icon: compass
+terrain: ruins
 outcomes:
   - Preserve a transcript as a source of record, and keep decisions, questions and work items derived from it separate, each citing the line it came from.
   - Tell a decision from a proposal and a duplicate from new work, and say what the meeting did not settle instead of filling it in.

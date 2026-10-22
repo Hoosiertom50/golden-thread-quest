@@ -80,6 +80,10 @@ every quest page says what it asks for, what evidence to hand in and who needs t
 `playwright-first-independent-test` after `base-camp-repository-safety`. The home page
 recommends a next quest from what you have verified.
 
+**The Quest Map.** The map page draws each region as land, larger where there are more
+quests, each with the number of its quests that a reviewer has verified. Select a region to open
+its card. The same regions are listed in text below the map.
+
 **Quests that need an outside account.** The Jira, GitHub and Trello regions read from, and
 some write to, those systems. You need an account, and for the 19 quests that write you need
 a **sandbox** Jira project, GitHub repository or Trello board that you are allowed to change:
@@ -119,7 +123,7 @@ otherwise.
 
 | | |
 |---|---|
-| Tests | 1713 — 1656 under `make check`, 57 driving a real browser. The line `make check` prints counts skips too, and it can read higher than the total above: a module that skips itself as a whole because an optional dependency is missing (`pytest.importorskip`) counts as one skip, not one per test it would have contained. |
+| Tests | 1739 — 1677 under `make check`, 62 driving a real browser. The line `make check` prints counts skips too, and it can read higher than the total above: a module that skips itself as a whole because an optional dependency is missing (`pytest.importorskip`) counts as one skip, not one per test it would have contained. |
 | Screens | 13 page templates, 11 reusable components |
 | Schemas | 10, validating content, progress, reviews, validation results and the validator registry |
 | Sample curriculum | 9 regions, 128 quests, 4 badges, 2 tracks |

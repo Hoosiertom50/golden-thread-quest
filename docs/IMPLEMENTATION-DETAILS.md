@@ -22,6 +22,7 @@ quest_app/           the application
 ├── progress_calc.py     derived states, totals, badges
 ├── recommend.py         deterministic weighted recommendation
 ├── view_models.py       display-ready models, one per screen
+├── map_layout.py        where each region goes on the Quest Map and the shape of its land
 ├── routes.py            every URL, derived from stable IDs
 ├── build.py             rendering, indexes, manifest, atomic swap
 ├── state_machine.py     the transitions a participant may make

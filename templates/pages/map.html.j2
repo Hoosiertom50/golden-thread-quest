@@ -14,13 +14,67 @@
   {{ meter(totals.verified_quests, totals.total_quests, 'Verified quests', 'reviewer', totals.claimed_quests, 'Claimed') }}
 </section>
 
-{# A semantic card grid, not a drawing. Decorative connections may be added later, but
-   progression must never require reading a picture (docs/ui/SCREEN-SPECS.md U02). #}
+{# The drawn map. Each region is a stretch of land whose size follows its quest count, with
+   a text label that is the real, focusable link. The drawing is aria-hidden: everything it
+   shows is also in the labels and in the list below, so progression never depends on reading
+   a picture (docs/ui/SCREEN-SPECS.md U02). Selecting a label opens the region card in a
+   dialog when scripting is on, and goes to the region page when it is not. #}
+<section class="stack" aria-labelledby="map-heading">
+  <h2 id="map-heading">The map</h2>
+  <p class="authority">Larger land holds more quests. Select a region to see what it develops. Counts are quests verified by a reviewer.</p>
+  {% include "components/terrain_symbols.html.j2" %}
+  <div class="map-scroll">
+    <div class="map-board">
+      <svg class="map-art" viewBox="0 0 {{ layout.width | int }} {{ layout.height | int }}" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Map of the regions. Each region's label is a link.">
+        <g aria-hidden="true">
+          <rect class="map-sea" x="0" y="0" width="{{ layout.width | int }}" height="{{ layout.height | int }}" rx="14"/>
+          <g class="map-compass" transform="translate({{ (layout.width - 70) | int }},78)">
+            <circle r="26" class="compass-ring"/>
+            <polygon class="compass-needle" points="0,-22 6,0 0,22 -6,0"/>
+            <polygon class="compass-north" points="0,-22 6,0 -6,0"/>
+          </g>
+          {% for land in layout.lands %}
+          {% set card = cards[land.id] %}
+          <a class="land-link" href="{{ url(card.route) }}" data-region-dialog="map-dialog-{{ land.id }}" tabindex="-1">
+            <g class="land accent-{{ card.region.accent }} terrain-{{ land.terrain }}">
+              {% for d in land.paths %}<path class="land-shape" d="{{ d }}"/>{% endfor %}
+              <use href="#terrain-{{ land.terrain }}" x="{{ land.emblem_x }}" y="{{ land.emblem_y }}" width="{{ land.emblem_size }}" height="{{ land.emblem_size }}"/>
+            </g>
+          </a>
+          {% endfor %}
+        </g>
+        {% for land in layout.lands %}
+        {% set card = cards[land.id] %}
+        <foreignObject x="{{ land.label_x - layout.label_width / 2 }}" y="{{ land.label_y - layout.label_height / 2 }}" width="{{ layout.label_width }}" height="{{ layout.label_height }}">
+          <a class="map-label accent-{{ card.region.accent }}" href="{{ url(card.route) }}" data-region-dialog="map-dialog-{{ land.id }}" title="{{ card.region.title }}">
+            <span class="map-label-name">{{ card.region.title }}</span>
+            <span class="map-label-count">{{ card.progress.verified }} of {{ card.progress.total }} verified</span>
+          </a>
+        </foreignObject>
+        {% endfor %}
+      </svg>
+    </div>
+  </div>
+</section>
+
+{% for card in regions %}
+<dialog class="region-dialog" id="map-dialog-{{ card.region.id }}" aria-label="{{ card.region.title }}">
+  {{ region_card(card, url, heading_level=2) }}
+  <form method="dialog" class="dialog-actions">
+    <a class="button button-primary" href="{{ url(card.route) }}">Open {{ card.region.title }}</a>
+    <button type="submit" class="button" data-dialog-close>Close</button>
+  </form>
+</dialog>
+{% endfor %}
+
 <section class="stack" aria-labelledby="regions-heading">
   <h2 id="regions-heading">Regions in order</h2>
-  <div class="card-grid">
-    {% for card in regions %}{{ region_card(card, url, heading_level=3) }}{% endfor %}
-  </div>
+  <details class="region-list">
+    <summary>Show the regions as a list</summary>
+    <div class="card-grid">
+      {% for card in regions %}{{ region_card(card, url, heading_level=3) }}{% endfor %}
+    </div>
+  </details>
 </section>
 
 <section class="panel" aria-labelledby="legend-heading">

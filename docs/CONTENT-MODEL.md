@@ -11,7 +11,7 @@ The application must transform authored content into normalized view models. Tem
 | Content | Canonical format | Notes |
 |---|---|---|
 | Quest narrative | Markdown with YAML front matter | One quest per file |
-| Region definition | YAML | Ordering, theme token, outcomes |
+| Region definition | YAML | Ordering, theme token, outcomes, terrain drawn on the Quest Map |
 | Track definition | YAML | Ordered or rule-based quest selection |
 | Badge definition | YAML | Machine-evaluable or reviewer-awarded criteria |
 | Site configuration | YAML | Identity and generic navigation labels |

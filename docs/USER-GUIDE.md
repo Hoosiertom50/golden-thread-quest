@@ -165,6 +165,10 @@ region is real. Some points that matter when choosing:
   start with `playwright-first-independent-test` once `base-camp-repository-safety` is
   verified. The home page recommends a next quest from what you have verified, and asking for
   the recommendation gives the same answer tomorrow.
+- **The Quest Map.** The map page draws each region as land, larger for regions with more quests, with
+  its name and how many of its quests a reviewer has verified (for example "0 of 18 verified").
+  Select a region to open its card, or use the list under the map. Everything the picture shows is
+  also in the labels and the list.
 - **Levels and XP.** Scout 10, Explorer 20, Builder 30, Navigator 50, Boss 100. A Boss quest
   is a synthesis or an adversarial challenge, not a longer version of an easier one.
 - **Quests that need an outside account.** The Jira Jungle, GitHub Caverns and Trello Islands
