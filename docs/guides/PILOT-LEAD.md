@@ -55,21 +55,24 @@ request, titled `Pilot: <name>`, which their `gtq hand-in` opened.
 
 1. `cd ~/gtq-review`
 2. `gh pr list`, and note the pull request's number.
-3. `gh pr checkout <number>`
-4. `make serve`, then open <http://127.0.0.1:8765/review/>.
-5. Open the quest and read the evidence. `docs/guides/REVIEWER.md` says what to check.
+3. `python tools/review_check.py <number>`. It must say SAFE, meaning every changed file is under
+   `participant/`. If it says NOT SAFE, stop: do not check the pull request out or run anything in
+   it. It also lists any code the participant wrote, which you read before running.
+4. `gh pr checkout <number>`
+5. `make serve`, then open <http://127.0.0.1:8765/review/>.
+6. Open the quest and read the evidence. `docs/guides/REVIEWER.md` says what to check.
    Record **Approve**, with a verification statement, or **Needs changes**, with at least one
    finding.
    If the page says the evidence changed since it was submitted, it did: the participant
    edited it after submitting. Ask them why before you tick the acknowledgement box.
-6. Stop the service with Ctrl-C.
-7. `git add participant/`
-8. `git commit -m "Review: <quest-id>"`
-9. `git push`
-10. Reply in the thread with the decision. The participant then runs `gtq get-review` to
+7. Stop the service with Ctrl-C.
+8. `git add participant/`
+9. `git commit -m "Review: <quest-id>"`
+10. `git push`
+11. Reply in the thread with the decision. The participant then runs `gtq get-review` to
     see it.
 
-`git push` in step 9 goes to the participant's branch, which works because their pull
+`git push` in step 10 goes to the participant's branch, which works because their pull
 request allows edits by maintainers, which `gtq hand-in` leaves on. If the push is refused,
 ask them to tick **Allow edits by maintainers** on the pull request page.
 
