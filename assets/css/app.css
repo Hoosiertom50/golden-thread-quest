@@ -566,7 +566,7 @@ textarea { min-height: 8rem; resize: vertical; }
      region's accent, never from here. */
   --map-sea: #1d3b4d;
   --map-shallow: #4a8294;
-  --map-land: #efe0b6;
+  --map-land: #dac793;
   --map-ink: #4d3a24;
   --map-river: #5f9fc0;
   --map-ridge: #9a8f7c;
@@ -598,9 +598,16 @@ textarea { min-height: 8rem; resize: vertical; }
 .map-sea { fill: url(#map-sea-gradient); }
 .map-sea-name { font: italic 600 22px Georgia, 'Times New Roman', serif; letter-spacing: 8px; fill: #cfe4ea; fill-opacity: 0.5; }
 .m-wave { fill: none; stroke: #8fb9c7; stroke-width: 2.4; stroke-linecap: round; opacity: 0.45; }
-.continent-halo { fill: var(--map-shallow); stroke: var(--map-shallow); stroke-width: 36; stroke-linejoin: round; opacity: 0.55; }
-.continent-edge { fill: var(--map-land); stroke: var(--map-ink); stroke-width: 5; stroke-linejoin: round; }
+.continent-halo { fill: var(--map-shallow); stroke: var(--map-shallow); stroke-width: 30; stroke-linejoin: round; opacity: 0.7; }
+.continent-edge { fill: none; stroke: #3a2a16; stroke-width: 5; stroke-linejoin: round; }
 .continent-fill { fill: var(--map-land); stroke: none; }
+.map-sea-texture { opacity: 0.5; mix-blend-mode: screen; pointer-events: none; }
+.map-clouds { opacity: 0.4; mix-blend-mode: screen; pointer-events: none; }
+.biome-forest { fill: #3f7a3a; fill-opacity: 0.4; }
+.biome-rock { fill: #7d7261; fill-opacity: 0.42; }
+.map-trail { fill: none; stroke: #f6cd68; stroke-width: 3.4; stroke-dasharray: 0.1 9; stroke-linecap: round; opacity: 0.95; pointer-events: none; }
+.map-sea-route { fill: none; stroke: #d3e6ec; stroke-width: 2; stroke-dasharray: 7 8; stroke-linecap: round; opacity: 0.5; pointer-events: none; }
+.land-glow { fill: #ffc857; pointer-events: none; }
 .map-lake { fill: #a6cfdc; stroke: var(--map-river); stroke-width: 1.6; }
 .map-river-bank { fill: none; stroke: var(--map-ink); stroke-width: 6.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.35; }
 .map-river { fill: none; stroke: var(--map-river); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
@@ -610,11 +617,14 @@ textarea { min-height: 8rem; resize: vertical; }
 .m-trunk { fill: var(--map-wood); }
 .map-paper { fill: none; pointer-events: none; }
 .map-vignette { fill: url(#map-vignette); pointer-events: none; }
-.map-frame { fill: none; stroke: #d3b779; stroke-width: 3; pointer-events: none; }
+.map-frame { fill: none; stroke: #d3b779; stroke-width: 2.4; pointer-events: none; }
+.map-frame-outer { stroke: #20150b; stroke-width: 8; }
 .map-frame-inner { stroke-width: 1.2; }
 .compass-ring { fill: #f3e8c8; fill-opacity: 0.75; stroke: var(--map-ink); stroke-width: 1.6; }
 .compass-inner { fill: none; stroke-width: 1; }
-.compass-needle { fill: var(--map-ink); opacity: 0.6; }
+.compass-needle { fill: var(--map-ink); opacity: 0.7; }
+.compass-minor { opacity: 0.4; }
+.compass-hub { fill: #f3e8c8; stroke: var(--map-ink); stroke-width: 1.4; }
 .compass-north { fill: var(--map-flag); }
 .compass-n { font: 700 17px Georgia, serif; fill: var(--map-ink); }
 

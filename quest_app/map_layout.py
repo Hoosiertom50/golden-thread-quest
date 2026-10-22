@@ -84,6 +84,10 @@ class MapDecor:
     waves: tuple[tuple[float, float], ...] = ()
     ships: tuple[tuple[float, float], ...] = ()
     sea_names: tuple[tuple[str, float, float, float], ...] = ()
+    forests: tuple[tuple[float, float, float], ...] = ()
+    ranges: tuple[tuple[float, float, float], ...] = ()
+    trails: tuple[str, ...] = ()
+    sea_routes: tuple[str, ...] = ()
     compass: tuple[float, float] = (0.0, 0.0)
 
 
@@ -455,48 +459,48 @@ def _scenery(layout: MapLayout) -> MapDecor:
     mountains: list[tuple[float, float, float]] = []
     ranges: list[tuple[float, float]] = []
     for i in range(400):
-        if len(ranges) >= 9:
+        if len(ranges) >= 11:
             break
         x = _EDGE + (layout.width - 2 * _EDGE) * _unit(f"{_SCENE}:mx", i)
         y = _EDGE + (layout.height - 2 * _EDGE) * _unit(f"{_SCENE}:my", i)
-        if not _on_continent(x, y, discs, 0.95) or _clearance(x, y, layout) < 34:
+        if not _on_continent(x, y, discs, 0.95) or _clearance(x, y, layout) < 26:
             continue
-        if any(math.hypot(x - rx, y - ry) < 150 for rx, ry in ranges):
+        if any(math.hypot(x - rx, y - ry) < 105 for rx, ry in ranges):
             continue
         # The first ranges are where rivers rise, so they are set well back from the coast.
         if len(ranges) < 4 and i < 250 and coast_gap(x, y) < 60:
             continue
         ranges.append((x, y))
         tilt = 2 * math.pi * _unit(f"{_SCENE}:mt", i)
-        for k in range(-2, 3):
-            size = 15 + 7 * _unit(f"{_SCENE}:ms", i * 7 + k)
+        for k in range(-3, 4):
+            size = 13 + 10 * _unit(f"{_SCENE}:ms", i * 7 + k)
             px = x + k * 17 * math.cos(tilt) + 5 * math.sin(k * 1.7)
             py = y + k * 17 * math.sin(tilt) * 0.6 + 6 * math.cos(k * 1.3)
-            if _inside(px, py, layout) and _clearance(px, py, layout) > 14:
+            if _inside(px, py, layout) and _clearance(px, py, layout) > 8:
                 mountains.append((round(px, 1), round(py, 1), round(size, 1)))
 
     # Forests: small clusters of trees.
     trees: list[tuple[float, float, float]] = []
     woods: list[tuple[float, float]] = []
     for i in range(500):
-        if len(woods) >= 13:
+        if len(woods) >= 24:
             break
         x = _EDGE + (layout.width - 2 * _EDGE) * _unit(f"{_SCENE}:fx", i)
         y = _EDGE + (layout.height - 2 * _EDGE) * _unit(f"{_SCENE}:fy", i)
         if not _on_continent(x, y, discs, 0.95) or _clearance(x, y, layout) < 26:
             continue
-        if any(math.hypot(x - wx, y - wy) < 58 for wx, wy in woods) or any(
+        if any(math.hypot(x - wx, y - wy) < 44 for wx, wy in woods) or any(
             math.hypot(x - mx, y - my) < 30 for mx, my, _ in mountains
         ):
             continue
         woods.append((x, y))
-        for k in range(9):
+        for k in range(15):
             angle = 2 * math.pi * _unit(f"{_SCENE}:fa{i}", k)
-            reach = 24 * math.sqrt(_unit(f"{_SCENE}:fr{i}", k))
+            reach = 28 * math.sqrt(_unit(f"{_SCENE}:fr{i}", k))
             px, py = x + reach * math.cos(angle), y + reach * math.sin(angle) * 0.8
             if _inside(px, py, layout) and _clearance(px, py, layout) > 9:
                 trees.append(
-                    (round(px, 1), round(py, 1), round(8 + 5 * _unit(f"{_SCENE}:fs{i}", k), 1))
+                    (round(px, 1), round(py, 1), round(6.5 + 5 * _unit(f"{_SCENE}:fs{i}", k), 1))
                 )
 
     # Lakes.
@@ -567,7 +571,15 @@ def _scenery(layout: MapLayout) -> MapDecor:
         if len(cells) < 5:
             continue
         kept = cells if len(cells) < 14 else cells[::2]
-        points = [((i + 0.5) * cell, (j + 0.5) * cell) for i, j in kept]
+        # Rivers do not follow a grid: each point is nudged sideways, more so in the middle.
+        points = []
+        for k, (i, j) in enumerate(kept):
+            sway = (
+                7 * math.sin(k * 0.9 + index) * (1 - abs(2 * k / max(len(kept) - 1, 1) - 1) * 0.4)
+            )
+            jx = 5 * (_unit(f"{_SCENE}:rj{index}", k * 2) - 0.5)
+            jy = 5 * (_unit(f"{_SCENE}:rj{index}", k * 2 + 1) - 0.5)
+            points.append(((i + 0.5) * cell + sway + jx, (j + 0.5) * cell - sway * 0.6 + jy))
         found.append((len(points), _smooth_open(points)))
     rivers = [path for _, path in sorted(found, key=lambda f: -f[0])[:3]]
 
@@ -629,6 +641,18 @@ def _scenery(layout: MapLayout) -> MapDecor:
     ships = tuple(waves[i] for i in (3, 11) if i < len(waves))
     waves = [w for w in waves if w not in ships]
 
+    # A dotted trail through the regions in curriculum order: the way the journey is meant to
+    # be walked. Hops to or from an island region are sea routes.
+    trails: list[str] = []
+    sea_routes: list[str] = []
+    for index, (first, second) in enumerate(zip(layout.lands, layout.lands[1:], strict=False)):
+        ax, ay, bx, by = first.medal_x, first.medal_y, second.medal_x, second.medal_y
+        length = math.hypot(bx - ax, by - ay) or 1.0
+        bow = (0.16 if index % 2 == 0 else -0.16) * length
+        mid = ((ax + bx) / 2 - (by - ay) / length * bow, (ay + by) / 2 + (bx - ax) / length * bow)
+        path = _smooth_open([(ax, ay), mid, (bx, by)])
+        (sea_routes if "islands" in (first.terrain, second.terrain) else trails).append(path)
+
     # The compass goes in whichever corner has the most room.
     corners = [
         (layout.width - 62, 62),
@@ -647,5 +671,9 @@ def _scenery(layout: MapLayout) -> MapDecor:
         waves=tuple(waves),
         ships=ships,
         sea_names=tuple(sea_names),
+        forests=tuple((round(x, 1), round(y, 1), 34.0) for x, y in woods),
+        ranges=tuple((round(x, 1), round(y, 1), 46.0) for x, y in ranges),
+        trails=tuple(trails),
+        sea_routes=tuple(sea_routes),
         compass=compass,
     )
