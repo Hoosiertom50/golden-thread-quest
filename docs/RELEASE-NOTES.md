@@ -1,12 +1,12 @@
 # Release Notes: Pilot Release
 
-**Version:** 0.3.0
-**Date:** 2026-10-21
+**Version:** 0.3.1
+**Date:** 2026-10-22
 **Status:** released to a small invited pilot, not for general use. The release checklist
 passed (`docs/audits/phase-01-verify.md`), and the program owner released it at Gate 1
 (`docs/audits/final-audit.md`). Pilot participants start with `docs/guides/PILOT.md`.
 
-## Since 0.3.0
+## What changed in 0.3.1
 
 - **The Quest Map is a drawn map.** An atlas-style picture: a continent with a rough coast and
   shaded relief, rivers, lakes, mountains and forests, a dark sea, and a dotted trail through the
@@ -18,7 +18,7 @@ passed (`docs/audits/phase-01-verify.md`), and the program owner released it at 
   Selecting a region opens its card in a dialog; without scripting the label goes to the region page.
   The card list stays below the map for anyone who prefers text. The layout is computed from
   quest counts alone, in `quest_app/map_layout.py`, and is the same on every build. This is
-  content-visible but changes the page; it is not yet in a tagged release.
+  content-visible but changes the page. The user guide shows it.
 - **CI runs the tests in shards**, because one job outgrew GitHub's six-hour limit.
 
 ## What changed in 0.3.0
