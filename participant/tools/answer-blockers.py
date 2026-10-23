@@ -29,7 +29,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.10.0"
+VERSION = "1.11.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 # The freshness limits, in days, exactly as in policy.md section 1. They live here, not in the notes
@@ -62,12 +62,13 @@ def _count(v):
 
 
 def _date(v):
-    if isinstance(v, dt.date):
-        return True
+    """A calendar date written as text, YYYY-MM-DD (like times, never a pre-read date object)."""
+    if not (isinstance(v, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", v.strip())):
+        return False
     try:
-        dt.date.fromisoformat(v)
+        dt.date.fromisoformat(v.strip())
         return True
-    except (TypeError, ValueError):
+    except ValueError:
         return False
 
 
@@ -127,6 +128,8 @@ StrictLoader.yaml_implicit_resolvers = {
     first: [(tag, rx) for tag, rx in resolvers if tag != "tag:yaml.org,2002:timestamp"]
     for first, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
 }
+# ...and an explicit "!!timestamp" label is read as plain text too, so it can't route around the check.
+StrictLoader.add_constructor("tag:yaml.org,2002:timestamp", yaml.SafeLoader.construct_yaml_str)
 
 # A date and time with a time zone: YYYY-MM-DDTHH:MM[:SS[.ffffff]] then Z or +HH:MM / -HH:MM,
 # the zone's hours 00-23 and minutes 00-59. The date and time ranges are checked by Python.
@@ -174,9 +177,9 @@ def parse_time(value: object) -> dt.datetime | None:
     Times arrive as text whether quoted or not (YAML's own time reading is switched off, see
     StrictLoader) and must match TIMESTAMP exactly before Python reads them.
     """
-    if isinstance(value, dt.datetime):
-        t = value
-    elif isinstance(value, str):
+    # Only text is accepted. A time already turned into a date-time by something else could have had
+    # an impossible part quietly "corrected" on the way, so it is never trusted.
+    if isinstance(value, str):
         text = value.strip()
         if not TIMESTAMP.fullmatch(text):
             return None
@@ -287,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         age = age_text(r["age"]) if r["age"] is not None else "unknown"
         limit = f"limit {r['limit']} day{'s' if r['limit'] != 1 else ''}" if r["limit"] else "no limit"
         raw = n.get("retrieved_at")
-        retrieved = "NOT RECORDED" if raw in (None, "") else raw.isoformat() if isinstance(raw, dt.datetime) else str(raw)
+        retrieved = "NOT RECORDED" if raw in (None, "") else str(raw)
         extra = f" -- {r['why']}" if r["why"] else ""
         print(f"  {n['id']:8} {n['source']:13} retrieved {retrieved:26} age {age:17} {limit:13} {r['status'].upper()}{extra}")
     print()
