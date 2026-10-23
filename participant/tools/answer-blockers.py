@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 # The freshness limits, in days, exactly as in policy.md section 1. They live here, not in the notes
@@ -150,8 +150,13 @@ def parse_time(value: object) -> dt.datetime | None:
     if isinstance(value, dt.datetime):
         t = value
     elif isinstance(value, str):
+        text = value.strip()
+        # A trailing "Z" means UTC. Older Pythons (3.10, the project's minimum) can't read it, so
+        # it is written out as +00:00 first and every version reads the same time.
+        if text[-1:] in ("Z", "z"):
+            text = text[:-1] + "+00:00"
         try:
-            t = dt.datetime.fromisoformat(value)
+            t = dt.datetime.fromisoformat(text)
         except ValueError:
             return None
     else:
