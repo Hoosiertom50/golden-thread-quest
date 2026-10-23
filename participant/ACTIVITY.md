@@ -14,3 +14,4 @@ Every change this application made to your files, newest last.
 - `2026-10-21T15:23:17Z` base-camp-repository-safety: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-10-21T15:23:17Z` Submitted base-camp-repository-safety for review as submission-20261021152317-5bbdaa.
 - `2026-10-21T17:28:04Z` Review of base-camp-repository-safety: approved by Gregg Reed.
+- `2026-10-23T12:59:16Z` Started context-staleness as attempt context-attempt-001.
