@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 # The freshness limits, in days, exactly as in policy.md section 1. They live here, not in the notes
@@ -205,8 +205,9 @@ def blockers(notes: list[dict]) -> list[str]:
         src = n.get("source")
         if src == "sprint-board" and n.get("status") != "Done":
             found.append(f"{n['id']} {n.get('title')} is still {n.get('status')}")
-        elif src == "bug-list" and n.get("status") == "Open" and n.get("severity") in ("Critical", "High"):
-            found.append(f"{n['id']} {n.get('title')} is open ({n.get('severity')})")
+        # An unresolved bug blocks whether or not anyone has started on it: Open and In Progress both count.
+        elif src == "bug-list" and n.get("status") in ("Open", "In Progress") and n.get("severity") in ("Critical", "High"):
+            found.append(f"{n['id']} {n.get('title')} is {n.get('status').lower()} ({n.get('severity')})")
         elif src == "test-runs" and n.get("failed", 0) > 0:
             found.append(f"{n['id']} build {n.get('build')}: {n.get('failed')} of {n.get('total')} tests failed")
     return found
