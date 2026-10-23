@@ -23,12 +23,13 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import re
 import sys
 from pathlib import Path
 
 import yaml
 
-VERSION = "1.9.0"
+VERSION = "1.10.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 # The freshness limits, in days, exactly as in policy.md section 1. They live here, not in the notes
@@ -119,6 +120,21 @@ class StrictLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep=deep)
 
 
+# YAML would otherwise read an unquoted time itself, and quietly "correct" an impossible one
+# (-04:60 becomes -05:00). With its time reading switched off, every time reaches the program as
+# text and gets the same strict check, quoted or not.
+StrictLoader.yaml_implicit_resolvers = {
+    first: [(tag, rx) for tag, rx in resolvers if tag != "tag:yaml.org,2002:timestamp"]
+    for first, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+}
+
+# A date and time with a time zone: YYYY-MM-DDTHH:MM[:SS[.ffffff]] then Z or +HH:MM / -HH:MM,
+# the zone's hours 00-23 and minutes 00-59. The date and time ranges are checked by Python.
+TIMESTAMP = re.compile(
+    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)"
+)
+
+
 def load_context(path: Path) -> dict:
     """The notes file, or an error message saying why it can't be used."""
     try:
@@ -153,14 +169,17 @@ def load_context(path: Path) -> dict:
 
 
 def parse_time(value: object) -> dt.datetime | None:
-    """A time with its time zone, or None if it is missing or can't be read.
+    """A time with its time zone, or None if it is missing, malformed or has no time zone.
 
-    Accepts the time written in quotes (text) or without (YAML reads it as a date and time).
+    Times arrive as text whether quoted or not (YAML's own time reading is switched off, see
+    StrictLoader) and must match TIMESTAMP exactly before Python reads them.
     """
     if isinstance(value, dt.datetime):
         t = value
     elif isinstance(value, str):
         text = value.strip()
+        if not TIMESTAMP.fullmatch(text):
+            return None
         # A trailing "Z" means UTC. Older Pythons (3.10, the project's minimum) can't read it, so
         # it is written out as +00:00 first and every version reads the same time.
         if text[-1:] in ("Z", "z"):
@@ -180,17 +199,19 @@ def shown(t: dt.datetime) -> str:
 
 
 def age_text(delta: dt.timedelta) -> str:
-    """Days, hours and minutes, so the age shown matches the exact age the status uses."""
-    minutes = int(delta.total_seconds() // 60)
-    days, minutes = divmod(minutes, 24 * 60)
-    hours, minutes = divmod(minutes, 60)
+    """Days, hours, minutes and seconds (with any fraction), so the age shown is the exact age the
+    status uses: a note 1 day and 1 second old never shows as "1 day"."""
+    days, rest = delta.days, dt.timedelta(seconds=delta.seconds, microseconds=delta.microseconds)
+    hours, rest = divmod(rest, dt.timedelta(hours=1))
+    minutes, rest = divmod(rest, dt.timedelta(minutes=1))
+    seconds = rest.total_seconds()
     parts = []
-    if days:
-        parts.append(f"{days} day{'s' if days != 1 else ''}")
-    if hours:
-        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
-    if minutes or not parts:
-        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    for n, unit in ((days, "day"), (hours, "hour"), (minutes, "minute")):
+        if n:
+            parts.append(f"{n} {unit}{'s' if n != 1 else ''}")
+    if seconds or not parts:
+        shown_s = f"{seconds:.6f}".rstrip("0").rstrip(".")
+        parts.append(f"{shown_s} second{'s' if shown_s != '1' else ''}")
     return " ".join(parts)
 
 

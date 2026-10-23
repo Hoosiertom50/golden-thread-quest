@@ -21,6 +21,8 @@ in this table is not trusted.
 ## 2. The rule
 
 A note's **age** is the clock time the answer is given at, minus the note's retrieval time.
+Retrieval times, and the clock, are written as date and time with a time zone, for example
+`2026-10-20T09:00:00-04:00` or `2026-10-20T13:00:00Z`; ages are shown down to the second.
 
 | Age | Status | What the answer does |
 |---|---|---|
