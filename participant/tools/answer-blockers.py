@@ -25,8 +25,45 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
+
+
+def _text(v):
+    return isinstance(v, str) and bool(v.strip())
+
+
+def _count(v):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def _date(v):
+    if isinstance(v, dt.date):
+        return True
+    try:
+        dt.date.fromisoformat(v)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+# The facts each source's notes must hold. A note missing one, or holding the wrong kind of value,
+# can't be relied on, so it is treated as too old (policy section 3) instead of being filled in.
+REQUIRED = {
+    "sprint-board": {"title": _text, "status": _text},
+    "bug-list": {"title": _text, "status": _text, "severity": _text},
+    "test-runs": {"build": lambda v: _text(v) or _count(v), "failed": _count, "total": _count},
+    "release-plan": {"release": lambda v: _text(v) or isinstance(v, (int, float)), "target_date": _date},
+    "team-roster": {"qa": lambda v: isinstance(v, list) and bool(v) and all(_text(x) for x in v)},
+}
+
+
+def problems(note: dict) -> list[str]:
+    """The facts this note is missing or holds in the wrong form."""
+    bad = [field for field, ok in REQUIRED.get(note["source"], {}).items() if not ok(note.get(field))]
+    if note["source"] == "test-runs" and not bad and note["failed"] > note["total"]:
+        bad.append("failed (more than total)")
+    return bad
 
 
 class StrictLoader(yaml.SafeLoader):
@@ -55,7 +92,9 @@ def load_context(path: Path) -> dict:
         raise ValueError(f"{path} can't be read: {e}") from None
     except yaml.YAMLError as e:
         raise ValueError(f"{path} is not valid: {e}".replace("\n", " ")) from None
-    if not isinstance(data, dict) or not isinstance(data.get("limits_days"), dict) or not isinstance(data.get("notes"), list):
+    if not isinstance(data, dict) or not _text(data.get("question")):
+        raise ValueError(f"{path} must have a 'question' to answer")
+    if not isinstance(data.get("limits_days"), dict) or not isinstance(data.get("notes"), list):
         raise ValueError(f"{path} must have a 'limits_days' table and a 'notes' list")
     if not data["notes"]:
         raise ValueError(f"{path} has no notes, so there is nothing to answer from")
@@ -107,9 +146,14 @@ def assess(note: dict, limits: dict, now: dt.datetime) -> dict:
     """The note's age and status under the policy."""
     limit = limits.get(note.get("source"))
     retrieved = parse_time(note.get("retrieved_at"))
+    known_age = now - retrieved if retrieved is not None and retrieved <= now else None
     if limit is None:
-        return {"note": note, "age": None, "limit": None, "status": "too old",
+        return {"note": note, "age": known_age, "limit": None, "status": "too old",
                 "why": f"no freshness limit for source '{note.get('source')}'"}
+    bad = problems(note)
+    if bad:
+        return {"note": note, "age": known_age, "limit": limit, "status": "too old",
+                "why": "missing or invalid: " + ", ".join(bad)}
     if retrieved is None:
         return {"note": note, "age": None, "limit": limit, "status": "too old",
                 "why": "no usable retrieval time (missing, unreadable, or without a time zone), so its age is unknown"}
@@ -187,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     refresh = [r["note"]["id"] for r in results if r["status"] != "fresh"]
 
     if worst == "too old":
-        print("Answer: REFUSED. These notes are too old to rely on:")
+        print("Answer: REFUSED. These notes can't be relied on:")
         for r in too_old:
             print(f"  {r['note']['id']}: " + (r["why"] or f"{age_text(r['age'])} old, over twice its {r['limit']}-day limit"))
         for r in stale:

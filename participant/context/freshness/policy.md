@@ -28,11 +28,17 @@ A note's **age** is the clock time the answer is given at, minus the note's retr
 The answer takes the worst status of any note it used: one too-old note means a refusal, and
 otherwise one stale note means a warning.
 
-## 3. Notes with no retrieval time
+## 3. Notes that can't be trusted
 
 A note with a missing or unreadable retrieval time, or one without a time zone, is treated as
 **too old**, so the answer **refuses**. Its age is unknown, and an unknown age can't be trusted,
 just as test results with no build or date would not count for sign-off.
+
+The same goes for a note that is **missing a fact its source needs** (a board note's status, a
+bug's severity, a test run's failed or total count, a release plan's target date, the roster's
+QA list), or that holds one in the wrong form, and for a note whose source has **no limit** in
+the table above. It is treated as too old and named, never quietly filled in: a test run with no
+failure count must not be read as "nothing failed".
 
 ## 4. What every answer shows
 
