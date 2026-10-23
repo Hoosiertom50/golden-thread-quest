@@ -25,17 +25,56 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 
-def parse_time(value: object) -> dt.datetime | None:
-    """A time with its time zone, or None if it is missing or can't be read."""
-    if not isinstance(value, str):
-        return None
+class StrictLoader(yaml.SafeLoader):
+    """yaml's safe loader, but a key repeated in the same place is an error, not silently replaced.
+
+    Plain YAML keeps the last of two `notes:` lists, so a first list holding stale or undated notes
+    would vanish and the answer could look all fresh.
+    """
+
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(
+                    None, None, f"the key '{key}' appears twice", key_node.start_mark)
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
+
+
+def load_context(path: Path) -> dict:
+    """The notes file, or an error message saying why it can't be used."""
     try:
-        t = dt.datetime.fromisoformat(value)
-    except ValueError:
+        data = yaml.load(path.read_text(encoding="utf-8"), Loader=StrictLoader)  # noqa: S506 -- a SafeLoader subclass
+    except (OSError, UnicodeDecodeError) as e:
+        raise ValueError(f"{path} can't be read: {e}") from None
+    except yaml.YAMLError as e:
+        raise ValueError(f"{path} is not valid: {e}".replace("\n", " ")) from None
+    if not isinstance(data, dict) or not isinstance(data.get("limits_days"), dict) or not isinstance(data.get("notes"), list):
+        raise ValueError(f"{path} must have a 'limits_days' table and a 'notes' list")
+    if not all(isinstance(n, dict) and n.get("id") and n.get("source") for n in data["notes"]):
+        raise ValueError(f"{path}: every note needs an 'id' and a 'source'")
+    return data
+
+
+def parse_time(value: object) -> dt.datetime | None:
+    """A time with its time zone, or None if it is missing or can't be read.
+
+    Accepts the time written in quotes (text) or without (YAML reads it as a date and time).
+    """
+    if isinstance(value, dt.datetime):
+        t = value
+    elif isinstance(value, str):
+        try:
+            t = dt.datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    else:
         return None
     return t if t.tzinfo else None  # without a time zone the age would be a guess
 
@@ -65,7 +104,7 @@ def assess(note: dict, limits: dict, now: dt.datetime) -> dict:
                 "why": f"no freshness limit for source '{note.get('source')}'"}
     if retrieved is None:
         return {"note": note, "age": None, "limit": limit, "status": "too old",
-                "why": "no retrieval time, so its age is unknown"}
+                "why": "no usable retrieval time (missing, unreadable, or without a time zone), so its age is unknown"}
     age = now - retrieved
     if age < dt.timedelta(0):
         return {"note": note, "age": age, "limit": limit, "status": "too old",
@@ -99,7 +138,11 @@ def main(argv: list[str] | None = None) -> int:
     if now is None:
         print('REFUSED: --now must be a date and time with a time zone, e.g. "2026-10-21T15:00:00-04:00"')
         return 2
-    data = yaml.safe_load(args.context.read_text(encoding="utf-8"))
+    try:
+        data = load_context(args.context)
+    except ValueError as e:
+        print(f"REFUSED: the notes can't be trusted, so no answer is given: {e}")
+        return 2
     limits, notes = data["limits_days"], data["notes"]
 
     print(f"$ .venv/bin/python participant/tools/answer-blockers.py --context {args.context} --now {args.now}")
@@ -114,7 +157,8 @@ def main(argv: list[str] | None = None) -> int:
         n = r["note"]
         age = age_text(r["age"]) if r["age"] is not None and r["age"] >= dt.timedelta(0) else "unknown"
         limit = f"limit {r['limit']} day{'s' if r['limit'] != 1 else ''}" if r["limit"] else "no limit"
-        retrieved = n.get("retrieved_at") or "NOT RECORDED"
+        raw = n.get("retrieved_at")
+        retrieved = "NOT RECORDED" if raw in (None, "") else raw.isoformat() if isinstance(raw, dt.datetime) else str(raw)
         extra = f" -- {r['why']}" if r["why"] else ""
         print(f"  {n['id']:8} {n['source']:13} retrieved {retrieved:26} age {age:17} {limit:13} {r['status'].upper()}{extra}")
     print()
@@ -122,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
     dated = [r for r in results if r["age"] is not None and r["age"] >= dt.timedelta(0)]
     undated = [r for r in results if r["age"] is None]
     if undated:
-        print("Oldest note used: " + ", ".join(r["note"]["id"] for r in undated) + " (age unknown: no retrieval time)")
+        print("Oldest note used: " + ", ".join(r["note"]["id"] for r in undated) + " (age unknown: no usable retrieval time)")
     elif dated:
         oldest = max(dated, key=lambda r: r["age"])
         print(f"Oldest note used: {oldest['note']['id']} ({oldest['note']['source']}), {age_text(oldest['age'])} old")
