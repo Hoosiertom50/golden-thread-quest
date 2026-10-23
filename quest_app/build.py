@@ -57,6 +57,7 @@ from quest_app.view_models import (
     build_badge_views,
     build_filter_options,
     build_legend,
+    build_map_layout,
     build_participant_view,
     build_proof_views,
     build_quest_summary,
@@ -518,7 +519,13 @@ def _render_and_publish(
                     heading="Quest map",
                 ),
             )
-            | {"regions": region_cards, "totals": totals_map, "legend": build_legend()},
+            | {
+                "regions": region_cards,
+                "cards": {card.region.id: card for card in region_cards},
+                "layout": build_map_layout(region_cards),
+                "totals": totals_map,
+                "legend": build_legend(),
+            },
         )
     )
 
