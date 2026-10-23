@@ -28,9 +28,10 @@ attempts:
   quest_id: context-staleness
   quest_version: 1
   content_hash: sha256:30409ed9f20734f7c419564045e38b7cf74d44118555f2c8e5e0ecb8c8a14f7b
-  state: submitted
+  state: verified
   started_at: '2026-10-23T12:59:16Z'
-  updated_at: '2026-10-23T16:16:41Z'
+  updated_at: '2026-10-23T17:40:53Z'
   evidence_path: participant/evidence/context-staleness/context-attempt-001
   submission_id: submission-20261023161641-d369b9
-updated_at: '2026-10-23T16:16:41Z'
+  review_id: review-20261023174053-1c90a6
+updated_at: '2026-10-23T17:40:53Z'
