@@ -38,7 +38,8 @@ just as test results with no build or date would not count for sign-off.
 
 - The clock time it used. The clock can be set, so the same notes and the same clock always
   give the same result.
-- The **oldest note** it used, with its age.
+- The **oldest note** it used, with its age. Notes of unknown age are listed separately, since
+  an unknown age can't be called the oldest; the oldest dated note is still shown.
 - When warned or refused: every stale or too-old note by id, with its age and limit.
 - When warned or refused, the options: use the answer with these caveats (warned only), or
   refresh exactly the notes listed first. Fresh notes never need refreshing.

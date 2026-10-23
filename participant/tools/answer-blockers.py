@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 
@@ -59,8 +59,10 @@ def load_context(path: Path) -> dict:
         raise ValueError(f"{path} must have a 'limits_days' table and a 'notes' list")
     if not data["notes"]:
         raise ValueError(f"{path} has no notes, so there is nothing to answer from")
-    if not all(isinstance(n, dict) and n.get("id") and n.get("source") for n in data["notes"]):
-        raise ValueError(f"{path}: every note needs an 'id' and a 'source'")
+    for n in data["notes"]:
+        if not (isinstance(n, dict) and isinstance(n.get("id"), str) and n["id"].strip()
+                and isinstance(n.get("source"), str) and n["source"].strip()):
+            raise ValueError(f"{path}: every note needs an 'id' and a 'source' written as text (found {n!r})")
     for source, days in data["limits_days"].items():
         # A whole number of days, 1 or more ("1" in quotes is text, and True would count as 1).
         if isinstance(days, bool) or not isinstance(days, int) or days < 1:
@@ -171,11 +173,13 @@ def main(argv: list[str] | None = None) -> int:
 
     dated = [r for r in results if r["age"] is not None and r["age"] >= dt.timedelta(0)]
     undated = [r for r in results if r["age"] is None]
+    # A note of unknown age can't be called the oldest, so unknown ages are reported on their own.
     if undated:
-        print("Oldest note used: " + ", ".join(r["note"]["id"] for r in undated) + " (age unknown: no usable retrieval time)")
-    elif dated:
+        print("Notes with unknown age: " + ", ".join(r["note"]["id"] for r in undated) + " (no usable retrieval time)")
+    if dated:
         oldest = max(dated, key=lambda r: r["age"])
-        print(f"Oldest note used: {oldest['note']['id']} ({oldest['note']['source']}), {age_text(oldest['age'])} old")
+        label = "Oldest dated note used" if undated else "Oldest note used"
+        print(f"{label}: {oldest['note']['id']} ({oldest['note']['source']}), {age_text(oldest['age'])} old")
 
     worst = max(results, key=lambda r: RANK[r["status"]])["status"]
     stale = [r for r in results if r["status"] == "stale"]
