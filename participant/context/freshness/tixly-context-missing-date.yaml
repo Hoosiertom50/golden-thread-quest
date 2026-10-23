@@ -4,13 +4,6 @@
 
 question: What is blocking release 3.0?
 
-limits_days:
-  sprint-board: 1
-  bug-list: 1
-  test-runs: 1
-  release-plan: 7
-  team-roster: 30
-
 notes:
   - id: BRD-21
     source: sprint-board

@@ -15,6 +15,9 @@ the result before running it.
 | Release plan (date and scope) | 7 days | The plan is reviewed weekly. |
 | Team roster | 30 days | People rarely join or leave in the middle of a release. |
 
+These limits are the only ones used: a notes file can't set its own, and a note from a source not
+in this table is not trusted.
+
 ## 2. The rule
 
 A note's **age** is the clock time the answer is given at, minus the note's retrieval time.
@@ -38,7 +41,9 @@ The same goes for a note that is **missing a fact its source needs** (a board no
 bug's severity, a test run's failed or total count, a release plan's target date, the roster's
 QA list), or that holds one in the wrong form, and for a note whose source has **no limit** in
 the table above. It is treated as too old and named, never quietly filled in: a test run with no
-failure count must not be read as "nothing failed".
+failure count must not be read as "nothing failed". Values are matched ignoring capitals and extra spaces ("open"
+is Open), but a value that isn't recognised ("Opne") makes the note untrustworthy, so an unknown
+status is never read as "not blocking".
 
 ## 4. What every answer shows
 

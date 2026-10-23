@@ -1,15 +1,8 @@
 # Saved notes about Tixly, a made-up event-ticket app. Everything here is invented.
 # Each note records when it was retrieved (retrieved_at, with its time zone).
-# The freshness limits are in policy.md; limits_days repeats them for the program.
+# The freshness limits come only from policy.md (the program has the same table built in).
 
 question: What is blocking release 3.0?
-
-limits_days:
-  sprint-board: 1
-  bug-list: 1
-  test-runs: 1
-  release-plan: 7
-  team-roster: 30
 
 notes:
   - id: BRD-21

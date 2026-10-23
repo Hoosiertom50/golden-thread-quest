@@ -25,8 +25,28 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
+
+# The freshness limits, in days, exactly as in policy.md section 1. They live here, not in the notes
+# file, so whoever writes the notes can't loosen the policy. A source not listed is not trusted.
+POLICY_LIMITS = {"sprint-board": 1, "bug-list": 1, "test-runs": 1, "release-plan": 7, "team-roster": 30}
+
+# The values a note may hold, matched ignoring capitals and surrounding spaces. Anything else is not
+# recognised, so the note can't be trusted -- an unknown status must never count as "not blocking".
+ALLOWED = {
+    ("sprint-board", "status"): ("To Do", "In Progress", "In Review", "Done"),
+    ("bug-list", "status"): ("Open", "In Progress", "Fixed", "Closed"),
+    ("bug-list", "severity"): ("Critical", "High", "Medium", "Low"),
+}
+
+
+def canonical(source: str, field: str, value: object) -> str | None:
+    """The allowed spelling of value, or None if it isn't one of the allowed values."""
+    if not isinstance(value, str):
+        return None
+    wanted = " ".join(value.split()).casefold()
+    return next((v for v in ALLOWED[(source, field)] if v.casefold() == wanted), None)
 
 
 def _text(v):
@@ -61,6 +81,9 @@ REQUIRED = {
 def problems(note: dict) -> list[str]:
     """The facts this note is missing or holds in the wrong form."""
     bad = [field for field, ok in REQUIRED.get(note["source"], {}).items() if not ok(note.get(field))]
+    bad += [f"{field} ({note.get(field)!r} is not one of: {', '.join(ALLOWED[(src, field)])})"
+            for (src, field) in ALLOWED
+            if src == note["source"] and field not in bad and canonical(src, field, note.get(field)) is None]
     if note["source"] == "test-runs" and not bad and note["failed"] > note["total"]:
         bad.append("failed (more than total)")
     return bad
@@ -77,6 +100,11 @@ class StrictLoader(yaml.SafeLoader):
         seen = set()
         for key_node, _ in node.value:
             key = self.construct_object(key_node, deep=deep)
+            try:
+                hash(key)
+            except TypeError:
+                raise yaml.constructor.ConstructorError(
+                    None, None, "a key must be plain text, not a list or table", key_node.start_mark) from None
             if key in seen:
                 raise yaml.constructor.ConstructorError(
                     None, None, f"the key '{key}' appears twice", key_node.start_mark)
@@ -94,18 +122,22 @@ def load_context(path: Path) -> dict:
         raise ValueError(f"{path} is not valid: {e}".replace("\n", " ")) from None
     if not isinstance(data, dict) or not _text(data.get("question")):
         raise ValueError(f"{path} must have a 'question' to answer")
-    if not isinstance(data.get("limits_days"), dict) or not isinstance(data.get("notes"), list):
-        raise ValueError(f"{path} must have a 'limits_days' table and a 'notes' list")
+    if not isinstance(data.get("notes"), list):
+        raise ValueError(f"{path} must have a 'notes' list")
+    if "limits_days" in data and data["limits_days"] != POLICY_LIMITS:
+        raise ValueError(f"{path} sets its own freshness limits; the limits come only from the policy ({POLICY_LIMITS})")
     if not data["notes"]:
         raise ValueError(f"{path} has no notes, so there is nothing to answer from")
     for n in data["notes"]:
         if not (isinstance(n, dict) and isinstance(n.get("id"), str) and n["id"].strip()
                 and isinstance(n.get("source"), str) and n["source"].strip()):
             raise ValueError(f"{path}: every note needs an 'id' and a 'source' written as text (found {n!r})")
-    for source, days in data["limits_days"].items():
-        # A whole number of days, 1 or more ("1" in quotes is text, and True would count as 1).
-        if isinstance(days, bool) or not isinstance(days, int) or days < 1:
-            raise ValueError(f"{path}: the limit for '{source}' must be a whole number of days, 1 or more (it is {days!r})")
+    # Allowed values are stored in their standard spelling, so "open" and "Open " both count as Open.
+    data["notes"] = [
+        {**n, **{field: canonical(src, field, n.get(field)) or n.get(field)
+                 for (src, field) in ALLOWED if src == n["source"]}}
+        for n in data["notes"]
+    ]
     return data
 
 
@@ -149,7 +181,7 @@ def assess(note: dict, limits: dict, now: dt.datetime) -> dict:
     known_age = now - retrieved if retrieved is not None and retrieved <= now else None
     if limit is None:
         return {"note": note, "age": known_age, "limit": None, "status": "too old",
-                "why": f"no freshness limit for source '{note.get('source')}'"}
+                "why": f"'{note.get('source')}' is not a source in the policy, so it has no freshness limit"}
     bad = problems(note)
     if bad:
         return {"note": note, "age": known_age, "limit": limit, "status": "too old",
@@ -195,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as e:
         print(f"REFUSED: the notes can't be trusted, so no answer is given: {e}")
         return 2
-    limits, notes = data["limits_days"], data["notes"]
+    limits, notes = POLICY_LIMITS, data["notes"]
 
     print(f"$ .venv/bin/python participant/tools/answer-blockers.py --context {args.context} --now {args.now}")
     print(f"# answer-blockers.py {VERSION}")
