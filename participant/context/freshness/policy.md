@@ -31,9 +31,8 @@ otherwise one stale note means a warning.
 ## 3. Notes with no retrieval time
 
 A note with a missing or unreadable retrieval time, or one without a time zone, is treated as
-**too old**, so the answer
-**refuses**. Its age is unknown, and an unknown age can't be trusted, just as test results with
-no build or date would not count for sign-off.
+**too old**, so the answer **refuses**. Its age is unknown, and an unknown age can't be trusted,
+just as test results with no build or date would not count for sign-off.
 
 ## 4. What every answer shows
 
