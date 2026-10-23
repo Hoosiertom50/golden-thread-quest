@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 
@@ -57,8 +57,14 @@ def load_context(path: Path) -> dict:
         raise ValueError(f"{path} is not valid: {e}".replace("\n", " ")) from None
     if not isinstance(data, dict) or not isinstance(data.get("limits_days"), dict) or not isinstance(data.get("notes"), list):
         raise ValueError(f"{path} must have a 'limits_days' table and a 'notes' list")
+    if not data["notes"]:
+        raise ValueError(f"{path} has no notes, so there is nothing to answer from")
     if not all(isinstance(n, dict) and n.get("id") and n.get("source") for n in data["notes"]):
         raise ValueError(f"{path}: every note needs an 'id' and a 'source'")
+    for source, days in data["limits_days"].items():
+        # A whole number of days, 1 or more ("1" in quotes is text, and True would count as 1).
+        if isinstance(days, bool) or not isinstance(days, int) or days < 1:
+            raise ValueError(f"{path}: the limit for '{source}' must be a whole number of days, 1 or more (it is {days!r})")
     return data
 
 
