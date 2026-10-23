@@ -41,16 +41,19 @@ The same goes for a note that is **missing a fact its source needs** (a board no
 bug's severity, a test run's failed or total count, a release plan's target date, the roster's
 QA list), or that holds one in the wrong form, and for a note whose source has **no limit** in
 the table above. It is treated as too old and named, never quietly filled in: a test run with no
-failure count must not be read as "nothing failed". Values are matched ignoring capitals and extra spaces ("open"
+failure count, or a run of 0 tests, must not be read as "nothing failed". Values are matched ignoring capitals and extra spaces ("open"
 is Open), but a value that isn't recognised ("Opne") makes the note untrustworthy, so an unknown
-status is never read as "not blocking".
+status is never read as "not blocking". A note retrieved after the clock time is treated the same way, since
+the clock or the note must be wrong. If two notes share an id, the notes contradict each other, so
+no answer is given at all.
 
 ## 4. What every answer shows
 
 - The clock time it used. The clock can be set, so the same notes and the same clock always
   give the same result.
-- The **oldest note** it used, with its age. Notes of unknown age are listed separately, since
-  an unknown age can't be called the oldest; the oldest dated note is still shown.
+- The **oldest note** it used, with its age. Notes with no usable age (no retrieval time, or one
+  after the clock) are listed separately with the reason, since they can't be called the oldest;
+  the oldest dated note is still shown.
 - When warned or refused: every stale or too-old note by id, with its age and limit.
 - When warned or refused, the options: use the answer with these caveats (warned only), or
   refresh exactly the notes listed first. Fresh notes never need refreshing.

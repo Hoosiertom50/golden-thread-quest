@@ -4,7 +4,10 @@
 Part of the context-staleness quest. The rules are in participant/context/freshness/policy.md:
   - a note's age is the clock time minus the note's retrieval time;
   - up to its source's limit it is fresh; past the limit, up to twice the limit, it is stale;
-    past twice the limit it is too old; a note with no retrieval time is too old;
+    past twice the limit it is too old;
+  - a note that can't be trusted is too old: no usable retrieval time, retrieved after the clock,
+    a source not in the policy, or a required fact missing or in the wrong form;
+  - a notes file that is malformed, repeats a key or a note id, or sets its own limits is refused;
   - the answer takes the worst status of any note: too old -> refuse, stale -> warn.
 Every answer shows the clock used and the oldest note with its age, and a warned or refused
 answer names each stale or too-old note and which notes to refresh.
@@ -25,7 +28,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.8.0"
+VERSION = "1.9.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 # The freshness limits, in days, exactly as in policy.md section 1. They live here, not in the notes
@@ -72,7 +75,8 @@ def _date(v):
 REQUIRED = {
     "sprint-board": {"title": _text, "status": _text},
     "bug-list": {"title": _text, "status": _text, "severity": _text},
-    "test-runs": {"build": lambda v: _text(v) or _count(v), "failed": _count, "total": _count},
+    # At least one test must have run: a run of 0 tests is not a pass, it's no result.
+    "test-runs": {"build": lambda v: _text(v) or _count(v), "failed": _count, "total": lambda v: _count(v) and v >= 1},
     # The release name is text, as in "3.0" (quoted, so YAML doesn't read it as a number).
     "release-plan": {"release": _text, "target_date": _date},
     "team-roster": {"qa": lambda v: isinstance(v, list) and bool(v) and all(_text(x) for x in v)},
@@ -82,6 +86,8 @@ REQUIRED = {
 def problems(note: dict) -> list[str]:
     """The facts this note is missing or holds in the wrong form."""
     bad = [field for field, ok in REQUIRED.get(note["source"], {}).items() if not ok(note.get(field))]
+    if note["source"] == "test-runs" and "total" in bad and note.get("total") == 0:
+        bad[bad.index("total")] = "total (no tests ran)"
     bad += [f"{field} ({note.get(field)!r} is not one of: {', '.join(ALLOWED[(src, field)])})"
             for (src, field) in ALLOWED
             if src == note["source"] and field not in bad and canonical(src, field, note.get(field)) is None]
@@ -133,6 +139,10 @@ def load_context(path: Path) -> dict:
         if not (isinstance(n, dict) and isinstance(n.get("id"), str) and n["id"].strip()
                 and isinstance(n.get("source"), str) and n["source"].strip()):
             raise ValueError(f"{path}: every note needs an 'id' and a 'source' written as text (found {n!r})")
+    ids = [n["id"].strip() for n in data["notes"]]
+    repeated = sorted({i for i in ids if ids.count(i) > 1})
+    if repeated:
+        raise ValueError(f"{path}: more than one note has the id {', '.join(repeated)}, so the notes contradict or repeat each other")
     # Allowed values are stored in their standard spelling, so "open" and "Open " both count as Open.
     data["notes"] = [
         {**n, **{field: canonical(src, field, n.get(field)) or n.get(field)
@@ -170,13 +180,17 @@ def shown(t: dt.datetime) -> str:
 
 
 def age_text(delta: dt.timedelta) -> str:
-    hours = int(delta.total_seconds() // 3600)
-    days, hours = divmod(hours, 24)
+    """Days, hours and minutes, so the age shown matches the exact age the status uses."""
+    minutes = int(delta.total_seconds() // 60)
+    days, minutes = divmod(minutes, 24 * 60)
+    hours, minutes = divmod(minutes, 60)
     parts = []
     if days:
         parts.append(f"{days} day{'s' if days != 1 else ''}")
-    if hours or not days:
+    if hours:
         parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes or not parts:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
     return " ".join(parts)
 
 
@@ -184,24 +198,27 @@ def assess(note: dict, limits: dict, now: dt.datetime) -> dict:
     """The note's age and status under the policy."""
     limit = limits.get(note.get("source"))
     retrieved = parse_time(note.get("retrieved_at"))
-    known_age = now - retrieved if retrieved is not None and retrieved <= now else None
-    if limit is None:
-        return {"note": note, "age": known_age, "limit": None, "status": "too old",
-                "why": f"'{note.get('source')}' is not a source in the policy, so it has no freshness limit"}
-    bad = problems(note)
-    if bad:
-        return {"note": note, "age": known_age, "limit": limit, "status": "too old",
-                "why": "missing or invalid: " + ", ".join(bad)}
+    # Every reason the note can't be trusted is collected, so none is hidden behind another.
+    reasons, age_problem = [], ""
     if retrieved is None:
-        return {"note": note, "age": None, "limit": limit, "status": "too old",
-                "why": "no usable retrieval time (missing, unreadable, or without a time zone), so its age is unknown"}
-    age = now - retrieved
-    if age < dt.timedelta(0):
+        age_problem = "no usable retrieval time: missing, unreadable, or without a time zone"
+    elif retrieved > now:
+        age_problem = "retrieved after the clock time, so the clock or the note is wrong"
+    if age_problem:
+        reasons.append(age_problem)
+    if limit is None:
+        reasons.append(f"'{note.get('source')}' is not a source in the policy, so it has no freshness limit")
+    else:
+        bad = problems(note)
+        if bad:
+            reasons.append("missing or invalid: " + ", ".join(bad))
+    age = now - retrieved if not age_problem else None
+    if reasons:
         return {"note": note, "age": age, "limit": limit, "status": "too old",
-                "why": "retrieved after the clock time, so the clock or the note is wrong"}
+                "why": "; ".join(reasons), "age_problem": age_problem}
     limit_td = dt.timedelta(days=limit)
     status = "fresh" if age <= limit_td else "stale" if age <= 2 * limit_td else "too old"
-    return {"note": note, "age": age, "limit": limit, "status": status, "why": ""}
+    return {"note": note, "age": age, "limit": limit, "status": status, "why": "", "age_problem": ""}
 
 
 def blockers(notes: list[dict]) -> list[str]:
@@ -246,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     print("Notes used:")
     for r in results:
         n = r["note"]
-        age = age_text(r["age"]) if r["age"] is not None and r["age"] >= dt.timedelta(0) else "unknown"
+        age = age_text(r["age"]) if r["age"] is not None else "unknown"
         limit = f"limit {r['limit']} day{'s' if r['limit'] != 1 else ''}" if r["limit"] else "no limit"
         raw = n.get("retrieved_at")
         retrieved = "NOT RECORDED" if raw in (None, "") else raw.isoformat() if isinstance(raw, dt.datetime) else str(raw)
@@ -254,11 +271,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {n['id']:8} {n['source']:13} retrieved {retrieved:26} age {age:17} {limit:13} {r['status'].upper()}{extra}")
     print()
 
-    dated = [r for r in results if r["age"] is not None and r["age"] >= dt.timedelta(0)]
+    dated = [r for r in results if r["age"] is not None]
     undated = [r for r in results if r["age"] is None]
-    # A note of unknown age can't be called the oldest, so unknown ages are reported on their own.
+    # A note without a usable age can't be called the oldest, so these are reported on their own.
     if undated:
-        print("Notes with unknown age: " + ", ".join(r["note"]["id"] for r in undated) + " (no usable retrieval time)")
+        print("Notes with no usable age: " + "; ".join(f"{r['note']['id']} ({r['age_problem']})" for r in undated))
     if dated:
         oldest = max(dated, key=lambda r: r["age"])
         label = "Oldest dated note used" if undated else "Oldest note used"
