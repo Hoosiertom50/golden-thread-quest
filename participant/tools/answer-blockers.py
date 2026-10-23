@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 RANK = {"fresh": 0, "stale": 1, "too old": 2}
 
 # The freshness limits, in days, exactly as in policy.md section 1. They live here, not in the notes
@@ -73,7 +73,8 @@ REQUIRED = {
     "sprint-board": {"title": _text, "status": _text},
     "bug-list": {"title": _text, "status": _text, "severity": _text},
     "test-runs": {"build": lambda v: _text(v) or _count(v), "failed": _count, "total": _count},
-    "release-plan": {"release": lambda v: _text(v) or isinstance(v, (int, float)), "target_date": _date},
+    # The release name is text, as in "3.0" (quoted, so YAML doesn't read it as a number).
+    "release-plan": {"release": _text, "target_date": _date},
     "team-roster": {"qa": lambda v: isinstance(v, list) and bool(v) and all(_text(x) for x in v)},
 }
 
