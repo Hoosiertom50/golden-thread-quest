@@ -29,7 +29,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 TYPES = ("Vague", "Incomplete", "Contradictory", "Untestable")
 MIN_REQUIREMENTS = 8
 
@@ -49,6 +49,7 @@ LEAD_INS = (
     "of", "on", "once", "over", "through", "to", "under", "until", "with", "within", "without",
 )
 
+QUOTED_TEXT = re.compile(r'"[^"]*"|\u201c[^\u201d]*\u201d')
 ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx|a\.m|p\.m)\.", re.IGNORECASE)
 # A negative contraction opens a question like its verb does: "Doesn't ...?" like "Does ...?".
 IRREGULAR_CONTRACTIONS = {"can't": "can", "won't": "will", "shan't": "shall"}
@@ -58,7 +59,12 @@ REQ_START = re.compile(rf"^\*\*({REQ_ID})\.\*\*\s+(.*)$")
 # Anything that looks like the start of a requirement or a finding, well formed or not. A line
 # like this that isn't exactly in the right form is reported, never read as ordinary text.
 REQ_LIKE = re.compile(rf"^(?:\*\*\s*{REQ_ID}\b|{REQ_ID}[.:])")
-UNFLAGGED_LIKE = re.compile(rf"^[-*]\s*\*\*\s*{REQ_ID}\b")
+# The introduction above '## Findings' is prose. A list item with a bold label, or a line that
+# opens with a bold requirement id or finding field, is review content in the wrong place, in any
+# list style ("-", "*", "+", "1.", "1)").
+PREAMBLE_CONTENT = re.compile(
+    rf"^(?:(?:[-*+]|\d+[.)])\s+\*\*|\*\*\s*(?:{REQ_ID}|Requirement|Type|Words in|Question|A tester))"
+)
 REQ_HEADING_LIKE = re.compile(rf"^#{{1,6}}\s*(?:\*\*)?\s*{REQ_ID}\b")
 FINDING_LIKE = re.compile(r"^#{1,6}\s*(?:\*\*)?\s*F-\d+\b")
 FINDING_HEADING = re.compile(r"^### (F-\d+)\s*$")
@@ -139,19 +145,15 @@ def field_name(raw: str) -> str:
     return raw.strip().replace("’", "'")
 
 
-def is_finding_field(name: str) -> bool:
-    return name in SINGLE_FIELDS or name == "Question" or name.startswith("Words in ")
-
-
 def parse_findings(lines: list[str], problems: list[str]):
     """The findings (in file order) and the unflagged list from findings.md.
 
     Findings are '### F-NN' headings under '## Findings', each followed only by '- **Field:** value'
     lines. Unflagged requirements are '- **ID:** reason' lines under '## Unflagged requirements'.
     Lines before '## Findings' (the introduction and definitions) are prose and aren't checked,
-    except that anything there that looks like a finding or an unflagged entry is a problem, since
-    it would otherwise go unchecked. Any line after it that isn't in one of these forms is a
-    problem too, so nothing is silently ignored.
+    except that review content there -- a finding heading, a list item with a bold label, or a
+    bold requirement id or field name -- is a problem, since it would otherwise go unchecked. Any
+    line after it that isn't in one of these forms is a problem too, so nothing is silently ignored.
     """
     findings: list[dict] = []
     unflagged: dict[str, str] = {}
@@ -176,9 +178,7 @@ def parse_findings(lines: list[str], problems: list[str]):
             section, current = name, None
             continue
         if section is None:
-            m = FIELD.match(line)
-            if (FINDING_LIKE.match(line) or UNFLAGGED_LIKE.match(line)
-                    or (m and is_finding_field(field_name(m.group(1))))):
+            if FINDING_LIKE.match(line) or PREAMBLE_CONTENT.match(line):
                 problems.append(f"findings line {n}: finding content before '## Findings' isn't checked: {line[:60]!r}")
             continue
         if not line:
@@ -238,9 +238,10 @@ def is_question(text: str) -> bool:
     # One question per field: a single '?', at the end, and no second sentence before it, so a
     # question can't carry a rewrite with it ("How many seconds? It must load in 2 seconds?"),
     # however the second sentence starts ("... load. 2 seconds is the maximum?"). The periods of
-    # common abbreviations ("e.g. Tixly credit") don't end a sentence.
-    unabbreviated = ABBREVIATIONS.sub("", text)
-    if not text.endswith("?") or text.count("?") != 1 or re.search(r"[.!]\s+\S", unabbreviated) or not words:
+    # common abbreviations ("e.g. Tixly credit") don't end a sentence, and nor does punctuation
+    # inside quoted text ('after seeing "Payment declined. Try again"?').
+    plain = ABBREVIATIONS.sub("", QUOTED_TEXT.sub('""', text))
+    if not text.endswith("?") or plain.count("?") != 1 or re.search(r"[.!]\s+\S", plain) or not words:
         return False
     # "when" or "where" not followed straight away by a verb ("When is ...?") is either a direct
     # question with a question verb before any comma ("When exactly should ...?", "Where on the
