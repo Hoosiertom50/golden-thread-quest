@@ -29,7 +29,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 TYPES = ("Vague", "Incomplete", "Contradictory", "Untestable")
 MIN_REQUIREMENTS = 8
 
@@ -45,8 +45,8 @@ YES_NO_STARTS = (
     "should", "will", "would", "may", "might", "must", "has", "have",
 )
 LEAD_INS = (
-    "after", "before", "during", "for", "from", "if", "in", "on", "once", "under", "until",
-    "with", "within", "without",
+    "about", "after", "at", "before", "between", "by", "during", "for", "from", "if", "in", "into",
+    "of", "on", "once", "over", "through", "to", "under", "until", "with", "within", "without",
 )
 
 REQ_ID = r"[A-Z][A-Z0-9]*-\d+"
@@ -129,6 +129,11 @@ def parse_requirements(lines: list[str], problems: list[str]) -> dict[str, str]:
     return reqs
 
 
+def field_name(raw: str) -> str:
+    """A field's name as compared: trimmed, with a curly apostrophe read as a straight one."""
+    return raw.strip().replace("’", "'")
+
+
 def is_finding_field(name: str) -> bool:
     return name in SINGLE_FIELDS or name == "Question" or name.startswith("Words in ")
 
@@ -139,7 +144,8 @@ def parse_findings(lines: list[str], problems: list[str]):
     Findings are '### F-NN' headings under '## Findings', each followed only by '- **Field:** value'
     lines. Unflagged requirements are '- **ID:** reason' lines under '## Unflagged requirements'.
     Lines before '## Findings' (the introduction and definitions) are prose and aren't checked,
-    except that anything there that looks like a finding is a problem. Any line after it that isn't
+    except that anything there that looks like a finding or an unflagged entry is a problem, since
+    it would otherwise go unchecked. Any line after it that isn't
     in one of these forms is a problem too, so nothing is silently ignored.
     """
     findings: list[dict] = []
@@ -166,7 +172,8 @@ def parse_findings(lines: list[str], problems: list[str]):
             continue
         if section is None:
             m = FIELD.match(line)
-            if FINDING_LIKE.match(line) or (m and is_finding_field(m.group(1).strip())):
+            if (FINDING_LIKE.match(line) or UNFLAGGED_ITEM.match(line)
+                    or (m and is_finding_field(field_name(m.group(1))))):
                 problems.append(f"findings line {n}: finding content before '## Findings' isn't checked: {line[:60]!r}")
             continue
         if not line:
@@ -181,8 +188,7 @@ def parse_findings(lines: list[str], problems: list[str]):
                 continue
             m = FIELD.match(line)
             if m and current is not None:
-                name = m.group(1).strip().replace("’", "'")  # a curly apostrophe reads the same
-                current["fields"].append((name, m.group(2).strip(), n))
+                current["fields"].append((field_name(m.group(1)), m.group(2).strip(), n))
                 continue
             problems.append(f"findings line {n}: not a finding heading or field: {line[:60]!r}")
         else:
@@ -215,17 +221,22 @@ def is_question(text: str) -> bool:
     # question can't carry a rewrite with it ("How many seconds? It must load in 2 seconds?").
     if not text.endswith("?") or text.count("?") != 1 or re.search(r"[.!]\s+[A-Z]", text) or not words:
         return False
-    # "When the card is worth more than the order, what happens ...?" starts with a lead-in, not a
-    # question: "when" or "where" not followed by a verb ("When is ...?"), with a comma, must lead
-    # to a question after the comma, so "When checkout starts, the map must load in 2 seconds?"
-    # isn't accepted. Without a comma it's a direct question only if a question verb follows
-    # ("When exactly should ...?", "Where on the page should ...?"). This checks the shape, not the
-    # grammar: a run-on rewrite that happens to contain such a verb can still pass, so a person
-    # still reads the questions.
+    # "when" or "where" not followed straight away by a verb ("When is ...?") is either a direct
+    # question with a question verb before any comma ("When exactly should ...?", "Where on the
+    # page should it appear, above or below?"), or a lead-in that must be followed by a question
+    # after its comma ("When the card is worth more, what happens ...?"). So "When checkout
+    # starts, the map must load in 2 seconds?" isn't accepted. This checks the shape, not the
+    # grammar: a rewrite whose lead-in happens to contain such a verb ("When checkout is open,
+    # the map must ...?") can still pass, so a person still reads the questions.
     if words[0] in ("when", "where") and len(words) > 1 and words[1] not in YES_NO_STARTS:
-        if "," not in text:
-            return any(w in YES_NO_STARTS for w in words[2:])
-        after = re.findall(r"[A-Za-z']+", text.split(",", 1)[1])
+        before, _, rest = text.partition(",")
+        # A question verb before any comma makes it a direct question, even with alternatives
+        # after the comma ("Where on the page should it appear, above or below the form?").
+        if any(w.casefold() in YES_NO_STARTS for w in re.findall(r"[A-Za-z']+", before)[2:]):
+            return True
+        if not rest:
+            return False
+        after = re.findall(r"[A-Za-z']+", rest)
         return bool(after) and (after[0].casefold() in WH_WORDS or after[0].casefold() in YES_NO_STARTS)
     if words[0] in WH_WORDS or words[0] in YES_NO_STARTS:
         return True
