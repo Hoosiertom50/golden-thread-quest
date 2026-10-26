@@ -29,7 +29,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 TYPES = ("Vague", "Incomplete", "Contradictory", "Untestable")
 MIN_REQUIREMENTS = 8
 
@@ -53,6 +53,9 @@ QUOTED_TEXT = re.compile(r'"[^"]*"|\u201c[^\u201d]*\u201d')
 ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx|a\.m|p\.m)\.", re.IGNORECASE)
 # A negative contraction opens a question like its verb does: "Doesn't ...?" like "Does ...?".
 IRREGULAR_CONTRACTIONS = {"can't": "can", "won't": "will", "shan't": "shall"}
+# A question word with a contracted verb counts as both words: "What's ...?" like "What is ...?".
+# Only question words are split, so a possessive ("the buyer's card") never reads as "is".
+WH_CONTRACTIONS = {"'s": "is", "'re": "are", "'ll": "will", "'d": "did", "'ve": "have"}
 
 REQ_ID = r"[A-Z][A-Z0-9]*-\d+"
 REQ_START = re.compile(rf"^\*\*({REQ_ID})\.\*\*\s+(.*)$")
@@ -227,8 +230,17 @@ def verb_of(word: str) -> str:
 
 
 def word_list(text: str) -> list[str]:
-    """The words of text, lower case, with negative contractions undone."""
-    return [verb_of(w.casefold()) for w in re.findall(r"[A-Za-z']+", text)]
+    """The words of text, lower case, with contractions undone: "doesn't" -> "does",
+    "what's" -> "what", "is"."""
+    words: list[str] = []
+    for w in re.findall(r"[A-Za-z']+", text):
+        w = w.casefold()
+        head, sep, tail = w.partition("'")
+        if head in WH_WORDS and sep and "'" + tail in WH_CONTRACTIONS:
+            words += [head, WH_CONTRACTIONS["'" + tail]]
+        else:
+            words.append(verb_of(w))
+    return words
 
 
 def is_question(text: str) -> bool:
@@ -251,7 +263,7 @@ def is_question(text: str) -> bool:
     # grammar: a rewrite whose lead-in happens to contain such a verb ("When checkout is open,
     # the map must ...?") can still pass, so a person still reads the questions.
     if words[0] in ("when", "where") and len(words) > 1 and words[1] not in YES_NO_STARTS:
-        before, _, rest = text.partition(",")
+        before, _, rest = plain.partition(",")
         # A question verb before any comma makes it a direct question, even with alternatives
         # after the comma ("Where on the page should it appear, above or below the form?").
         if any(w in YES_NO_STARTS for w in word_list(before)[2:]):
@@ -264,8 +276,8 @@ def is_question(text: str) -> bool:
         return True
     if words[0] in LEAD_INS and len(words) > 1 and words[1] in WH_WORDS:
         return True
-    if words[0] in LEAD_INS and "," in text:
-        after = word_list(text.split(",", 1)[1])
+    if words[0] in LEAD_INS and "," in plain:
+        after = word_list(plain.split(",", 1)[1])
         return bool(after) and (after[0] in WH_WORDS or after[0] in YES_NO_STARTS)
     return False
 
