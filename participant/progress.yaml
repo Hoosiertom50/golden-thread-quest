@@ -34,4 +34,13 @@ attempts:
   evidence_path: participant/evidence/context-staleness/context-attempt-001
   submission_id: submission-20261023161641-d369b9
   review_id: review-20261023174053-1c90a6
-updated_at: '2026-10-23T17:40:53Z'
+- attempt_id: ba-attempt-002
+  quest_id: ba-detect-ambiguity
+  quest_version: 1
+  content_hash: sha256:e3cf18a5bff25ac921596e436fe79f794950ac5afc3eb9348a3248117c504352
+  state: submitted
+  started_at: '2026-10-26T12:30:07Z'
+  updated_at: '2026-10-26T18:13:37Z'
+  evidence_path: participant/evidence/ba-detect-ambiguity/ba-attempt-002
+  submission_id: submission-20261026181337-db2eaf
+updated_at: '2026-10-26T18:13:37Z'

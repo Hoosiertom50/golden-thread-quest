@@ -20,3 +20,8 @@ Every change this application made to your files, newest last.
 - `2026-10-23T16:16:41Z` context-staleness: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-10-23T16:16:41Z` Submitted context-staleness for review as submission-20261023161641-d369b9.
 - `2026-10-23T17:40:53Z` Review of context-staleness: approved by Gregg Reed.
+- `2026-10-26T12:30:07Z` Started ba-detect-ambiguity as attempt ba-attempt-002.
+- `2026-10-26T18:12:17Z` ba-detect-ambiguity: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-10-26T18:12:56Z` ba-detect-ambiguity: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-10-26T18:13:37Z` ba-detect-ambiguity: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-10-26T18:13:37Z` Submitted ba-detect-ambiguity for review as submission-20261026181337-db2eaf.
