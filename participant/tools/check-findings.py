@@ -29,7 +29,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 TYPES = ("Vague", "Incomplete", "Contradictory", "Untestable")
 MIN_REQUIREMENTS = 8
 
@@ -48,6 +48,8 @@ LEAD_INS = (
     "about", "after", "at", "before", "between", "by", "during", "for", "from", "if", "in", "into",
     "of", "on", "once", "over", "through", "to", "under", "until", "with", "within", "without",
 )
+
+ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx)\.", re.IGNORECASE)
 
 REQ_ID = r"[A-Z][A-Z0-9]*-\d+"
 REQ_START = re.compile(rf"^\*\*({REQ_ID})\.\*\*\s+(.*)$")
@@ -219,7 +221,9 @@ def is_question(text: str) -> bool:
     words = [w.casefold() for w in re.findall(r"[A-Za-z']+", text)]
     # One question per field: a single '?', at the end, and no second sentence before it, so a
     # question can't carry a rewrite with it ("How many seconds? It must load in 2 seconds?").
-    if not text.endswith("?") or text.count("?") != 1 or re.search(r"[.!]\s+[A-Z]", text) or not words:
+    # The periods of common abbreviations ("e.g. Tixly credit") don't end a sentence.
+    unabbreviated = ABBREVIATIONS.sub("", text)
+    if not text.endswith("?") or text.count("?") != 1 or re.search(r"[.!]\s+[A-Z]", unabbreviated) or not words:
         return False
     # "when" or "where" not followed straight away by a verb ("When is ...?") is either a direct
     # question with a question verb before any comma ("When exactly should ...?", "Where on the
