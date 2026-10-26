@@ -29,7 +29,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 TYPES = ("Vague", "Incomplete", "Contradictory", "Untestable")
 MIN_REQUIREMENTS = 8
 
@@ -42,20 +42,23 @@ MIN_REQUIREMENTS = 8
 WH_WORDS = ("what", "which", "how", "when", "where", "who", "whom", "whose", "why")
 YES_NO_STARTS = (
     "is", "are", "was", "were", "can", "could", "does", "do", "did",
-    "should", "will", "would", "may", "might", "must", "has", "have",
+    "shall", "should", "will", "would", "may", "might", "must", "has", "have",
 )
 LEAD_INS = (
     "about", "after", "at", "before", "between", "by", "during", "for", "from", "if", "in", "into",
     "of", "on", "once", "over", "through", "to", "under", "until", "with", "within", "without",
 )
 
-ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx)\.", re.IGNORECASE)
+ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx|a\.m|p\.m)\.", re.IGNORECASE)
+# A negative contraction opens a question like its verb does: "Doesn't ...?" like "Does ...?".
+IRREGULAR_CONTRACTIONS = {"can't": "can", "won't": "will", "shan't": "shall"}
 
 REQ_ID = r"[A-Z][A-Z0-9]*-\d+"
 REQ_START = re.compile(rf"^\*\*({REQ_ID})\.\*\*\s+(.*)$")
 # Anything that looks like the start of a requirement or a finding, well formed or not. A line
 # like this that isn't exactly in the right form is reported, never read as ordinary text.
 REQ_LIKE = re.compile(rf"^(?:\*\*\s*{REQ_ID}\b|{REQ_ID}[.:])")
+UNFLAGGED_LIKE = re.compile(rf"^[-*]\s*\*\*\s*{REQ_ID}\b")
 REQ_HEADING_LIKE = re.compile(rf"^#{{1,6}}\s*(?:\*\*)?\s*{REQ_ID}\b")
 FINDING_LIKE = re.compile(r"^#{1,6}\s*(?:\*\*)?\s*F-\d+\b")
 FINDING_HEADING = re.compile(r"^### (F-\d+)\s*$")
@@ -147,8 +150,8 @@ def parse_findings(lines: list[str], problems: list[str]):
     lines. Unflagged requirements are '- **ID:** reason' lines under '## Unflagged requirements'.
     Lines before '## Findings' (the introduction and definitions) are prose and aren't checked,
     except that anything there that looks like a finding or an unflagged entry is a problem, since
-    it would otherwise go unchecked. Any line after it that isn't
-    in one of these forms is a problem too, so nothing is silently ignored.
+    it would otherwise go unchecked. Any line after it that isn't in one of these forms is a
+    problem too, so nothing is silently ignored.
     """
     findings: list[dict] = []
     unflagged: dict[str, str] = {}
@@ -174,7 +177,7 @@ def parse_findings(lines: list[str], problems: list[str]):
             continue
         if section is None:
             m = FIELD.match(line)
-            if (FINDING_LIKE.match(line) or UNFLAGGED_ITEM.match(line)
+            if (FINDING_LIKE.match(line) or UNFLAGGED_LIKE.match(line)
                     or (m and is_finding_field(field_name(m.group(1))))):
                 problems.append(f"findings line {n}: finding content before '## Findings' isn't checked: {line[:60]!r}")
             continue
@@ -216,14 +219,28 @@ def contains_phrase(text: str, phrase: str) -> bool:
     return re.search(left + re.escape(phrase) + right, text) is not None
 
 
+def verb_of(word: str) -> str:
+    """A lower-case word with any negative contraction undone: "doesn't" -> "does"."""
+    if word in IRREGULAR_CONTRACTIONS:
+        return IRREGULAR_CONTRACTIONS[word]
+    return word[:-3] if word.endswith("n't") else word
+
+
+def word_list(text: str) -> list[str]:
+    """The words of text, lower case, with negative contractions undone."""
+    return [verb_of(w.casefold()) for w in re.findall(r"[A-Za-z']+", text)]
+
+
 def is_question(text: str) -> bool:
     """Whether text is phrased as a question for the author. It checks the shape, not the meaning."""
-    words = [w.casefold() for w in re.findall(r"[A-Za-z']+", text)]
+    text = text.replace("’", "'")
+    words = word_list(text)
     # One question per field: a single '?', at the end, and no second sentence before it, so a
-    # question can't carry a rewrite with it ("How many seconds? It must load in 2 seconds?").
-    # The periods of common abbreviations ("e.g. Tixly credit") don't end a sentence.
+    # question can't carry a rewrite with it ("How many seconds? It must load in 2 seconds?"),
+    # however the second sentence starts ("... load. 2 seconds is the maximum?"). The periods of
+    # common abbreviations ("e.g. Tixly credit") don't end a sentence.
     unabbreviated = ABBREVIATIONS.sub("", text)
-    if not text.endswith("?") or text.count("?") != 1 or re.search(r"[.!]\s+[A-Z]", unabbreviated) or not words:
+    if not text.endswith("?") or text.count("?") != 1 or re.search(r"[.!]\s+\S", unabbreviated) or not words:
         return False
     # "when" or "where" not followed straight away by a verb ("When is ...?") is either a direct
     # question with a question verb before any comma ("When exactly should ...?", "Where on the
@@ -236,19 +253,19 @@ def is_question(text: str) -> bool:
         before, _, rest = text.partition(",")
         # A question verb before any comma makes it a direct question, even with alternatives
         # after the comma ("Where on the page should it appear, above or below the form?").
-        if any(w.casefold() in YES_NO_STARTS for w in re.findall(r"[A-Za-z']+", before)[2:]):
+        if any(w in YES_NO_STARTS for w in word_list(before)[2:]):
             return True
         if not rest:
             return False
-        after = re.findall(r"[A-Za-z']+", rest)
-        return bool(after) and (after[0].casefold() in WH_WORDS or after[0].casefold() in YES_NO_STARTS)
+        after = word_list(rest)
+        return bool(after) and (after[0] in WH_WORDS or after[0] in YES_NO_STARTS)
     if words[0] in WH_WORDS or words[0] in YES_NO_STARTS:
         return True
     if words[0] in LEAD_INS and len(words) > 1 and words[1] in WH_WORDS:
         return True
     if words[0] in LEAD_INS and "," in text:
-        after = re.findall(r"[A-Za-z']+", text.split(",", 1)[1])
-        return bool(after) and (after[0].casefold() in WH_WORDS or after[0].casefold() in YES_NO_STARTS)
+        after = word_list(text.split(",", 1)[1])
+        return bool(after) and (after[0] in WH_WORDS or after[0] in YES_NO_STARTS)
     return False
 
 
