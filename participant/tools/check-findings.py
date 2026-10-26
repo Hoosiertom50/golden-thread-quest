@@ -29,7 +29,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 TYPES = ("Vague", "Incomplete", "Contradictory", "Untestable")
 MIN_REQUIREMENTS = 8
 
@@ -53,8 +53,9 @@ REQ_ID = r"[A-Z][A-Z0-9]*-\d+"
 REQ_START = re.compile(rf"^\*\*({REQ_ID})\.\*\*\s+(.*)$")
 # Anything that looks like the start of a requirement or a finding, well formed or not. A line
 # like this that isn't exactly in the right form is reported, never read as ordinary text.
-REQ_LIKE = re.compile(rf"^\*\*\s*{REQ_ID}\b")
-FINDING_LIKE = re.compile(r"^#{1,6}\s*F-\d+\b")
+REQ_LIKE = re.compile(rf"^(?:\*\*\s*{REQ_ID}\b|{REQ_ID}[.:])")
+REQ_HEADING_LIKE = re.compile(rf"^#{{1,6}}\s*(?:\*\*)?\s*{REQ_ID}\b")
+FINDING_LIKE = re.compile(r"^#{1,6}\s*(?:\*\*)?\s*F-\d+\b")
 FINDING_HEADING = re.compile(r"^### (F-\d+)\s*$")
 FIELD = re.compile(r"^- \*\*([^*]+?):\*\*\s*(.*)$")
 UNFLAGGED_ITEM = re.compile(rf"^- \*\*({REQ_ID}):\*\*\s*(.*)$")
@@ -88,6 +89,9 @@ def parse_requirements(lines: list[str], problems: list[str]) -> dict[str, str]:
     current: str | None = None
     for n, raw in enumerate(lines, 1):
         line = raw.strip()
+        if REQ_HEADING_LIKE.match(line):
+            problems.append(f"requirements line {n}: a requirement written as a heading isn't checked: {line[:60]!r}")
+            continue
         if line.startswith("## "):
             in_section = line == "## Requirements"
             current = None
