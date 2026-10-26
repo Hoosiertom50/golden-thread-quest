@@ -49,9 +49,8 @@ the answer is the author's call.
 - **Requirement:** CHK-05
 - **Type:** Incomplete
 - **Words in CHK-05:** "Refunds are available up to 48 hours before the event starts."
-- **A tester couldn't decide:** how a refund should arrive, what a request inside 48 hours should produce, or when a refund may be refused.
+- **A tester couldn't decide:** how a refund should arrive, or when a refund may be refused.
 - **Question:** How is the refund given: back to the original payment, as Tixly credit, or another way?
-- **Question:** What happens to a refund request made less than 48 hours before the event: a partial refund, or none?
 - **Question:** Does the buyer have to give a reason for the refund?
 - **Question:** Are there reasons a refund would be denied?
 
@@ -94,16 +93,16 @@ the answer is the author's call.
 
 ### F-10
 - **Requirement:** CHK-12
-- **Type:** Untestable
+- **Type:** Vague
 - **Words in CHK-12:** "any number of buyers"
-- **A tester couldn't decide:** when the test is finished: however many buyers are tested, "any number" includes more.
+- **A tester couldn't decide:** how many buyers to test with: "any number" sets no maximum, so two testers would pick different numbers, and a number would fix it.
 - **Question:** What is the largest number of buyers checking out at the same time that the system must support?
 
 ### F-11
 - **Requirement:** CHK-12
-- **Type:** Vague
+- **Type:** Untestable
 - **Words in CHK-12:** "handle"
-- **A tester couldn't decide:** what to measure, so two testers would check different things.
+- **A tester couldn't decide:** what result to check: "handle" names no expected outcome, and no number would supply one.
 - **Question:** What counts as handling them: no errors, a response time, no seat sold twice?
 
 ## Unflagged requirements

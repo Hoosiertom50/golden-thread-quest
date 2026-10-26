@@ -29,21 +29,31 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 TYPES = ("Vague", "Incomplete", "Contradictory", "Untestable")
 MIN_REQUIREMENTS = 8
 
-# A question ends with '?' and either asks with a question word anywhere ("Under what conditions
-# ...?") or starts with a verb that opens a yes/no question ("Is the fee taxed?"). Anything else --
-# "Change it to 2 seconds.", "The page must load in 2 seconds?" -- is a rewrite, not a question.
+# A question ends with '?' and opens the way a question does: with a question word ("What ...?"),
+# a verb that starts a yes/no question ("Is the fee taxed?"), a preposition and a question word
+# ("Under what conditions ...?"), or a lead-in phrase and then a question after its comma ("After
+# the message, what ...?"). A statement with a question mark -- "The page must load in 2 seconds
+# when checkout starts?" -- is a rewrite, not a question, even though it contains "when".
 WH_WORDS = ("what", "which", "how", "when", "where", "who", "whom", "whose", "why")
 YES_NO_STARTS = (
     "is", "are", "was", "were", "can", "could", "does", "do", "did",
     "should", "will", "would", "may", "might", "must", "has", "have",
 )
+LEAD_INS = (
+    "after", "before", "during", "for", "from", "if", "in", "on", "once", "under", "until",
+    "with", "within", "without",
+)
 
 REQ_ID = r"[A-Z][A-Z0-9]*-\d+"
 REQ_START = re.compile(rf"^\*\*({REQ_ID})\.\*\*\s+(.*)$")
+# Anything that looks like the start of a requirement or a finding, well formed or not. A line
+# like this that isn't exactly in the right form is reported, never read as ordinary text.
+REQ_LIKE = re.compile(rf"^\*\*\s*{REQ_ID}\b")
+FINDING_LIKE = re.compile(r"^#{1,6}\s*F-\d+\b")
 FINDING_HEADING = re.compile(r"^### (F-\d+)\s*$")
 FIELD = re.compile(r"^- \*\*([^*]+?):\*\*\s*(.*)$")
 UNFLAGGED_ITEM = re.compile(rf"^- \*\*({REQ_ID}):\*\*\s*(.*)$")
@@ -82,13 +92,17 @@ def parse_requirements(lines: list[str], problems: list[str]) -> dict[str, str]:
             current = None
             continue
         if not in_section:
-            if REQ_START.match(line):
+            if REQ_LIKE.match(line):
                 problems.append(f"requirements line {n}: a requirement outside '## Requirements' isn't checked")
             continue
         if not line:
             current = None
             continue
         m = REQ_START.match(line)
+        if not m and REQ_LIKE.match(line):
+            problems.append(f"requirements line {n}: a requirement must start '**ID.** text': {line[:60]!r}")
+            current = None
+            continue
         if m:
             rid, text = m.groups()
             if rid in reqs:
@@ -110,13 +124,18 @@ def parse_requirements(lines: list[str], problems: list[str]) -> dict[str, str]:
     return reqs
 
 
+def is_finding_field(name: str) -> bool:
+    return name in SINGLE_FIELDS or name == "Question" or name.startswith("Words in ")
+
+
 def parse_findings(lines: list[str], problems: list[str]):
     """The findings (in file order) and the unflagged list from findings.md.
 
     Findings are '### F-NN' headings under '## Findings', each followed only by '- **Field:** value'
     lines. Unflagged requirements are '- **ID:** reason' lines under '## Unflagged requirements'.
-    Lines before '## Findings' (the introduction and definitions) aren't checked; any line after it
-    that isn't in one of these forms is a problem, so nothing is silently ignored.
+    Lines before '## Findings' (the introduction and definitions) are prose and aren't checked,
+    except that anything there that looks like a finding is a problem. Any line after it that isn't
+    in one of these forms is a problem too, so nothing is silently ignored.
     """
     findings: list[dict] = []
     unflagged: dict[str, str] = {}
@@ -138,8 +157,9 @@ def parse_findings(lines: list[str], problems: list[str]):
             section, current = name, None
             continue
         if section is None:
-            if FINDING_HEADING.match(line):
-                problems.append(f"findings line {n}: a finding before '## Findings' isn't checked")
+            m = FIELD.match(line)
+            if FINDING_LIKE.match(line) or (m and is_finding_field(m.group(1).strip())):
+                problems.append(f"findings line {n}: finding content before '## Findings' isn't checked: {line[:60]!r}")
             continue
         if not line:
             continue
@@ -153,7 +173,8 @@ def parse_findings(lines: list[str], problems: list[str]):
                 continue
             m = FIELD.match(line)
             if m and current is not None:
-                current["fields"].append((m.group(1).strip(), m.group(2).strip(), n))
+                name = m.group(1).strip().replace("’", "'")  # a curly apostrophe reads the same
+                current["fields"].append((name, m.group(2).strip(), n))
                 continue
             problems.append(f"findings line {n}: not a finding heading or field: {line[:60]!r}")
         else:
@@ -184,7 +205,20 @@ def is_question(text: str) -> bool:
     words = [w.casefold() for w in re.findall(r"[A-Za-z']+", text)]
     if not text.endswith("?") or not words:
         return False
-    return words[0] in YES_NO_STARTS or any(w in WH_WORDS for w in words)
+    # "When the card is worth more than the order, what happens ...?" starts with a lead-in, not a
+    # question: "when" or "where" not followed by a verb ("When is ...?") must lead to a question
+    # after its comma, so "When checkout starts, the map must load in 2 seconds?" isn't accepted.
+    if words[0] in ("when", "where") and len(words) > 1 and words[1] not in YES_NO_STARTS:
+        after = re.findall(r"[A-Za-z']+", text.split(",", 1)[1]) if "," in text else []
+        return bool(after) and (after[0].casefold() in WH_WORDS or after[0].casefold() in YES_NO_STARTS)
+    if words[0] in WH_WORDS or words[0] in YES_NO_STARTS:
+        return True
+    if words[0] in LEAD_INS and len(words) > 1 and words[1] in WH_WORDS:
+        return True
+    if words[0] in LEAD_INS and "," in text:
+        after = re.findall(r"[A-Za-z']+", text.split(",", 1)[1])
+        return bool(after) and (after[0].casefold() in WH_WORDS or after[0].casefold() in YES_NO_STARTS)
+    return False
 
 
 def shown(path: Path, root: Path) -> str:
@@ -227,8 +261,8 @@ def check_finding(f: dict, reqs: dict[str, str]) -> tuple[dict, list[str]]:
 
     ftype = single.get("Type", "")
     if ftype not in TYPES:
-        shown = repr(ftype) if ftype else "none"
-        problems.append(f"{fid}: type {shown} is not one of {', '.join(TYPES)}")
+        given = repr(ftype) if ftype else "none"
+        problems.append(f"{fid}: type {given} is not one of {', '.join(TYPES)}")
     elif ftype == "Contradictory" and len(set(cited)) != 2:
         problems.append(f"{fid}: a contradiction must cite exactly two requirements, not {len(set(cited))}")
     elif ftype != "Contradictory" and len(set(cited)) > 1:
@@ -256,7 +290,7 @@ def check_finding(f: dict, reqs: dict[str, str]) -> tuple[dict, list[str]]:
         problems.append(f"{fid}: asks no question")
     for q in questions:
         if not is_question(q):
-            problems.append(f"{fid}: not phrased as a question (it must end with '?' and ask with a question word): {q[:60]!r}")
+            problems.append(f"{fid}: not phrased as a question (it must end with '?' and open as a question): {q[:60]!r}")
 
     parts = {"id": fid, "type": ftype, "cited": cited, "questions": len(questions)}
     return parts, problems
