@@ -73,7 +73,7 @@ the answer is the author's call.
 - **Type:** Contradictory
 - **Words in CHK-05:** "up to 48 hours before the event starts"
 - **Words in CHK-08:** "at any time until the venue doors open"
-- **A tester couldn't decide:** the expected result for a cancellation 24 hours before the event: CHK-08 gives a full refund, CHK-05 gives none.
+- **A tester couldn't decide:** the expected result for a cancellation 24 hours before the event, while the venue doors are not yet open: CHK-08 gives a full refund, CHK-05 gives none.
 - **Question:** Which refund deadline applies: 48 hours before the event starts, or until the venue doors open?
 
 ### F-08

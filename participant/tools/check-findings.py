@@ -29,7 +29,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 TYPES = ("Vague", "Incomplete", "Contradictory", "Untestable")
 MIN_REQUIREMENTS = 8
 
@@ -37,7 +37,8 @@ MIN_REQUIREMENTS = 8
 # a verb that starts a yes/no question ("Is the fee taxed?"), a preposition and a question word
 # ("Under what conditions ...?"), or a lead-in phrase and then a question after its comma ("After
 # the message, what ...?"). A statement with a question mark -- "The page must load in 2 seconds
-# when checkout starts?" -- is a rewrite, not a question, even though it contains "when".
+# when checkout starts?" -- is a rewrite, not a question, even though it contains "when". Each
+# Question field holds one question; a finding with several questions uses several fields.
 WH_WORDS = ("what", "which", "how", "when", "where", "who", "whom", "whose", "why")
 YES_NO_STARTS = (
     "is", "are", "was", "were", "can", "could", "does", "do", "did",
@@ -144,6 +145,9 @@ def parse_findings(lines: list[str], problems: list[str]):
     current: dict | None = None
     for n, raw in enumerate(lines, 1):
         line = raw.strip()
+        if FINDING_LIKE.match(line) and not FINDING_HEADING.match(line):
+            problems.append(f"findings line {n}: a finding heading must be '### F-NN' alone: {line[:60]!r}")
+            continue
         if line.startswith("## "):
             name = {"## Findings": "findings", "## Unflagged requirements": "unflagged"}.get(line)
             if name is None:
@@ -203,13 +207,21 @@ def contains_phrase(text: str, phrase: str) -> bool:
 def is_question(text: str) -> bool:
     """Whether text is phrased as a question for the author. It checks the shape, not the meaning."""
     words = [w.casefold() for w in re.findall(r"[A-Za-z']+", text)]
-    if not text.endswith("?") or not words:
+    # One question per field: a single '?', at the end, and no second sentence before it, so a
+    # question can't carry a rewrite with it ("How many seconds? It must load in 2 seconds?").
+    if not text.endswith("?") or text.count("?") != 1 or re.search(r"[.!]\s+[A-Z]", text) or not words:
         return False
     # "When the card is worth more than the order, what happens ...?" starts with a lead-in, not a
-    # question: "when" or "where" not followed by a verb ("When is ...?") must lead to a question
-    # after its comma, so "When checkout starts, the map must load in 2 seconds?" isn't accepted.
+    # question: "when" or "where" not followed by a verb ("When is ...?"), with a comma, must lead
+    # to a question after the comma, so "When checkout starts, the map must load in 2 seconds?"
+    # isn't accepted. Without a comma it's a direct question only if a question verb follows
+    # ("When exactly should ...?", "Where on the page should ...?"). This checks the shape, not the
+    # grammar: a run-on rewrite that happens to contain such a verb can still pass, so a person
+    # still reads the questions.
     if words[0] in ("when", "where") and len(words) > 1 and words[1] not in YES_NO_STARTS:
-        after = re.findall(r"[A-Za-z']+", text.split(",", 1)[1]) if "," in text else []
+        if "," not in text:
+            return any(w in YES_NO_STARTS for w in words[2:])
+        after = re.findall(r"[A-Za-z']+", text.split(",", 1)[1])
         return bool(after) and (after[0].casefold() in WH_WORDS or after[0].casefold() in YES_NO_STARTS)
     if words[0] in WH_WORDS or words[0] in YES_NO_STARTS:
         return True
