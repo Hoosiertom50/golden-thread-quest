@@ -25,3 +25,8 @@ Every change this application made to your files, newest last.
 - `2026-10-26T18:12:56Z` ba-detect-ambiguity: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
 - `2026-10-26T18:13:37Z` ba-detect-ambiguity: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-10-26T18:13:37Z` Submitted ba-detect-ambiguity for review as submission-20261026181337-db2eaf.
+- `2026-10-27T12:52:39Z` ba-detect-ambiguity: submitted → in_progress (Withdraw a submission before a reviewer has decided.)
+- `2026-10-27T13:08:35Z` ba-detect-ambiguity: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-10-27T13:08:51Z` ba-detect-ambiguity: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-10-27T13:09:21Z` ba-detect-ambiguity: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-10-27T13:09:21Z` Submitted ba-detect-ambiguity for review as submission-20261027130921-27fd61.

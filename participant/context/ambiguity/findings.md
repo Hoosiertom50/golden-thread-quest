@@ -2,11 +2,15 @@
 
 Review of `participant/context/ambiguity/requirements.md` (12 requirements, CHK-01 to CHK-12).
 Reviewed 10-26-2026 by Tom Carter, as a blind review: the requirements were drafted for the
-exercise with an answer key sealed before the review, and compared only afterwards.
+exercise with an answer key sealed before the review, and compared only afterwards. Revised the
+same day after the reviewer's questions: two findings dropped (CHK-06, CHK-09) and two split so each
+finding holds one gap (F-04 into F-04, F-12, F-13; F-09 into F-09, F-14). Finding numbers were kept,
+so earlier references still point to the same finding.
 
 ## The four defect types
 
-Each finding names exactly one type. A requirement with two problems has two findings.
+Each finding names exactly one type and one gap. A requirement with two problems has two findings,
+even when the same words cause both.
 
 | Type | Meaning | Quick test |
 |---|---|---|
@@ -48,18 +52,23 @@ the answer is the author's call.
 ### F-04
 - **Requirement:** CHK-05
 - **Type:** Incomplete
-- **Words in CHK-05:** "Refunds are available up to 48 hours before the event starts."
-- **A tester couldn't decide:** how a refund should arrive, or when a refund may be refused.
+- **Words in CHK-05:** "Refunds are available"
+- **A tester couldn't decide:** where the money should go, so a refund back to the card and a refund as Tixly credit would both look right.
 - **Question:** How is the refund given: back to the original payment, as Tixly credit, or another way?
-- **Question:** Does the buyer have to give a reason for the refund?
-- **Question:** Are there reasons a refund would be denied?
 
-### F-05
-- **Requirement:** CHK-06
+### F-12
+- **Requirement:** CHK-05
 - **Type:** Incomplete
-- **Words in CHK-06:** "Tixly sends a confirmation email"
-- **A tester couldn't decide:** the expected result for an order with no email address.
-- **Question:** What happens when the buyer has no email address on the order?
+- **Words in CHK-05:** "Refunds are available"
+- **A tester couldn't decide:** whether a refund request with no reason given should be accepted or blocked.
+- **Question:** Does the buyer have to give a reason for the refund?
+
+### F-13
+- **Requirement:** CHK-05
+- **Type:** Incomplete
+- **Words in CHK-05:** "Refunds are available"
+- **A tester couldn't decide:** whether any refund requested in time may still be refused, so there is no expected result for a denial.
+- **Question:** Are there reasons a refund requested in time would be denied?
 
 ### F-06
 - **Requirement:** CHK-07
@@ -76,19 +85,18 @@ the answer is the author's call.
 - **A tester couldn't decide:** the expected result for a cancellation 24 hours before the event, while the venue doors are not yet open: CHK-08 gives a full refund, CHK-05 gives none.
 - **Question:** Which refund deadline applies: 48 hours before the event starts, or until the venue doors open?
 
-### F-08
-- **Requirement:** CHK-09
-- **Type:** Incomplete
-- **Words in CHK-09:** "A service fee of $2.50 per ticket"
-- **A tester couldn't decide:** whether a payment page that adds tax on the fee is right or wrong.
-- **Question:** Is the service fee taxed, and if so, is the tax shown with it?
-
 ### F-09
 - **Requirement:** CHK-10
 - **Type:** Incomplete
-- **Words in CHK-10:** "If a payment is declined, the buyer sees an error message."
-- **A tester couldn't decide:** whether the message shown is the right one, or what the buyer should be able to do next.
+- **Words in CHK-10:** "the buyer sees an error message"
+- **A tester couldn't decide:** whether the message shown is the right one, since any wording would pass.
 - **Question:** What does the message say when a payment is declined?
+
+### F-14
+- **Requirement:** CHK-10
+- **Type:** Incomplete
+- **Words in CHK-10:** "If a payment is declined, the buyer sees an error message."
+- **A tester couldn't decide:** what the buyer should be able to do after the message, because the requirement stops there.
 - **Question:** After the message, what can the buyer do next: try the payment again, or cancel back to the cart?
 
 ### F-10
@@ -109,4 +117,6 @@ the answer is the author's call.
 
 - **CHK-01:** States the limit (8 seats), the exact message for a 9th seat, and that the 9th seat isn't held, so a tester knows what to try and what to expect.
 - **CHK-03:** States the trigger (payment not completed), the timing (10 minutes after the hold starts) and the visible result (the seats show as available on the seat map).
+- **CHK-06:** States the trigger (payment succeeds), the time limit (5 minutes) and every item the email contains. Removed after review: I had asked what happens when the buyer has no email address, but whether checkout requires an email belongs to a buyer-details requirement, not this one. It's the same reasoning that removed CHK-11.
+- **CHK-09:** States the amount ($2.50 per ticket), where it appears (its own line on the payment page) and when (before the buyer pays). Removed after review: whether the fee is taxed is a tax rule that belongs in its own requirement, and CHK-09 is precise about the fee line it describes. It's the same reasoning that removed CHK-11.
 - **CHK-11:** States a precise rule (the total shown equals the amount charged, to the cent) that a tester can check directly. Removed on a second look: I first asked what happens when the two don't match, but a mismatch is simply the test failing and a bug being logged; asking Tixly to detect it and stop the charge would be a new feature, not a gap in this requirement.
