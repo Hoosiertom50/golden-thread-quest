@@ -1,7 +1,7 @@
 # Clarification questions: Tixly checkout
 
 Questions for the Tixly product owner, drawn from the findings in
-`participant/context/ambiguity/findings.md` (verified 10-28-2026). Drafted 10-28-2026 by Tom Carter.
+`participant/context/ambiguity/findings.md` (verified 10-28-2026). Decisions by Tom Carter; wording drafted with Claude (Claude Code), 10-28-2026.
 These are drafts for a person to ask; nothing has been sent to anyone.
 
 **How a question made this list:** if the product owner answered one way, then the other, would the
