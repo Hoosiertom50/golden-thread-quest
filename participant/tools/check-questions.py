@@ -29,13 +29,14 @@ Read-only: it writes nothing and sends nothing.
 from __future__ import annotations
 
 import argparse
+import html
 import importlib.util
 import re
 import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 MAX_QUESTION_WORDS = 25
 MIN_ANSWERS = 2
 
@@ -52,9 +53,13 @@ INITIALISMS = re.compile(r"(?<!\w)(?:[A-Za-z]\.){2,}")
 SENTENCE_BREAK = re.compile(r"[.!?][)\]\"'\u201d\u2019]*(?:\s+\S|[A-Z])")
 WORD = re.compile(r"[\w'’-]+")
 HAS_LETTER_OR_DIGIT = re.compile(r"[^\W_]")
-# Above the list section the file is prose. List markers and quote marks are set aside before
-# checking, so an entry or field is caught however it is bulleted ("-", "*", "+", "1.", "1)", ">").
-LEAD_MARKERS = re.compile(r"^(?:(?:[-*+]|\d+[.)])\s+|>\s*)+")
+# Above the list section the file is prose. Every kind of formatting is set aside before checking
+# -- heading marks, bullets ("-", "*", "+", "1.", "1)"), quote marks, bold, italics and code marks --
+# so an entry or field is caught however it is dressed up, alone or in combination.
+LEAD_MARKERS = re.compile(r"^(?:#{1,6}\s*|(?:[-*+]|\d+[.)])\s+|>\s*)")
+ALL_INLINE_MARKS = re.compile(r"[*_`~]")
+# Web markup in a Markdown file: a tag ("<span>") or a character code ("&nbsp;", "&#32;").
+HTML_TAG = re.compile(r"</?[A-Za-z][^>]*>")
 FIELD_NAMES = ("Finding", "Question", "Answer", "Work", "Why this position", "Why it changes nothing")
 # A field label is caught however it is written: bold or not, colon inside or outside the bold.
 FIELD_LABEL = re.compile(
@@ -88,6 +93,23 @@ DROPPED = {
 def norm(text: str) -> str:
     """Text compared as a reader sees it: one form per character, runs of spaces as one space."""
     return " ".join(unicodedata.normalize("NFC", text).split())
+
+
+def visible(text: str) -> str:
+    """The text as a reader sees it once the file is shown: tags removed, character codes turned
+    into the characters they stand for, and no-break spaces as ordinary spaces."""
+    return norm(html.unescape(HTML_TAG.sub("", text)).replace("\u00a0", " "))
+
+
+def bare(text: str) -> str:
+    """A line with all its formatting set aside, for spotting entries and fields above the list."""
+    text = visible(text)
+    while True:
+        shorter = LEAD_MARKERS.sub("", text, count=1).lstrip()
+        if shorter == text:
+            break
+        text = shorter
+    return ALL_INLINE_MARKS.sub("", text).strip()
 
 
 def has_content(text: str) -> bool:
@@ -158,7 +180,7 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
             continue
         if CODE_INDENT.match(raw):
             # An indented line is shown as code, not as a heading or a field, so it is never read.
-            unmarked = LEAD_MARKERS.sub("", stripped)
+            unmarked = bare(stripped)
             if in_section or HEADING.match(stripped) or entry_like.match(unmarked) or FIELD_LABEL.match(unmarked):
                 problems.append(f"{where}: an indented line is a code block and isn't read: {stripped[:60]!r}")
             continue
@@ -174,7 +196,7 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
                 sections_seen += 1
                 continue
             # The introduction is prose. Entries or fields up here would never be checked.
-            unmarked = LEAD_MARKERS.sub("", stripped)
+            unmarked = bare(stripped)
             if entry_like.match(unmarked) or FIELD_LABEL.match(unmarked):
                 problems.append(f"{where}: list content before '## {kind['section']}': {stripped[:60]!r}")
             continue
@@ -200,7 +222,9 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
             if current is None:
                 problems.append(f"{where}: field outside any entry: {stripped[:60]!r}")
                 continue
-            current["fields"].append((field.group(1).strip(), field.group(2).strip(), n))
+            # Values are checked as a reader sees them, so markup can't fill a blank field or make
+            # a copy look different.
+            current["fields"].append((field.group(1).strip(), visible(field.group(2)), n))
             continue
         if entry_like.match(stripped):
             problems.append(f"{where}: entry not in the form '### {prefix}-NN': {stripped[:60]!r}")
