@@ -39,7 +39,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 MAX_QUESTION_WORDS = 25
 MIN_ANSWERS = 2
 
@@ -50,8 +50,10 @@ FIELD_NAMES = ("Finding", "Question", "Answer", "Work", "Why this position", "Wh
 # A field holds plain text. These characters are Markdown or web formatting, which can hide text,
 # turn a line into a link or a tag, or make two identical lines look different.
 FORMATTING = re.compile(r"[*_`<>\[\]\\|&~]")
-# Any space other than an ordinary one, and invisible characters, which look the same as nothing.
-UNUSUAL_SPACE = re.compile(r"[^\S ]|[\u200b-\u200f\u2060\ufeff]")
+# Characters a reader can't see: any space other than an ordinary one, and every control, format
+# (soft hyphen, zero-width space), private-use, unassigned or separator character, by its Unicode
+# category, so the rule covers the whole class rather than a hand-picked list.
+INVISIBLE_CATEGORIES = {"Cc", "Cf", "Co", "Cn", "Zl", "Zp"}
 
 # The introduction above the list is prose. These are reported there, however they are written:
 # a field label (bold or not, colon anywhere after it), and anything that hides or styles text.
@@ -59,7 +61,7 @@ LABEL_MENTION = re.compile(
     r"(?<![A-Za-z])(?:" + "|".join(re.escape(f) for f in FIELD_NAMES) + r")[\s*_`\\]*:",
     re.IGNORECASE,
 )
-HIDING = re.compile(r"^\s*(?:```|~~~)|<[A-Za-z/!]")
+HIDING = re.compile(r"^\s*(?:```|~~~)|<[A-Za-z/!?]")
 
 # A question reads as one sentence: no '.', '!' or '?' followed (perhaps after closing brackets or
 # quote marks) by more text. Quoted text, common abbreviations and dotted initialisms ("U.S.") are
@@ -94,6 +96,13 @@ def norm(text: str) -> str:
     return " ".join(unicodedata.normalize("NFC", text).split())
 
 
+def has_invisible(text: str) -> bool:
+    """True when the text holds a character a reader can't see, or a space that isn't ordinary."""
+    return any(
+        unicodedata.category(c) in INVISIBLE_CATEGORIES or (c.isspace() and c != " ") for c in text
+    )
+
+
 def has_content(text: str) -> bool:
     """True when a field says something: at least one letter or digit."""
     return bool(HAS_LETTER_OR_DIGIT.search(text))
@@ -111,7 +120,9 @@ def read_lines(path: Path) -> list[str]:
     except (OSError, UnicodeDecodeError) as exc:
         print(f"Can't read {path}: {exc}", file=sys.stderr)
         sys.exit(2)
-    return text.splitlines()
+    # Only a real line ending starts a new line. (Python's splitlines() also splits on Unicode
+    # separators that a Markdown viewer shows inside the line, which could invent a field.)
+    return text.split("\n")
 
 
 def load_findings_reader(root: Path):
@@ -168,7 +179,7 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
             value = field.group(2).strip()
             if FORMATTING.search(value):
                 problems.append(f"{where}: formatting isn't allowed in a field; write plain text: {value[:60]!r}")
-            if UNUSUAL_SPACE.search(value):
+            if has_invisible(raw):  # the whole line, so nothing hides in the spaces that strip() drops
                 problems.append(f"{where}: an unusual space or invisible character in a field")
             current["fields"].append((field.group(1).strip(), value, n))
             continue

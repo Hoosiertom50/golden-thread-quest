@@ -60,18 +60,9 @@ it goes first.
 - **Work:** Store a remaining balance on each card, update it after every order, and show the buyer what's left.
 - **Answer:** No, the card is used up by one order.
 - **Work:** Mark the card as used after one order, with no balance to store; checkout warns the buyer before they give up the rest.
-- **Why this position:** It changes the gift card records, and it comes before the next question because using part of a card only matters if the rest is kept.
+- **Why this position:** It changes the gift card records, and it comes before Q-08 because using part of a card only matters if the rest is kept.
 
 ### Q-06
-- **Finding:** F-03
-- **Question:** Can a buyer choose to use only part of a gift card's balance on an order?
-- **Answer:** No, the card covers as much of the order as it can.
-- **Work:** No amount field at checkout; the card is applied automatically.
-- **Answer:** Yes, the buyer enters how much of the card to use.
-- **Work:** An amount field at checkout, checked against the card's balance and the order total.
-- **Why this position:** It changes one field on the checkout screen.
-
-### Q-07
 - **Finding:** F-13
 - **Question:** Can a refund requested in time ever be denied?
 - **Answer:** No, every request made in time is approved.
@@ -80,7 +71,7 @@ it goes first.
 - **Work:** Denial rules in the code, or a screen where staff approve or deny each request, plus a message telling the buyer why.
 - **Why this position:** It decides whether refunds need people and a review step.
 
-### Q-08
+### Q-07
 - **Finding:** F-14
 - **Question:** After a declined payment, can the buyer try again, or are they sent back to the cart?
 - **Answer:** They can try again with the same or another card.
@@ -88,6 +79,15 @@ it goes first.
 - **Answer:** They're sent back to the cart, and their seats are released.
 - **Work:** The payment is abandoned, the hold ends at once, and the seats show as available on the seat map; the buyer must choose seats again.
 - **Why this position:** It changes the checkout flow and how seat holds behave after a failure.
+
+### Q-08
+- **Finding:** F-03
+- **Question:** Can a buyer choose to use only part of a gift card's balance on an order?
+- **Answer:** No, the card covers as much of the order as it can.
+- **Work:** No amount field at checkout; the card is applied automatically.
+- **Answer:** Yes, the buyer enters how much of the card to use.
+- **Work:** An amount field at checkout, checked against the card's balance and the order total.
+- **Why this position:** It changes one field on the checkout screen, so it follows the larger refund and payment flows; it comes after Q-05 because it only matters if the rest of the card is kept.
 
 ### Q-09
 - **Finding:** F-01
