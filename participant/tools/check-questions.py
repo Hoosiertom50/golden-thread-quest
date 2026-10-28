@@ -35,7 +35,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 MAX_QUESTION_WORDS = 25
 MIN_ANSWERS = 2
 
@@ -61,8 +61,11 @@ FIELD_LABEL = re.compile(
     r"^(?:\*\*|__)?\s*(?:" + "|".join(re.escape(f) for f in FIELD_NAMES) + r")\s*(?:\*\*|__)?\s*:",
     re.IGNORECASE,
 )
-# Emphasis and code marks change how text looks, not what it says.
-INLINE_MARKS = re.compile(r"[*_`~]")
+# Emphasis and code marks change how text looks, not what it says. An underscore inside a word
+# ("gift_card") is part of the word, so only underscores at a word's edge count as marks.
+INLINE_MARKS = re.compile(r"[*`~]|(?<![^\W_])_|_(?![^\W_])")
+# Four spaces or a tab at the start of a line make it a code block when the file is shown.
+CODE_INDENT = re.compile(r"^(?: {4}|\t| {0,3}\t)")
 
 # Each list file: its section heading, its entry id prefix, and which fields an entry has.
 # 'pairs' fields come as Answer then Work, repeated; every other field appears exactly once.
@@ -85,6 +88,12 @@ DROPPED = {
 def norm(text: str) -> str:
     """Text compared as a reader sees it: one form per character, runs of spaces as one space."""
     return " ".join(unicodedata.normalize("NFC", text).split())
+
+
+def has_content(text: str) -> bool:
+    """True when a field says something: a letter or digit once formatting marks are set aside,
+    so a dash or an empty code mark doesn't count as a filled-in field."""
+    return bool(HAS_LETTER_OR_DIGIT.search(INLINE_MARKS.sub("", text)))
 
 
 def same_text(a: str, b: str) -> bool:
@@ -146,6 +155,12 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
             problems.append(f"{where}: text inside a code block isn't read: {stripped[:60]!r}")
             continue
         if not stripped:
+            continue
+        if CODE_INDENT.match(raw):
+            # An indented line is shown as code, not as a heading or a field, so it is never read.
+            unmarked = LEAD_MARKERS.sub("", stripped)
+            if in_section or HEADING.match(stripped) or entry_like.match(unmarked) or FIELD_LABEL.match(unmarked):
+                problems.append(f"{where}: an indented line is a code block and isn't read: {stripped[:60]!r}")
             continue
         if "<!--" in stripped:
             # A comment is hidden when the file is shown, so a reader would never see what it holds.
@@ -229,8 +244,8 @@ def check_entry(entry: dict, kind: dict, finding_ids: set[str]) -> tuple[dict, l
             if pending_answer is not None:
                 found.append(f"{where}: an Answer with no Work line after it")
             pending_answer = value
-            if not value:
-                found.append(f"{where}: an empty Answer")
+            if not has_content(value):
+                found.append(f"{where}: an Answer with nothing in it")
             continue
         if kind["pairs"] and fname == "Work":
             if pending_answer is None:
@@ -238,8 +253,8 @@ def check_entry(entry: dict, kind: dict, finding_ids: set[str]) -> tuple[dict, l
             else:
                 pairs.append((pending_answer, value))
             pending_answer = None
-            if not value:
-                found.append(f"{where}: an empty Work line")
+            if not has_content(value):
+                found.append(f"{where}: a Work line with nothing in it")
             continue
         if pending_answer is not None:
             found.append(f"{where}: an Answer with no Work line after it")
@@ -257,7 +272,7 @@ def check_entry(entry: dict, kind: dict, finding_ids: set[str]) -> tuple[dict, l
     for fname in kind["single"]:
         if fname not in single:
             found.append(f"{eid}: no {fname} line")
-        elif not single[fname]:
+        elif not has_content(single[fname]):
             found.append(f"{eid}: {fname} is empty")
 
     finding = single.get("Finding", "")
