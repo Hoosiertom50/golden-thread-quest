@@ -48,9 +48,10 @@ attempts:
   quest_id: ba-clarification-questions
   quest_version: 1
   content_hash: sha256:541fa97473fa6f1591b1ee3572151855ee8feca81284dc085fbcd738dfee605e
-  state: submitted
+  state: verified
   started_at: '2026-10-28T12:44:25Z'
-  updated_at: '2026-10-28T16:07:53Z'
+  updated_at: '2026-10-28T16:36:36Z'
   evidence_path: participant/evidence/ba-clarification-questions/ba-attempt-003
   submission_id: submission-20261028160753-c52ce5
-updated_at: '2026-10-28T16:07:53Z'
+  review_id: review-20261028163636-198607
+updated_at: '2026-10-28T16:36:36Z'
