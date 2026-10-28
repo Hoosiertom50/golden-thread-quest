@@ -36,7 +36,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 MAX_QUESTION_WORDS = 25
 MIN_ANSWERS = 2
 
@@ -60,6 +60,8 @@ LEAD_MARKERS = re.compile(r"^(?:#{1,6}\s*|(?:[-*+]|\d+[.)])\s+|>\s*)")
 ALL_INLINE_MARKS = re.compile(r"[*_`~]")
 # Web markup in a Markdown file: a tag ("<span>") or a character code ("&nbsp;", "&#32;").
 HTML_TAG = re.compile(r"</?[A-Za-z][^>]*>")
+# A Markdown link or image shows only its label: "[Release seats](#a)" reads "Release seats".
+MD_LINK = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")
 FIELD_NAMES = ("Finding", "Question", "Answer", "Work", "Why this position", "Why it changes nothing")
 # A field label is caught however it is written: bold or not, colon inside or outside the bold.
 FIELD_LABEL = re.compile(
@@ -96,8 +98,9 @@ def norm(text: str) -> str:
 
 
 def visible(text: str) -> str:
-    """The text as a reader sees it once the file is shown: tags removed, character codes turned
-    into the characters they stand for, and no-break spaces as ordinary spaces."""
+    """The text as a reader sees it once the file is shown: links as their labels, tags removed,
+    character codes turned into the characters they stand for, no-break spaces as ordinary spaces."""
+    text = MD_LINK.sub(r"\1", text)
     return norm(html.unescape(HTML_TAG.sub("", text)).replace("\u00a0", " "))
 
 
@@ -196,8 +199,9 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
                 sections_seen += 1
                 continue
             # The introduction is prose. Entries or fields up here would never be checked.
-            unmarked = bare(stripped)
-            if entry_like.match(unmarked) or FIELD_LABEL.match(unmarked):
+            # A table row is checked cell by cell: "| Q-13 | F-99 | ... |" is an entry too.
+            cells = stripped.strip("|").split("|") if stripped.startswith("|") else [stripped]
+            if any(entry_like.match(bare(c)) or FIELD_LABEL.match(bare(c)) for c in cells):
                 problems.append(f"{where}: list content before '## {kind['section']}': {stripped[:60]!r}")
             continue
 
