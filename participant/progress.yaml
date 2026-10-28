@@ -44,4 +44,13 @@ attempts:
   evidence_path: participant/evidence/ba-detect-ambiguity/ba-attempt-002
   submission_id: submission-20261027130921-27fd61
   review_id: review-20261027204641-898109
-updated_at: '2026-10-27T20:46:41Z'
+- attempt_id: ba-attempt-003
+  quest_id: ba-clarification-questions
+  quest_version: 1
+  content_hash: sha256:541fa97473fa6f1591b1ee3572151855ee8feca81284dc085fbcd738dfee605e
+  state: submitted
+  started_at: '2026-10-28T12:44:25Z'
+  updated_at: '2026-10-28T16:07:53Z'
+  evidence_path: participant/evidence/ba-clarification-questions/ba-attempt-003
+  submission_id: submission-20261028160753-c52ce5
+updated_at: '2026-10-28T16:07:53Z'
