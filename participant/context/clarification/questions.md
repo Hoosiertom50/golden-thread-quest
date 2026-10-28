@@ -55,14 +55,23 @@ it goes first.
 
 ### Q-05
 - **Finding:** F-03
-- **Question:** Can a buyer use only part of a gift card, and what happens to any balance left over?
-- **Answer:** The whole card is used; any balance above the order total is lost.
-- **Work:** No amount field at checkout; the card is marked used after one order.
-- **Answer:** The buyer chooses how much to use, and the rest stays on the card.
-- **Work:** An amount field at checkout, a stored remaining balance on each card, and a way to show the buyer what's left.
-- **Why this position:** It changes the checkout screen and the gift card records.
+- **Question:** When a gift card is worth more than the order, does the leftover balance stay on the card?
+- **Answer:** Yes, it stays on the card for a later order.
+- **Work:** Store a remaining balance on each card, update it after every order, and show the buyer what's left.
+- **Answer:** No, the card is used up by one order.
+- **Work:** Mark the card as used after one order, with no balance to store; checkout warns the buyer before they give up the rest.
+- **Why this position:** It changes the gift card records, and it comes before the next question because using part of a card only matters if the rest is kept.
 
 ### Q-06
+- **Finding:** F-03
+- **Question:** Can a buyer choose to use only part of a gift card's balance on an order?
+- **Answer:** No, the card covers as much of the order as it can.
+- **Work:** No amount field at checkout; the card is applied automatically.
+- **Answer:** Yes, the buyer enters how much of the card to use.
+- **Work:** An amount field at checkout, checked against the card's balance and the order total.
+- **Why this position:** It changes one field on the checkout screen.
+
+### Q-07
 - **Finding:** F-13
 - **Question:** Can a refund requested in time ever be denied?
 - **Answer:** No, every request made in time is approved.
@@ -71,7 +80,7 @@ it goes first.
 - **Work:** Denial rules in the code, or a screen where staff approve or deny each request, plus a message telling the buyer why.
 - **Why this position:** It decides whether refunds need people and a review step.
 
-### Q-07
+### Q-08
 - **Finding:** F-14
 - **Question:** After a declined payment, can the buyer try again, or are they sent back to the cart?
 - **Answer:** They can try again with the same or another card.
@@ -80,7 +89,7 @@ it goes first.
 - **Work:** The payment is abandoned, the hold ends at once, and the seats show as available on the seat map; the buyer must choose seats again.
 - **Why this position:** It changes the checkout flow and how seat holds behave after a failure.
 
-### Q-08
+### Q-09
 - **Finding:** F-01
 - **Question:** How many seconds may pass from opening an event to its seat map being usable?
 - **Answer:** Up to 5 seconds.
@@ -89,16 +98,16 @@ it goes first.
 - **Work:** Cache the map and load seat availability in stages; test with the largest venue.
 - **Why this position:** It can change how the map is built, but only on one screen.
 
-### Q-09
+### Q-10
 - **Finding:** F-02
 - **Question:** On what device, connection and venue size must the seat map be usable within its load time?
 - **Answer:** A desktop on broadband, at a typical venue.
-- **Work:** No extra work beyond Q-08's answer; test on one desktop setup.
+- **Work:** No extra work beyond Q-09's answer; test on one desktop setup.
 - **Answer:** A mid-range phone on a slow mobile connection, at the largest venue.
 - **Work:** Smaller map data and seats loaded in stages, tested on a slowed-down phone connection with the largest venue.
-- **Why this position:** It goes with Q-08: together they set the load-time target, and both change only the seat map screen.
+- **Why this position:** It goes with Q-09: together they set the load-time target, and both change only the seat map screen.
 
-### Q-10
+### Q-11
 - **Finding:** F-09
 - **Question:** Should the decline message say why the payment was declined, or just that it was?
 - **Answer:** Just that it was declined.
@@ -107,7 +116,7 @@ it goes first.
 - **Work:** Read the decline reason from the payment provider and show a different message for each reason.
 - **Why this position:** Real new code, but contained to the decline message.
 
-### Q-11
+### Q-12
 - **Finding:** F-06
 - **Question:** What should a first-time buyer see at checkout that makes it feel trustworthy?
 - **Answer:** A security badge and the card brands accepted.
@@ -116,7 +125,7 @@ it goes first.
 - **Work:** A refund-policy link and a price summary shown from the first checkout step.
 - **Why this position:** Each likely answer is a small visible addition.
 
-### Q-12
+### Q-13
 - **Finding:** F-12
 - **Question:** Does the buyer have to give a reason for a refund?
 - **Answer:** No.

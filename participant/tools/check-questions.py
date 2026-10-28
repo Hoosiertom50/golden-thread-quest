@@ -7,13 +7,17 @@ and dropped.md. This program checks that judgment is complete and traceable:
   - every question cites a finding that exists in the verified findings.md;
   - every question lists at least two answers, each followed by the work it leads to;
   - no two answers to one question are the same text, and no two lead to the same work text;
-  - every question is one sentence ending in '?' and at most 25 words;
+  - every question reads as one sentence ending in '?' and is at most 25 words;
   - questions are numbered Q-01, Q-02, ... in order, with no gaps, and each says why it sits where
     it does (the order is by how much of the work depends on the answer);
   - every dropped question cites a finding that exists and says why its answer changes nothing;
   - every finding is accounted for: asked, dropped, or both (a question rewritten into a better one).
-Anything it can't read or doesn't recognise is a problem, never skipped: a check that can't be
-made counts as failed, so the result is only PASSED when every check really passed.
+
+It accepts only what it recognises, and reports everything else. The list section holds only entry
+headings and one-line fields, and a field holds plain text: no Markdown or web formatting, which
+could hide content or make two identical lines look different. The introduction above the list is
+prose: it may not mention an entry or a field, or contain a code block, comment or web markup that
+could hide one. So the result is only PASSED when every check really passed.
 
 It can tell that two work lines are different text, not that they are really different work;
 that judgment stays with the person, who reads every line.
@@ -29,50 +33,43 @@ Read-only: it writes nothing and sends nothing.
 from __future__ import annotations
 
 import argparse
-import html
 import importlib.util
 import re
 import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.5.0"
+VERSION = "2.0.0"
 MAX_QUESTION_WORDS = 25
 MIN_ANSWERS = 2
 
 FINDING_ID = re.compile(r"^F-\d+$")
 FIELD = re.compile(r"^- \*\*([^*]+?):\*\*\s*(.*)$")
-HEADING = re.compile(r"^(#{1,6})\s*(.*?)\s*$")
-QUOTED_TEXT = re.compile(r'"[^"]*"|“[^”]*”')
-ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx|a\.m|p\.m)\.", re.IGNORECASE)
-# Dotted initialisms ("U.S.", "Q.A.") are one word, not the end of a sentence.
-INITIALISMS = re.compile(r"(?<!\w)(?:[A-Za-z]\.){2,}")
-# A sentence ends at '.', '!' or '?', perhaps followed by closing brackets or quote marks, then a
-# space and more text, or directly a capital letter ("failed.Can ...", "(It failed.) Can ...").
-# A decimal ("2.50") or a file name ("findings.md") is not a break.
-SENTENCE_BREAK = re.compile(r"[.!?][)\]\"'\u201d\u2019]*(?:\s+\S|[A-Z])")
-WORD = re.compile(r"[\w'’-]+")
-HAS_LETTER_OR_DIGIT = re.compile(r"[^\W_]")
-# Above the list section the file is prose. Every kind of formatting is set aside before checking
-# -- heading marks, bullets ("-", "*", "+", "1.", "1)"), quote marks, bold, italics and code marks --
-# so an entry or field is caught however it is dressed up, alone or in combination.
-LEAD_MARKERS = re.compile(r"^(?:#{1,6}\s*|(?:[-*+]|\d+[.)])\s+|>\s*)")
-ALL_INLINE_MARKS = re.compile(r"[*_`~]")
-# Web markup in a Markdown file: a tag ("<span>") or a character code ("&nbsp;", "&#32;").
-HTML_TAG = re.compile(r"</?[A-Za-z][^>]*>")
-# A Markdown link or image shows only its label: "[Release seats](#a)" reads "Release seats".
-MD_LINK = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")
 FIELD_NAMES = ("Finding", "Question", "Answer", "Work", "Why this position", "Why it changes nothing")
-# A field label is caught however it is written: bold or not, colon inside or outside the bold.
-FIELD_LABEL = re.compile(
-    r"^(?:\*\*|__)?\s*(?:" + "|".join(re.escape(f) for f in FIELD_NAMES) + r")\s*(?:\*\*|__)?\s*:",
+
+# A field holds plain text. These characters are Markdown or web formatting, which can hide text,
+# turn a line into a link or a tag, or make two identical lines look different.
+FORMATTING = re.compile(r"[*_`<>\[\]\\|&~]")
+# Any space other than an ordinary one, and invisible characters, which look the same as nothing.
+UNUSUAL_SPACE = re.compile(r"[^\S ]|[\u200b-\u200f\u2060\ufeff]")
+
+# The introduction above the list is prose. These are reported there, however they are written:
+# a field label (bold or not, colon anywhere after it), and anything that hides or styles text.
+LABEL_MENTION = re.compile(
+    r"(?<![A-Za-z])(?:" + "|".join(re.escape(f) for f in FIELD_NAMES) + r")[\s*_`\\]*:",
     re.IGNORECASE,
 )
-# Emphasis and code marks change how text looks, not what it says. An underscore inside a word
-# ("gift_card") is part of the word, so only underscores at a word's edge count as marks.
-INLINE_MARKS = re.compile(r"[*`~]|(?<![^\W_])_|_(?![^\W_])")
-# Four spaces or a tab at the start of a line make it a code block when the file is shown.
-CODE_INDENT = re.compile(r"^(?: {4}|\t| {0,3}\t)")
+HIDING = re.compile(r"^\s*(?:```|~~~)|<[A-Za-z/!]")
+
+# A question reads as one sentence: no '.', '!' or '?' followed (perhaps after closing brackets or
+# quote marks) by more text. Quoted text, common abbreviations and dotted initialisms ("U.S.") are
+# set aside first so they don't count as breaks.
+QUOTED_TEXT = re.compile(r'"[^"]*"|\u201c[^\u201d]*\u201d')
+ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx|a\.m|p\.m)\.", re.IGNORECASE)
+INITIALISMS = re.compile(r"(?<!\w)(?:[A-Za-z]\.){2,}")
+SENTENCE_BREAK = re.compile(r"[.!?][)\"'\u201d\u2019]*(?:\s+\S|[A-Z])")
+WORD = re.compile(r"[\w'\u2019-]+")
+HAS_LETTER_OR_DIGIT = re.compile(r"[^\W_]")
 
 # Each list file: its section heading, its entry id prefix, and which fields an entry has.
 # 'pairs' fields come as Answer then Work, repeated; every other field appears exactly once.
@@ -97,36 +94,14 @@ def norm(text: str) -> str:
     return " ".join(unicodedata.normalize("NFC", text).split())
 
 
-def visible(text: str) -> str:
-    """The text as a reader sees it once the file is shown: links as their labels, tags removed,
-    character codes turned into the characters they stand for, no-break spaces as ordinary spaces."""
-    text = MD_LINK.sub(r"\1", text)
-    return norm(html.unescape(HTML_TAG.sub("", text)).replace("\u00a0", " "))
-
-
-def bare(text: str) -> str:
-    """A line with all its formatting set aside, for spotting entries and fields above the list."""
-    text = visible(text)
-    while True:
-        shorter = LEAD_MARKERS.sub("", text, count=1).lstrip()
-        if shorter == text:
-            break
-        text = shorter
-    return ALL_INLINE_MARKS.sub("", text).strip()
-
-
 def has_content(text: str) -> bool:
-    """True when a field says something: a letter or digit once formatting marks are set aside,
-    so a dash or an empty code mark doesn't count as a filled-in field."""
-    return bool(HAS_LETTER_OR_DIGIT.search(INLINE_MARKS.sub("", text)))
+    """True when a field says something: at least one letter or digit."""
+    return bool(HAS_LETTER_OR_DIGIT.search(text))
 
 
 def same_text(a: str, b: str) -> bool:
-    """True when two lines say the same thing word for word, ignoring case, emphasis marks and end
-    punctuation: '**No.**' and 'No.' read the same to a person."""
-    def plain(text: str) -> str:
-        return norm(INLINE_MARKS.sub("", text)).casefold().rstrip(" .!?;:")
-    return plain(a) == plain(b)
+    """True when two lines say the same thing word for word, ignoring case and end punctuation."""
+    return norm(a).casefold().rstrip(" .!?;:") == norm(b).casefold().rstrip(" .!?;:")
 
 
 def read_lines(path: Path) -> list[str]:
@@ -156,92 +131,60 @@ def load_findings_reader(root: Path):
 
 
 def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
-    """The entries under '## <section>', in file order. Anything unrecognised is a problem."""
-    name, prefix = kind["name"], kind["prefix"]
-    entry_heading = re.compile(rf"^### ({prefix}-\d+)\s*$")
-    entry_like = re.compile(rf"^(?:#{{1,6}}\s*(?:\*\*)?\s*|\*\*\s*|- \*\*\s*)?{prefix}-\d+\b")
+    """The entries under '## <section>', in file order. Only exact entry headings and one-line
+    fields are accepted inside the list; any other line there is reported, never skipped."""
+    name, prefix, section = kind["name"], kind["prefix"], f"## {kind['section']}"
+    entry_heading = re.compile(rf"^### ({prefix}-\d+)$")
+    id_mention = re.compile(rf"(?<![A-Za-z0-9]){prefix}-\d+")
     entries: list[dict] = []
     current: dict | None = None
     in_section = False
-    sections_seen = 0
-    in_fence = False
 
     for n, raw in enumerate(lines, 1):
         line = raw.rstrip()
-        stripped = line.strip()
         where = f"{name} line {n}"
-        if stripped.startswith("```") or stripped.startswith("~~~"):
-            in_fence = not in_fence
-            # A code block is never read, so anything in it would go unchecked: report it,
-            # in the introduction as well as in the list.
-            problems.append(f"{where}: a code block isn't read; write entries as plain fields")
-            continue
-        if in_fence:
-            problems.append(f"{where}: text inside a code block isn't read: {stripped[:60]!r}")
-            continue
-        if not stripped:
-            continue
-        if CODE_INDENT.match(raw):
-            # An indented line is shown as code, not as a heading or a field, so it is never read.
-            unmarked = bare(stripped)
-            if in_section or HEADING.match(stripped) or entry_like.match(unmarked) or FIELD_LABEL.match(unmarked):
-                problems.append(f"{where}: an indented line is a code block and isn't read: {stripped[:60]!r}")
-            continue
-        if "<!--" in stripped:
-            # A comment is hidden when the file is shown, so a reader would never see what it holds.
-            problems.append(f"{where}: a hidden comment; write it as visible text or remove it")
-            continue
-        heading = HEADING.match(stripped)
-
         if not in_section:
-            if heading and len(heading.group(1)) == 2 and heading.group(2) == kind["section"]:
+            if line == section:
                 in_section = True
-                sections_seen += 1
                 continue
-            # The introduction is prose. Entries or fields up here would never be checked.
-            # A table row is checked cell by cell: "| Q-13 | F-99 | ... |" is an entry too.
-            cells = stripped.strip("|").split("|") if stripped.startswith("|") else [stripped]
-            if any(entry_like.match(bare(c)) or FIELD_LABEL.match(bare(c)) for c in cells):
-                problems.append(f"{where}: list content before '## {kind['section']}': {stripped[:60]!r}")
+            # The introduction is prose. An entry or field up here would never be checked, and a
+            # code block, comment or tag could hide one, so all of these are reported.
+            if id_mention.search(line) or LABEL_MENTION.search(line) or HIDING.search(line):
+                problems.append(f"{where}: list content or hidden text before '{section}': {line.strip()[:60]!r}")
             continue
 
-        if heading:
-            level = len(heading.group(1))
-            m = entry_heading.match(stripped)
-            if m:
-                current = {"id": m.group(1), "line": n, "fields": []}
-                entries.append(current)
-                continue
-            if level <= 2 and heading.group(2) == kind["section"]:
-                sections_seen += 1
-                problems.append(f"{where}: a second '## {kind['section']}' section")
-                current = None
-                continue
-            problems.append(f"{where}: heading that isn't an entry ('### {prefix}-NN'): {stripped[:60]!r}")
-            current = None
+        if not line:
             continue
-
-        field = FIELD.match(stripped)
-        if field and raw.startswith("- "):
+        m = entry_heading.match(line)
+        if m:
+            current = {"id": m.group(1), "line": n, "fields": []}
+            entries.append(current)
+            continue
+        field = FIELD.match(line)
+        if field:
             if current is None:
-                problems.append(f"{where}: field outside any entry: {stripped[:60]!r}")
+                problems.append(f"{where}: field outside any entry: {line[:60]!r}")
                 continue
-            # Values are checked as a reader sees them, so markup can't fill a blank field or make
-            # a copy look different.
-            current["fields"].append((field.group(1).strip(), visible(field.group(2)), n))
+            value = field.group(2).strip()
+            if FORMATTING.search(value):
+                problems.append(f"{where}: formatting isn't allowed in a field; write plain text: {value[:60]!r}")
+            if UNUSUAL_SPACE.search(value):
+                problems.append(f"{where}: an unusual space or invisible character in a field")
+            current["fields"].append((field.group(1).strip(), value, n))
             continue
-        if entry_like.match(stripped):
-            problems.append(f"{where}: entry not in the form '### {prefix}-NN': {stripped[:60]!r}")
-            continue
-        problems.append(f"{where}: text that isn't a field ('- **Name:** value' on one line): {stripped[:60]!r}")
+        problems.append(
+            f"{where}: not an entry heading ('### {prefix}-NN') or a field ('- **Name:** value' "
+            f"on one line): {line.strip()[:60]!r}"
+        )
 
-    if sections_seen == 0:
-        problems.append(f"{name}: no '## {kind['section']}' section")
+    if not in_section:
+        problems.append(f"{name}: no '{section}' section")
     return entries
 
 
 def check_question_text(text: str, where: str, limit: int | None) -> list[str]:
-    """A question is one sentence ending in '?', and short enough to answer without a meeting."""
+    """A question reads as one sentence ending in '?', and is short enough to answer without a
+    meeting."""
     found = []
     if not text:
         return [f"{where}: the question is empty"]
@@ -436,10 +379,10 @@ def main(argv: list[str] | None = None) -> int:
         print("result: FAILED (exit status 1)")
         return 1
     print("Checks: every question and dropped question cites a finding in findings.md; every question")
-    print(f"has at least {MIN_ANSWERS} answers, each with different work text; every question is one sentence")
-    print(f"of at most {MAX_QUESTION_WORDS} words ending in '?'; questions are numbered in order with a reason for")
-    print("each position; every dropped question says why it changes nothing; every finding is asked")
-    print("or dropped.")
+    print(f"has at least {MIN_ANSWERS} answers, each with different work text; every question reads as one")
+    print(f"sentence of at most {MAX_QUESTION_WORDS} words ending in '?'; questions are numbered in order with a")
+    print("reason for each position; every dropped question says why it changes nothing; every finding")
+    print("is asked or dropped; every field is plain text.")
     print()
     print("result: PASSED (exit status 0)")
     return 0
