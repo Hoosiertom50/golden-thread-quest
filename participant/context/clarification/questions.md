@@ -10,20 +10,12 @@ developer build something different? If yes, it's here. If both answers lead to 
 not dropped.
 
 **Order:** the questions the most work depends on come first: the whole system, then money flows,
-then single screens, then small additions.
+then single screens, then small additions. Within each group, the question with more work riding on
+it goes first.
 
 ## Questions
 
 ### Q-01
-- **Finding:** F-07
-- **Question:** Which refund deadline applies: 48 hours before the event starts, or until the venue doors open?
-- **Answer:** 48 hours before the event starts.
-- **Work:** The refund option closes at a fixed time before each event's start time, which Tixly already has; later requests are refused.
-- **Answer:** Until the venue doors open.
-- **Work:** Tixly must store a doors-open time for every event, collect it from venues, and keep refunds open until that time.
-- **Why this position:** It's a contradiction, so the refund rules can't be built either way until it's settled, and one answer needs new venue data.
-
-### Q-02
 - **Finding:** F-10
 - **Question:** What is the most buyers that must be able to check out at the same time?
 - **Answer:** Up to a few hundred.
@@ -32,14 +24,25 @@ then single screens, then small additions.
 - **Work:** A waiting room or queue, more servers that scale up, and load tests at that size before launch.
 - **Why this position:** It shapes the design of the whole system.
 
-### Q-03
+### Q-02
 - **Finding:** F-11
-- **Question:** What counts as handling them: no errors, a response time, or never selling a seat twice?
+- **Question:** What counts as handling that many buyers: no errors, a response time, or never selling a seat twice?
 - **Answer:** No errors shown to buyers.
 - **Work:** Error handling and monitoring; no change to how seats are reserved.
 - **Answer:** Never selling the same seat twice.
 - **Work:** Seat holds must lock each seat in the database so two buyers can't hold it at once, with tests that race two buyers for one seat.
+- **Answer:** A response time, for example each checkout step answers within 3 seconds at that load.
+- **Work:** Measure checkout speed under load and tune the slow steps (database queries, payment calls) until it meets the target.
 - **Why this position:** Locking has to be built into checkout from the start; adding it later means reworking every seat hold.
+
+### Q-03
+- **Finding:** F-07
+- **Question:** Which refund deadline applies: 48 hours before the event starts, or until the venue doors open?
+- **Answer:** 48 hours before the event starts.
+- **Work:** The refund option closes at a fixed time before each event's start time, which Tixly already has; later requests are refused.
+- **Answer:** Until the venue doors open.
+- **Work:** Tixly must store a doors-open time for every event, collect it from venues, and keep refunds open until that time.
+- **Why this position:** The first money question: it's a contradiction, so the refund rules can't be built either way until it's settled, and one answer needs new venue data.
 
 ### Q-04
 - **Finding:** F-04
@@ -87,6 +90,15 @@ then single screens, then small additions.
 - **Why this position:** It can change how the map is built, but only on one screen.
 
 ### Q-09
+- **Finding:** F-02
+- **Question:** On what device, connection and venue size must the seat map be usable within its load time?
+- **Answer:** A desktop on broadband, at a typical venue.
+- **Work:** No extra work beyond Q-08's answer; test on one desktop setup.
+- **Answer:** A mid-range phone on a slow mobile connection, at the largest venue.
+- **Work:** Smaller map data and seats loaded in stages, tested on a slowed-down phone connection with the largest venue.
+- **Why this position:** It goes with Q-08: together they set the load-time target, and both change only the seat map screen.
+
+### Q-10
 - **Finding:** F-09
 - **Question:** Should the decline message say why the payment was declined, or just that it was?
 - **Answer:** Just that it was declined.
@@ -95,7 +107,7 @@ then single screens, then small additions.
 - **Work:** Read the decline reason from the payment provider and show a different message for each reason.
 - **Why this position:** Real new code, but contained to the decline message.
 
-### Q-10
+### Q-11
 - **Finding:** F-06
 - **Question:** What should a first-time buyer see at checkout that makes it feel trustworthy?
 - **Answer:** A security badge and the card brands accepted.
@@ -104,7 +116,7 @@ then single screens, then small additions.
 - **Work:** A refund-policy link and a price summary shown from the first checkout step.
 - **Why this position:** Each likely answer is a small visible addition.
 
-### Q-11
+### Q-12
 - **Finding:** F-12
 - **Question:** Does the buyer have to give a reason for a refund?
 - **Answer:** No.

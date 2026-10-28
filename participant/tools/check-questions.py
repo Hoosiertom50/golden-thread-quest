@@ -35,7 +35,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 MAX_QUESTION_WORDS = 25
 MIN_ANSWERS = 2
 
@@ -44,8 +44,16 @@ FIELD = re.compile(r"^- \*\*([^*]+?):\*\*\s*(.*)$")
 HEADING = re.compile(r"^(#{1,6})\s*(.*?)\s*$")
 QUOTED_TEXT = re.compile(r'"[^"]*"|“[^”]*”')
 ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx|a\.m|p\.m)\.", re.IGNORECASE)
-SENTENCE_BREAK = re.compile(r"[.!?]\s+\S")
+# A sentence ends at '.', '!' or '?' followed by a space and more text, or directly by a capital
+# letter ("failed.Can ..."); a decimal ("2.50") or a file name ("findings.md") is not a break.
+SENTENCE_BREAK = re.compile(r"[.!?](?:\s+\S|[A-Z])")
 WORD = re.compile(r"[\w'’-]+")
+HAS_LETTER_OR_DIGIT = re.compile(r"[^\W_]")
+# Above the list section the file is prose. List markers and quote marks are set aside before
+# checking, so an entry or field is caught however it is bulleted ("-", "*", "+", "1.", "1)", ">").
+LEAD_MARKERS = re.compile(r"^(?:(?:[-*+]|\d+[.)])\s+|>\s*)+")
+FIELD_NAMES = ("Finding", "Question", "Answer", "Work", "Why this position", "Why it changes nothing")
+BOLD_FIELD = re.compile(r"^\*\*\s*(?:" + "|".join(re.escape(f) for f in FIELD_NAMES) + r")\s*:")
 
 # Each list file: its section heading, its entry id prefix, and which fields an entry has.
 # 'pairs' fields come as Answer then Work, repeated; every other field appears exactly once.
@@ -118,14 +126,18 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
         where = f"{name} line {n}"
         if stripped.startswith("```") or stripped.startswith("~~~"):
             in_fence = not in_fence
-            if in_section:
-                problems.append(f"{where}: a code block inside the list isn't read; write entries as plain fields")
+            # A code block is never read, so anything in it would go unchecked: report it,
+            # in the introduction as well as in the list.
+            problems.append(f"{where}: a code block isn't read; write entries as plain fields")
             continue
         if in_fence:
-            if in_section:
-                problems.append(f"{where}: text inside a code block isn't read: {stripped[:60]!r}")
+            problems.append(f"{where}: text inside a code block isn't read: {stripped[:60]!r}")
             continue
         if not stripped:
+            continue
+        if "<!--" in stripped:
+            # A comment is hidden when the file is shown, so a reader would never see what it holds.
+            problems.append(f"{where}: a hidden comment; write it as visible text or remove it")
             continue
         heading = HEADING.match(stripped)
 
@@ -135,7 +147,8 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
                 sections_seen += 1
                 continue
             # The introduction is prose. Entries or fields up here would never be checked.
-            if entry_like.match(stripped) or FIELD.match(stripped):
+            unmarked = LEAD_MARKERS.sub("", stripped)
+            if entry_like.match(unmarked) or BOLD_FIELD.match(unmarked):
                 problems.append(f"{where}: list content before '## {kind['section']}': {stripped[:60]!r}")
             continue
 
@@ -182,7 +195,9 @@ def check_question_text(text: str, where: str, limit: int | None) -> list[str]:
         found.append(f"{where}: the question doesn't end with '?'")
     if plain.count("?") > 1 or SENTENCE_BREAK.search(plain):
         found.append(f"{where}: the question is more than one sentence")
-    words = len(WORD.findall(norm(text)))
+    words = len([w for w in WORD.findall(norm(text)) if HAS_LETTER_OR_DIGIT.search(w)])
+    if words == 0:
+        found.append(f"{where}: the question has no words")
     if limit is not None and words > limit:
         found.append(f"{where}: the question is {words} words; the limit is {limit}")
     return found
