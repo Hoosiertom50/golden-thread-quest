@@ -35,7 +35,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 MAX_QUESTION_WORDS = 25
 MIN_ANSWERS = 2
 
@@ -44,16 +44,25 @@ FIELD = re.compile(r"^- \*\*([^*]+?):\*\*\s*(.*)$")
 HEADING = re.compile(r"^(#{1,6})\s*(.*?)\s*$")
 QUOTED_TEXT = re.compile(r'"[^"]*"|“[^”]*”')
 ABBREVIATIONS = re.compile(r"(?<!\w)(?:e\.g|i\.e|etc|vs|approx|a\.m|p\.m)\.", re.IGNORECASE)
-# A sentence ends at '.', '!' or '?' followed by a space and more text, or directly by a capital
-# letter ("failed.Can ..."); a decimal ("2.50") or a file name ("findings.md") is not a break.
-SENTENCE_BREAK = re.compile(r"[.!?](?:\s+\S|[A-Z])")
+# Dotted initialisms ("U.S.", "Q.A.") are one word, not the end of a sentence.
+INITIALISMS = re.compile(r"(?<!\w)(?:[A-Za-z]\.){2,}")
+# A sentence ends at '.', '!' or '?', perhaps followed by closing brackets or quote marks, then a
+# space and more text, or directly a capital letter ("failed.Can ...", "(It failed.) Can ...").
+# A decimal ("2.50") or a file name ("findings.md") is not a break.
+SENTENCE_BREAK = re.compile(r"[.!?][)\]\"'\u201d\u2019]*(?:\s+\S|[A-Z])")
 WORD = re.compile(r"[\w'’-]+")
 HAS_LETTER_OR_DIGIT = re.compile(r"[^\W_]")
 # Above the list section the file is prose. List markers and quote marks are set aside before
 # checking, so an entry or field is caught however it is bulleted ("-", "*", "+", "1.", "1)", ">").
 LEAD_MARKERS = re.compile(r"^(?:(?:[-*+]|\d+[.)])\s+|>\s*)+")
 FIELD_NAMES = ("Finding", "Question", "Answer", "Work", "Why this position", "Why it changes nothing")
-BOLD_FIELD = re.compile(r"^\*\*\s*(?:" + "|".join(re.escape(f) for f in FIELD_NAMES) + r")\s*:")
+# A field label is caught however it is written: bold or not, colon inside or outside the bold.
+FIELD_LABEL = re.compile(
+    r"^(?:\*\*|__)?\s*(?:" + "|".join(re.escape(f) for f in FIELD_NAMES) + r")\s*(?:\*\*|__)?\s*:",
+    re.IGNORECASE,
+)
+# Emphasis and code marks change how text looks, not what it says.
+INLINE_MARKS = re.compile(r"[*_`~]")
 
 # Each list file: its section heading, its entry id prefix, and which fields an entry has.
 # 'pairs' fields come as Answer then Work, repeated; every other field appears exactly once.
@@ -79,8 +88,11 @@ def norm(text: str) -> str:
 
 
 def same_text(a: str, b: str) -> bool:
-    """True when two lines say the same thing word for word, ignoring case and end punctuation."""
-    return norm(a).casefold().rstrip(" .!?;:") == norm(b).casefold().rstrip(" .!?;:")
+    """True when two lines say the same thing word for word, ignoring case, emphasis marks and end
+    punctuation: '**No.**' and 'No.' read the same to a person."""
+    def plain(text: str) -> str:
+        return norm(INLINE_MARKS.sub("", text)).casefold().rstrip(" .!?;:")
+    return plain(a) == plain(b)
 
 
 def read_lines(path: Path) -> list[str]:
@@ -148,7 +160,7 @@ def parse_list(lines: list[str], kind: dict, problems: list[str]) -> list[dict]:
                 continue
             # The introduction is prose. Entries or fields up here would never be checked.
             unmarked = LEAD_MARKERS.sub("", stripped)
-            if entry_like.match(unmarked) or BOLD_FIELD.match(unmarked):
+            if entry_like.match(unmarked) or FIELD_LABEL.match(unmarked):
                 problems.append(f"{where}: list content before '## {kind['section']}': {stripped[:60]!r}")
             continue
 
@@ -190,7 +202,7 @@ def check_question_text(text: str, where: str, limit: int | None) -> list[str]:
     found = []
     if not text:
         return [f"{where}: the question is empty"]
-    plain = ABBREVIATIONS.sub("abbr", QUOTED_TEXT.sub('"q"', norm(text)))
+    plain = INITIALISMS.sub("abbr", ABBREVIATIONS.sub("abbr", QUOTED_TEXT.sub('"q"', norm(text))))
     if not plain.endswith("?"):
         found.append(f"{where}: the question doesn't end with '?'")
     if plain.count("?") > 1 or SENTENCE_BREAK.search(plain):

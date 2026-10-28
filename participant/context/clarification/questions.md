@@ -82,7 +82,7 @@ it goes first.
 
 ### Q-08
 - **Finding:** F-01
-- **Question:** How many seconds may the seat map take to load?
+- **Question:** How many seconds may pass from opening an event to its seat map being usable?
 - **Answer:** Up to 5 seconds.
 - **Work:** Load the whole map in one request; no extra work.
 - **Answer:** Under 1 second.
