@@ -39,7 +39,7 @@ import sys
 import unicodedata
 from pathlib import Path
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 MAX_QUESTION_WORDS = 25
 MIN_ANSWERS = 2
 
@@ -54,6 +54,15 @@ FORMATTING = re.compile(r"[*_`<>\[\]\\|&~]")
 # (soft hyphen, zero-width space), private-use, unassigned or separator character, by its Unicode
 # category, so the rule covers the whole class rather than a hand-picked list.
 INVISIBLE_CATEGORIES = {"Cc", "Cf", "Co", "Cn", "Zl", "Zp"}
+# Unicode's own list of characters that should be invisible (the Default_Ignorable_Code_Point
+# property, which Python's unicodedata doesn't expose). Some sit in ordinary categories -- the
+# Hangul fillers are "letters" -- so the categories above don't catch them on their own.
+DEFAULT_IGNORABLE = (
+    (0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C, 0x061C), (0x115F, 0x1160), (0x17B4, 0x17B5),
+    (0x180B, 0x180F), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0x3164, 0x3164),
+    (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF), (0xFFA0, 0xFFA0), (0xFFF0, 0xFFF8), (0x1BCA0, 0x1BCA3),
+    (0x1D173, 0x1D17A), (0xE0000, 0xE0FFF),
+)
 
 # The introduction above the list is prose. These are reported there, however they are written:
 # a field label (bold or not, colon anywhere after it), and anything that hides or styles text.
@@ -99,7 +108,10 @@ def norm(text: str) -> str:
 def has_invisible(text: str) -> bool:
     """True when the text holds a character a reader can't see, or a space that isn't ordinary."""
     return any(
-        unicodedata.category(c) in INVISIBLE_CATEGORIES or (c.isspace() and c != " ") for c in text
+        unicodedata.category(c) in INVISIBLE_CATEGORIES
+        or (c.isspace() and c != " ")
+        or any(low <= ord(c) <= high for low, high in DEFAULT_IGNORABLE)
+        for c in text
     )
 
 
