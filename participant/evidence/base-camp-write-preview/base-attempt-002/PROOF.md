@@ -20,7 +20,7 @@ follow-up stories, and recorded it refusing two bad confirmations first.
 
 ## What was built
 
-- **The tracker**, `participant/tools/fake-story-tracker.py` (version 1.6.0), with three commands:
+- **The tracker**, `participant/tools/fake-story-tracker.py` (version 1.7.0), with three commands:
   `preview` shows the target, the action and every field of every story, says nothing was written,
   and ends with a fingerprint; `confirm` asks a person to type that fingerprint and writes only if
   every check passes; `list` shows every stored story with who confirmed it, when, and under which
@@ -31,7 +31,7 @@ follow-up stories, and recorded it refusing two bad confirmations first.
 - **The proposed change**, `participant/context/write-preview/follow-up-stories.yaml`: three
   follow-up stories, each the work that follows one of my clarification questions from the
   previous quest, with an invented answer.
-- **The reviewer check**, `participant/tools/check-write-preview.py` (version 1.5.0): it runs every
+- **The reviewer check**, `participant/tools/check-write-preview.py` (version 1.5.1): it runs every
   acceptance criterion in a temporary folder with a fixed clock, so a reviewer gets the identical
   output each time. My recorded runs use the real clock, so their fingerprints and times can't
   repeat; this check is the part that can be re-run and compared word for word.
@@ -160,7 +160,7 @@ two found nothing new. It found **4 High** issues, all fixed and each reproduced
 
 Many Mediums made the **check** honest: it had passed while a field was missing or a value was
 wrong ("Highest" for "High"), so it now compares every value whole. Before every round Claude
-re-read both programs and ran its own tests (68 cases), and tested the check against 23
+re-read both programs and ran its own tests (69 cases), and tested the check against 24
 deliberately broken trackers to prove it catches what it claims. That testing also found mistakes
 in the check itself, which were fixed before Copilot saw them.
 

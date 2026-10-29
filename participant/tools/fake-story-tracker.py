@@ -46,7 +46,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -661,8 +661,17 @@ def main(argv: list[str] | None = None) -> int:
             print()
             raise Refused("cancelled at the prompt; nothing was written")
         print(f"You typed: {typed.strip()}")  # so the record shows what was approved
-        print("\n".join(do_confirm(args.stories, DATA_DIR, lambda: dt.datetime.now(dt.timezone.utc),
-                                   typed, os.environ.get(TOKEN_VAR), who)))
+        written = do_confirm(args.stories, DATA_DIR, lambda: dt.datetime.now(dt.timezone.utc),
+                             typed, os.environ.get(TOKEN_VAR), who)
+        # From here the stories ARE written. A failure to show the result must never be reported
+        # as "nothing was written", or a person might confirm again.
+        try:
+            print("\n".join(written))
+            sys.stdout.flush()
+        except OSError as exc:
+            with contextlib.suppress(OSError):
+                sys.stderr.write(f"The stories were written, but the result couldn't be shown "
+                                 f"({exc.strerror}). Run list to see them; don't confirm again.\n")
         return 0
     except BadInput as exc:
         print(f"Can't use the stories file: {exc}. Nothing was written.")
@@ -672,9 +681,8 @@ def main(argv: list[str] | None = None) -> int:
         print(message if message.startswith("Refused") else f"Refused: {message}.")
         return 1
     except OSError as exc:
-        # A last safety net: any file-system problem not caught above happens before the stories
-        # are written (that write is the last step and has its own handling), so it is reported
-        # plainly, never as an error dump.
+        # A last safety net, for problems before any story is written: once confirm has written
+        # the stories it handles its own reporting above, so this can only be reached before.
         print(f"Refused: the tracker's files couldn't be read or written ({exc.strerror}). "
               "Nothing was written.")
         return 1

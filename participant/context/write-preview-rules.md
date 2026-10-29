@@ -68,7 +68,9 @@ make a file too big to read back is refused before anything is written.
 
 The preview is marked as used **before** the stories are written. If writing them then fails,
 nothing was written and that preview can't be used again, so the person previews again. A failure
-is never reported for a write that in fact happened.
+is never reported for a write that in fact happened. And if the stories are written but the result
+can't be shown (for example, the screen output fails), the tool says the stories **were** written
+and to run `list` rather than confirm again.
 
 Each story written records its key, every field, **who confirmed it**, **when**, and the
 **fingerprint of the preview** it was confirmed under. `list` shows all of this, so anyone can see

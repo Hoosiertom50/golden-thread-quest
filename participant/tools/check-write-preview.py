@@ -30,7 +30,7 @@ import threading
 import time
 from pathlib import Path
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 ROOT = Path(__file__).resolve().parents[2]
 TOOL_PATH = ROOT / "participant/tools/fake-story-tracker.py"
 CLOCK = dt.datetime(2026, 10, 29, 13, 0, 0, tzinfo=dt.timezone.utc)  # 09:00 AM in Indiana
@@ -153,6 +153,11 @@ def main(argv: list[str] | None = None) -> int:
             return str(exc)
         return None
 
+    def previewed(result: tuple[list[str], str]) -> str:
+        """A preview's fingerprint, with everything it showed kept for the token scan."""
+        said.extend(result[0])
+        return result[1]
+
     printed_out, printed_err = io.StringIO(), io.StringIO()
     with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(printed_out), \
             contextlib.redirect_stderr(printed_err):
@@ -173,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
             # with its own value inside its own story's section, so a value shown under another story
             # or another label doesn't count.
             lines, fp1 = t.do_preview(stories, data, CLOCK)
+            said.extend(lines)
             text = "\n".join(lines)
             missing = labeled_values_missing(text, change)
             total = 2 + sum(5 + len(s["acceptance_criteria"]) for s in change["stories"])  # each compared whole
@@ -198,9 +204,9 @@ def main(argv: list[str] | None = None) -> int:
             stories.write_text(original, encoding="utf-8")
 
             # 5. A preview older than the limit can't be confirmed (made 20 minutes before now).
-            _, fp_old = t.do_preview(stories, data, minutes(5), made_at=minutes(-15))
+            fp_old = previewed(t.do_preview(stories, data, minutes(5), made_at=minutes(-15)))
             stale = refused(lambda: t.do_confirm(stories, data, lambda: minutes(5), fp_old, STAND_IN, WHO))
-            _, fp_edge = t.do_preview(stories, data, minutes(5), made_at=minutes(-10))
+            fp_edge = previewed(t.do_preview(stories, data, minutes(5), made_at=minutes(-10)))
             piped = subprocess.run(
                 [sys.executable, str(TOOL_PATH), "confirm", "--stories", str(stories)],
                 input=t.grouped(fp1) + "\n", capture_output=True, text=True, cwd=work,
@@ -235,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
                   bool(edge) and "expired" not in (edge or "") and "tracker has changed" in (edge or ""),
                   "refused only because the stories were already written")
             rollback_dir = work / "rollback"
-            _, fp_back = t.do_preview(stories, rollback_dir, CLOCK)
+            fp_back = previewed(t.do_preview(stories, rollback_dir, CLOCK))
             rolled_back = refused(lambda: t.do_confirm(stories, rollback_dir, lambda: minutes(-120), fp_back,
                                                        STAND_IN, WHO))
             check("   (a clock set back can't stretch the limit)",
@@ -260,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
             # confirm uses to read the tracker is slowed down, and both start together, so without
             # the lock they would both read the empty tracker before either wrote.
             race_dir = work / "race"
-            _, fp_race = t.do_preview(stories, race_dir, CLOCK)
+            fp_race = previewed(t.do_preview(stories, race_dir, CLOCK))
             real_read = t.stored_items
             reads: list[int] = []
 
@@ -276,9 +282,10 @@ def main(argv: list[str] | None = None) -> int:
             def racer() -> None:
                 start_together.wait()
                 try:
-                    t.do_confirm(stories, race_dir, lambda: minutes(1), fp_race, STAND_IN, WHO)
+                    said.extend(t.do_confirm(stories, race_dir, lambda: minutes(1), fp_race, STAND_IN, WHO))
                     outcomes.append("written")
-                except t.Refused:
+                except t.Refused as exc:
+                    said.append(str(exc))
                     outcomes.append("refused")
 
             t.stored_items = slow_read
