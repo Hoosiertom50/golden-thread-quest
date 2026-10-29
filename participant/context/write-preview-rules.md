@@ -60,7 +60,8 @@ make a file too big to read back is refused before anything is written.
   typed, not when `confirm` was started, so leaving the prompt open doesn't stretch the limit; the
   confirmed time recorded on each story is that same moment. If the computer's clock reads earlier
   than the time the preview was made (a clock set back), the preview's age can't be trusted, and the
-  confirmation is refused. Only a preview can be
+  confirmation is refused. A clock set back only part-way can't be detected this way; that limit
+  is stated in the proof. Only a preview can be
   dated earlier (`--made-at`, used to show expiry), which can only shorten its life, never extend
   it. It can't be dated in the future.
 

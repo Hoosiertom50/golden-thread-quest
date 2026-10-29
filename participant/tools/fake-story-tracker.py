@@ -46,7 +46,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.7.0"
+VERSION = "1.8.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -121,6 +121,12 @@ def actor() -> str:
 
 # --- the stories file -----------------------------------------------------------------------------
 
+def visible_line(text: str) -> bool:
+    """One line of visible text: no line breaks, tabs or characters that can't be shown or saved
+    (a lone surrogate from a hand-edited file is not printable, so it is refused here too)."""
+    return not any(c in text for c in "\n\r\t") and all(c.isprintable() for c in text)
+
+
 def plain(value: object, where: str, limit: int | None = None) -> str:
     """A field's value: one line of visible text."""
     if not isinstance(value, str):
@@ -128,7 +134,7 @@ def plain(value: object, where: str, limit: int | None = None) -> str:
     text = value.strip()
     if not text:
         raise BadInput(f"{where} is empty")
-    if any(c in text for c in "\n\r\t") or any(not c.isprintable() for c in text):
+    if not visible_line(text):
         raise BadInput(f"{where} must be one line of visible text")
     if limit is not None and len(text) > limit:
         raise BadInput(f"{where} is {len(text)} characters; the limit is {limit}")
@@ -363,11 +369,12 @@ def stored_items(opened: Folders) -> list[dict]:
         problem = None
         if not isinstance(item, dict) or set(item) != STORED_KEYS:
             problem = "it doesn't have exactly the fields a story has"
-        elif not all(isinstance(item[k], str) and item[k] for k in STORED_KEYS - {"acceptance_criteria"}):
-            problem = "a field is empty or isn't text"
+        elif not all(isinstance(item[k], str) and item[k] and visible_line(item[k])
+                     for k in STORED_KEYS - {"acceptance_criteria"}):
+            problem = "a field is empty or isn't one line of visible text"
         elif not (isinstance(item["acceptance_criteria"], list) and item["acceptance_criteria"]
-                  and all(isinstance(c, str) and c for c in item["acceptance_criteria"])):
-            problem = "its acceptance criteria aren't a list of text"
+                  and all(isinstance(c, str) and c and visible_line(c) for c in item["acceptance_criteria"])):
+            problem = "its acceptance criteria aren't a list of visible text"
         else:
             try:
                 parse_iso(item["confirmed_at"])
@@ -526,7 +533,8 @@ def preview_record(text: str, entered: str) -> tuple[dict, dt.datetime]:
     except ValueError as exc:
         raise Refused(damaged) from exc
     if (not isinstance(record, dict) or set(record) != PREVIEW_KEYS
-            or not all(isinstance(record[k], str) for k in ("fingerprint", "made_at", "tracker_state"))
+            or not all(isinstance(record[k], str) and visible_line(record[k])
+                       for k in ("fingerprint", "made_at", "tracker_state"))
             or not isinstance(record["change"], dict) or not isinstance(record["used"], bool)):
         raise Refused(damaged)
     try:
