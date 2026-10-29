@@ -37,6 +37,9 @@ checked against it later.
   edited preview record can't be confirmed.
 - A preview approves **one write**. Once confirmed, the same fingerprint is refused, and stories
   that already exist can't be previewed again, so a second run duplicates nothing.
+- Only **one run at a time** may check and change the tracker. If two people confirm at the same
+  moment, the second waits, then sees the first one's write and is refused, so two confirmations
+  can never both write or overwrite each other.
 - The write needs a token from the environment (`FAKE_STORY_TRACKER_TOKEN`), read only at confirm.
   It is never printed, never stored and never part of a preview.
 
@@ -47,7 +50,9 @@ checked against it later.
   when the person may no longer remember what it said.
 - A confirmation more than 15 minutes after the preview is refused, says when the preview expired,
   and writes nothing. The person previews again and reads the change as it is now.
-- The time limit is measured with the computer's own clock at confirm. Only a preview can be
+- The time limit is measured with the computer's own clock at the moment the fingerprint is
+  typed, not when `confirm` was started, so leaving the prompt open doesn't stretch the limit; the
+  confirmed time recorded on each story is that same moment. Only a preview can be
   dated earlier (`--made-at`, used to show expiry), which can only shorten its life, never extend
   it. It can't be dated in the future.
 

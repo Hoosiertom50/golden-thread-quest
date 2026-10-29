@@ -27,7 +27,9 @@ There is no option that skips the preview or the typed confirmation. The token t
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
+import fcntl
 import getpass
 import hashlib
 import json
@@ -37,11 +39,12 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import yaml
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -181,6 +184,19 @@ def load_change(path: Path) -> dict:
 
 # --- the simulated tracker ------------------------------------------------------------------------
 
+@contextlib.contextmanager
+def tracker_lock(data: Path) -> Iterator[None]:
+    """Only one run at a time may check and change the tracker. A second confirm waits here, then
+    sees the first one's result: the preview already used, or the tracker already changed."""
+    data.mkdir(parents=True, exist_ok=True)
+    with open(data / ".lock", "a", encoding="utf-8") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
 def write_atomically(path: Path, text: str) -> None:
     """Writes the whole file or nothing; the temporary file is always removed."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -269,6 +285,12 @@ def do_preview(stories_file: Path, data: Path, now: dt.datetime,
                made_at: dt.datetime | None = None) -> tuple[list[str], str]:
     """Records a preview and returns what to show and its fingerprint. Writes no story."""
     change = load_change(stories_file)
+    with tracker_lock(data):
+        return _record_preview(change, data, now, made_at)
+
+
+def _record_preview(change: dict, data: Path, now: dt.datetime,
+                    made_at: dt.datetime | None) -> tuple[list[str], str]:
     items = load_tracker(data)
     taken = {i.get("from_question") for i in items}
     already = [s["from_question"] for s in change["stories"] if s["from_question"] in taken]
@@ -307,15 +329,23 @@ def differences(previewed: dict, current: dict) -> list[str]:
     return found or ["the change differs from the preview"]
 
 
-def do_confirm(stories_file: Path, data: Path, now: dt.datetime, typed: str, token: str | None,
-               who: str) -> list[str]:
-    """Writes the previewed stories if every check passes; otherwise raises Refused."""
+def do_confirm(stories_file: Path, data: Path, clock: Callable[[], dt.datetime], typed: str,
+               token: str | None, who: str) -> list[str]:
+    """Writes the previewed stories if every check passes; otherwise raises Refused. The clock is
+    read under the tracker lock, after the fingerprint was typed, so the 15-minute limit and the
+    recorded time are the moment of approval, not the moment the command started."""
     if not token:
         raise Refused(f"{TOKEN_VAR} isn't set, so the tracker can't be written to; nothing was written")
     entered = re.sub(r"[\s-]", "", typed).upper()
     if not FINGERPRINT.match(entered):
         raise Refused("that isn't a fingerprint (12 letters and digits, like 7F3A-91C2-0B4D); "
                       "nothing was written")
+    current = load_change(stories_file)
+    with tracker_lock(data):
+        return _check_and_write(current, data, clock(), entered, who)
+
+
+def _check_and_write(current: dict, data: Path, now: dt.datetime, entered: str, who: str) -> list[str]:
     path = data / "previews" / f"{entered}.json"
     if not path.exists():
         raise Refused(f"there is no preview with fingerprint {grouped(entered)}; nothing was written")
@@ -340,7 +370,6 @@ def do_confirm(stories_file: Path, data: Path, now: dt.datetime, typed: str, tok
     if now - made > TIME_LIMIT:
         reasons.append(f"the preview expired at {shown_time(made + TIME_LIMIT)} "
                        f"(made {shown_time(made)}; the limit is 15 minutes)")
-    current = load_change(stories_file)
     if current != record["change"]:
         reasons.append("the stories file no longer holds the change that was previewed: "
                        + "; ".join(differences(record["change"], current)))
@@ -413,10 +442,15 @@ def main(argv: list[str] | None = None) -> int:
         if not sys.stdin.isatty():
             raise Refused("confirm needs a person at the keyboard; an answer piped or redirected in "
                           "is refused. Nothing was written")
-        typed = input("Type the fingerprint of the preview you approve: ")
+        who = actor()
+        try:
+            typed = input("Type the fingerprint of the preview you approve: ")
+        except (EOFError, KeyboardInterrupt):
+            print()
+            raise Refused("cancelled at the prompt; nothing was written")
         print(f"You typed: {typed.strip()}")  # so the record shows what was approved
-        print("\n".join(do_confirm(args.stories, DATA_DIR, now, typed, os.environ.get(TOKEN_VAR),
-                                   actor())))
+        print("\n".join(do_confirm(args.stories, DATA_DIR, lambda: dt.datetime.now(dt.timezone.utc),
+                                   typed, os.environ.get(TOKEN_VAR), who)))
         return 0
     except BadInput as exc:
         print(f"Can't use the stories file: {exc}. Nothing was written.")
