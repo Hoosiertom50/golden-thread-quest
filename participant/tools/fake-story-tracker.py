@@ -46,7 +46,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -286,11 +286,16 @@ def read_file(folder: int, name: str) -> str | None:
         if exc.errno == errno.ELOOP:
             raise Refused(f"{name} is a link, so it isn't read; nothing was written") from exc
         raise Refused(f"{name} can't be opened ({exc.strerror}); nothing was written") from exc
+    # What was opened is checked before anything reads it: a folder, a FIFO or a device at this
+    # name is refused, never read.
+    status = os.fstat(descriptor)
+    if not stat.S_ISREG(status.st_mode) or status.st_size > MAX_FILE_BYTES:
+        os.close(descriptor)
+        raise Refused(f"{name} isn't a small, ordinary file; nothing was written")
     with os.fdopen(descriptor, "rb") as stream:
-        status = os.fstat(stream.fileno())
-        if not stat.S_ISREG(status.st_mode) or status.st_size > MAX_FILE_BYTES:
-            raise Refused(f"{name} isn't a small, ordinary file; nothing was written")
         raw = stream.read(MAX_FILE_BYTES + 1)
+    if len(raw) > MAX_FILE_BYTES:
+        raise Refused(f"{name} isn't a small, ordinary file; nothing was written")
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError as exc:
