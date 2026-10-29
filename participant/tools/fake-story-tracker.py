@@ -29,22 +29,24 @@ from __future__ import annotations
 import argparse
 import contextlib
 import datetime as dt
+import errno
 import fcntl
 import getpass
 import hashlib
 import json
 import os
 import re
+import secrets
+import stat
 import subprocess
 import sys
-import tempfile
 import textwrap
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import yaml
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -61,6 +63,13 @@ PRIORITIES = ("Highest", "High", "Medium", "Low")
 QUESTION_ID = re.compile(r"^Q-\d{2}$")
 PROJECT = re.compile(r"^[A-Z]{2,10}$")
 FINGERPRINT = re.compile(r"^[0-9A-F]{12}$")
+MAX_FILE_BYTES = 2_000_000
+# Folders are opened without following a link, so a folder that is (or is swapped for) a link to
+# somewhere else is refused instead of written through.
+DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+FILE_FLAGS = os.O_NOFOLLOW | os.O_NONBLOCK | getattr(os, "O_CLOEXEC", 0)
+STORED_KEYS = STORY_KEYS | {"key", "confirmed_by", "confirmed_at", "preview_fingerprint"}
+PREVIEW_KEYS = {"fingerprint", "made_at", "change", "tracker_state", "used"}
 MAX_STORIES = 20
 MAX_TITLE = 120
 WIDTH = 96
@@ -184,45 +193,159 @@ def load_change(path: Path) -> dict:
 
 # --- the simulated tracker ------------------------------------------------------------------------
 
+class Folders:
+    """The tracker folder and its previews folder, each opened once without following a link.
+    Every read, write and lock below goes through these, never through a path string, so a
+    folder swapped for a link part-way through a run is still never written through."""
+
+    def __init__(self, data: int, previews: int | None) -> None:
+        self.data = data
+        self.previews = previews
+
+
+def _open_folder(parent: int | None, name: str | Path, create: bool) -> int | None:
+    """A folder opened without following a link; None if it doesn't exist and create is off."""
+    if create and parent is not None:
+        with contextlib.suppress(FileExistsError):
+            os.mkdir(name, dir_fd=parent)
+    try:
+        return os.open(name, DIR_FLAGS, dir_fd=parent)
+    except FileNotFoundError:
+        if create:
+            raise
+        return None
+    except OSError as exc:
+        if exc.errno in (errno.ELOOP, errno.ENOTDIR):
+            raise Refused(f"{Path(name).name} is a link or not a folder, so nothing is read or written "
+                          "through it; nothing was written") from exc
+        raise
+
+
 @contextlib.contextmanager
-def tracker_lock(data: Path) -> Iterator[None]:
+def folders(data: Path, create: bool) -> Iterator[Folders | None]:
+    """The opened folders, or None when the tracker doesn't exist yet and create is off. The
+    folder that holds the tracker (local-data) is refused if it is itself a link."""
+    opened: list[int] = []
+    try:
+        if create:
+            data.parent.mkdir(parents=True, exist_ok=True)
+        holder = _open_folder(None, data.parent, create=False)
+        if holder is None:
+            yield None
+            return
+        opened.append(holder)
+        tracker = _open_folder(holder, data.name, create)
+        if tracker is None:
+            yield None
+            return
+        opened.append(tracker)
+        previews = _open_folder(tracker, "previews", create)
+        if previews is not None:
+            opened.append(previews)
+        yield Folders(tracker, previews)
+    finally:
+        for descriptor in reversed(opened):
+            os.close(descriptor)
+
+
+@contextlib.contextmanager
+def tracker_lock(data: Path) -> Iterator[Folders]:
     """Only one run at a time may check and change the tracker. A second confirm waits here, then
     sees the first one's result: the preview already used, or the tracker already changed."""
-    data.mkdir(parents=True, exist_ok=True)
-    with open(data / ".lock", "a", encoding="utf-8") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
+    with folders(data, create=True) as opened:
+        assert opened is not None and opened.previews is not None
         try:
-            yield
+            lock = os.open(".lock", os.O_RDWR | os.O_CREAT | FILE_FLAGS, 0o600, dir_fd=opened.data)
+        except OSError as exc:
+            raise Refused(f"the tracker's lock file can't be opened ({exc.strerror}); "
+                          "nothing was written") from exc
+        try:
+            if not stat.S_ISREG(os.fstat(lock).st_mode):
+                raise Refused("the tracker's lock file isn't an ordinary file; nothing was written")
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            yield opened
         finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+            os.close(lock)  # closing releases the lock
 
 
-def write_atomically(path: Path, text: str) -> None:
-    """Writes the whole file or nothing; the temporary file is always removed."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    temp = Path(name)
+def read_file(folder: int, name: str) -> str | None:
+    """A small, ordinary file's text, never through a link; None if it doesn't exist."""
     try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
-            f.write(text)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(temp, path)
-    finally:
-        temp.unlink(missing_ok=True)
+        descriptor = os.open(name, os.O_RDONLY | FILE_FLAGS, dir_fd=folder)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise Refused(f"{name} is a link, so it isn't read; nothing was written") from exc
+        raise Refused(f"{name} can't be opened ({exc.strerror}); nothing was written") from exc
+    with os.fdopen(descriptor, "rb") as stream:
+        status = os.fstat(stream.fileno())
+        if not stat.S_ISREG(status.st_mode) or status.st_size > MAX_FILE_BYTES:
+            raise Refused(f"{name} isn't a small, ordinary file; nothing was written")
+        raw = stream.read(MAX_FILE_BYTES + 1)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise Refused(f"{name} isn't readable text; nothing was written") from exc
+
+
+def write_file(folder: int, name: str, text: str) -> None:
+    """Replaces a file with the whole text or leaves it as it was, never through a link."""
+    try:
+        if not stat.S_ISREG(os.lstat(name, dir_fd=folder).st_mode):
+            raise Refused(f"{name} is a link or special file, so it was not written")
+    except FileNotFoundError:
+        pass
+    temporary = f".{name}.{secrets.token_hex(6)}.tmp"
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | FILE_FLAGS, 0o644,
+                         dir_fd=folder)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(text.encode("utf-8"))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, name, src_dir_fd=folder, dst_dir_fd=folder)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(temporary, dir_fd=folder)
+        raise
+
+
+def stored_items(opened: Folders) -> list[dict]:
+    """The stories in the tracker, each checked to be whole, or Refused if any is damaged."""
+    text = read_file(opened.data, "stories.json")
+    if text is None:
+        return []
+    try:
+        items = json.loads(text)
+    except ValueError as exc:
+        raise Refused(f"the tracker file can't be read ({exc}); nothing was written") from exc
+    if not isinstance(items, list):
+        raise Refused("the tracker file isn't a list of stories; nothing was written")
+    for n, item in enumerate(items, 1):
+        problem = None
+        if not isinstance(item, dict) or set(item) != STORED_KEYS:
+            problem = "it doesn't have exactly the fields a story has"
+        elif not all(isinstance(item[k], str) and item[k] for k in STORED_KEYS - {"acceptance_criteria"}):
+            problem = "a field is empty or isn't text"
+        elif not (isinstance(item["acceptance_criteria"], list) and item["acceptance_criteria"]
+                  and all(isinstance(c, str) and c for c in item["acceptance_criteria"])):
+            problem = "its acceptance criteria aren't a list of text"
+        else:
+            try:
+                parse_iso(item["confirmed_at"])
+            except ValueError:
+                problem = "its confirmed time isn't a date and time"
+        if problem:
+            raise Refused(f"the tracker holds a damaged story (number {n}: {problem}); "
+                          "nothing was written")
+    return items
 
 
 def load_tracker(data: Path) -> list[dict]:
-    path = data / "stories.json"
-    if not path.exists():
-        return []
-    try:
-        items = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        raise Refused(f"the tracker file {path} can't be read ({exc}); nothing was written") from exc
-    if not isinstance(items, list):
-        raise Refused(f"the tracker file {path} isn't a list of stories; nothing was written")
-    return items
+    """The stories in the tracker, read without changing anything; empty if there is no tracker."""
+    with folders(data, create=False) as opened:
+        return [] if opened is None else stored_items(opened)
 
 
 def canonical(value: object) -> str:
@@ -293,13 +416,13 @@ def do_preview(stories_file: Path, data: Path, now: dt.datetime,
                made_at: dt.datetime | None = None) -> tuple[list[str], str]:
     """Records a preview and returns what to show and its fingerprint. Writes no story."""
     change = load_change(stories_file)
-    with tracker_lock(data):
-        return _record_preview(change, data, now, made_at)
+    with tracker_lock(data) as opened:
+        return _record_preview(change, opened, now, made_at)
 
 
-def _record_preview(change: dict, data: Path, now: dt.datetime,
+def _record_preview(change: dict, opened: Folders, now: dt.datetime,
                     made_at: dt.datetime | None) -> tuple[list[str], str]:
-    items = load_tracker(data)
+    items = stored_items(opened)
     taken = {i.get("from_question") for i in items}
     already = [s["from_question"] for s in change["stories"] if s["from_question"] in taken]
     if already:
@@ -312,7 +435,7 @@ def _record_preview(change: dict, data: Path, now: dt.datetime,
     fingerprint = make_fingerprint(change, state, iso(made))
     record = {"fingerprint": fingerprint, "made_at": iso(made), "change": change,
               "tracker_state": state, "used": False}
-    write_atomically(data / "previews" / f"{fingerprint}.json", json.dumps(record, indent=2) + "\n")
+    write_file(opened.previews, f"{fingerprint}.json", json.dumps(record, indent=2) + "\n")
     lines = preview_lines(change, items, fingerprint, made)
     if made_at is not None:
         lines.insert(1, f"(Dated {shown_time(made)} with --made-at, earlier than now, to show expiry.)")
@@ -348,22 +471,40 @@ def do_confirm(stories_file: Path, data: Path, clock: Callable[[], dt.datetime],
     if not FINGERPRINT.match(entered):
         raise Refused("that isn't a fingerprint (12 letters and digits, like 7F3A-91C2-0B4D); "
                       "nothing was written")
-    with tracker_lock(data):
+    with tracker_lock(data) as opened:
         # The stories file is read under the lock too, so it is checked as it is at the moment of
         # writing, even if this run waited for another one.
         current = load_change(stories_file)
-        return _check_and_write(current, data, clock(), entered, who)
+        return _check_and_write(current, opened, clock(), entered, who)
 
 
-def _check_and_write(current: dict, data: Path, now: dt.datetime, entered: str, who: str) -> list[str]:
-    path = data / "previews" / f"{entered}.json"
-    if not path.exists():
-        raise Refused(f"there is no preview with fingerprint {grouped(entered)}; nothing was written")
+def preview_record(text: str, entered: str) -> tuple[dict, dt.datetime]:
+    """A saved preview, checked to have exactly the shape a preview has, and when it was made."""
+    damaged = f"the saved preview {grouped(entered)} is damaged; nothing was written"
     try:
-        record = json.loads(path.read_text(encoding="utf-8"))
+        record = json.loads(text)
+    except ValueError as exc:
+        raise Refused(damaged) from exc
+    if (not isinstance(record, dict) or set(record) != PREVIEW_KEYS
+            or not all(isinstance(record[k], str) for k in ("fingerprint", "made_at", "tracker_state"))
+            or not isinstance(record["change"], dict) or not isinstance(record["used"], bool)):
+        raise Refused(damaged)
+    try:
         made = parse_iso(record["made_at"])
-    except (OSError, ValueError, KeyError) as exc:
-        raise Refused(f"the preview {grouped(entered)} can't be read ({exc}); nothing was written") from exc
+    except ValueError as exc:
+        raise Refused(damaged) from exc
+    if made.tzinfo is None:
+        raise Refused(damaged)
+    return record, made
+
+
+def _check_and_write(current: dict, opened: Folders, now: dt.datetime, entered: str,
+                     who: str) -> list[str]:
+    name = f"{entered}.json"
+    text = read_file(opened.previews, name)
+    if text is None:
+        raise Refused(f"there is no preview with fingerprint {grouped(entered)}; nothing was written")
+    record, made = preview_record(text, entered)
     # The record must still match its own fingerprint, so editing a saved preview (its time, its
     # stories or the tracker state it was made against) makes it useless rather than trusted.
     try:
@@ -383,7 +524,7 @@ def _check_and_write(current: dict, data: Path, now: dt.datetime, entered: str, 
     if current != record["change"]:
         reasons.append("the stories file no longer holds the change that was previewed: "
                        + "; ".join(differences(record["change"], current)))
-    items = load_tracker(data)
+    items = stored_items(opened)
     if tracker_state(items) != record["tracker_state"]:
         reasons.append("the tracker has changed since the preview was made")
     if reasons:
@@ -395,9 +536,9 @@ def _check_and_write(current: dict, data: Path, now: dt.datetime, entered: str, 
     for i, story in enumerate(record["change"]["stories"], len(items) + 1):
         written.append({"key": f"{project}-{i}", **story, "confirmed_by": who,
                         "confirmed_at": iso(now), "preview_fingerprint": entered})
-    write_atomically(data / "stories.json", json.dumps(items + written, indent=2) + "\n")
+    write_file(opened.data, "stories.json", json.dumps(items + written, indent=2) + "\n")
     record["used"] = True
-    write_atomically(path, json.dumps(record, indent=2) + "\n")
+    write_file(opened.previews, name, json.dumps(record, indent=2) + "\n")
     lines = [f"Confirmed by {who} at {shown_time(now)}, for preview {grouped(entered)}.", "Written:"]
     lines += [f"  {w['key']}  {w['priority']:<8} {w['title']}" for w in written]
     lines.append(f"The tracker now has {len(items) + len(written)} stories.")

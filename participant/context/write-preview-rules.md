@@ -61,3 +61,13 @@ checked against it later.
 Each story written records its key, every field, **who confirmed it**, **when**, and the
 **fingerprint of the preview** it was confirmed under. `list` shows all of this, so anyone can see
 what was written and that a person approved it.
+
+## 5. When the tracker's own files can't be trusted
+
+- The tracker's folders are opened **without following a link**. If the tracker folder, the
+  folder that holds it, its previews folder or one of its files is a link to somewhere else, the
+  run is refused and nothing is read or written through it, so a write can never land in some
+  other place's files.
+- Every stored story and every saved preview is checked to have exactly the shape it should. A
+  damaged one is refused with a plain explanation, and nothing is written; the tool never stops
+  with an error dump instead of saying what's wrong.

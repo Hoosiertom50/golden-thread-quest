@@ -14,10 +14,13 @@ repository, and it writes only inside the temporary folder.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import datetime as dt
 import importlib.util
 import json
 import os
+import re
 import pty
 import shutil
 import subprocess
@@ -27,7 +30,7 @@ import threading
 import time
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 ROOT = Path(__file__).resolve().parents[2]
 TOOL_PATH = ROOT / "participant/tools/fake-story-tracker.py"
 CLOCK = dt.datetime(2026, 10, 29, 13, 0, 0, tzinfo=dt.timezone.utc)  # 09:00 AM in Indiana
@@ -45,34 +48,72 @@ def load_tool():
     return module
 
 
-def section(text: str, start: str, end: str | None) -> str:
-    """The preview text from one heading up to the next, with line wrapping undone."""
-    body = text.split(start, 1)[1] if start in text else ""
-    if end and end in body:
-        body = body.split(end, 1)[0]
-    return " ".join(body.split())
+LABEL_LINE = re.compile(r"^    ([A-Z][A-Za-z ]*):(?:\s+(.*))?$")
+CRITERION_LINE = re.compile(r"^      (\d+)\. (.*)$")
+
+
+def read_preview(text: str) -> tuple[dict[str, str], list[tuple[str, dict[str, str], list[str]]]]:
+    """The preview's header values and, for each story, its heading, labeled values and criteria.
+    Wrapped lines are joined back on to the value they continue, so each value is read whole."""
+    header: dict[str, str] = {}
+    stories: list[tuple[str, dict[str, str], list[str]]] = []
+    last: tuple[dict | list, str | int] | None = None
+    for line in text.splitlines():
+        if line.startswith("Story "):
+            stories.append((line, {}, []))
+            last = None
+        elif not stories:
+            if ":" in line and not line.startswith(" "):
+                label, value = line.split(":", 1)
+                header[label] = value.strip()
+        elif line.startswith("Preview fingerprint:"):
+            break
+        elif (m := LABEL_LINE.match(line)):
+            values = stories[-1][1]
+            values[m.group(1)] = (m.group(2) or "").strip()
+            last = (values, m.group(1))
+        elif (m := CRITERION_LINE.match(line)):
+            stories[-1][2].append(m.group(2).strip())
+            last = (stories[-1][2], len(stories[-1][2]) - 1)
+        elif line.startswith("         ") and last is not None:
+            holder, at = last
+            holder[at] = f"{holder[at]} {line.strip()}"  # a wrapped line continues the value above
+        else:
+            last = None
+    return header, stories
 
 
 def labeled_values_missing(text: str, change: dict) -> list[str]:
-    """Each label followed by its exact value, looked for only where it belongs."""
+    """Every labeled value compared whole and for equality, in its own story: a priority of
+    'Highest' is not 'High', and a value under another story or label doesn't count."""
     missing = []
-    head = section(text, "PREVIEW", "Story 1 of")
-    target = change["target"]
-    for label, value in (("Target:", f"{target['system']}, project {target['project']}"),
-                         ("Action:", f"{change['action']} {len(change['stories'])} stories")):
-        if f"{label} {value}" not in head:
-            missing.append(f"{label} {value}")
-    count = len(change["stories"])
+    header, shown_stories = read_preview(text)
+    target, count = change["target"], len(change["stories"])
+    for label, value in (("Target", f"{target['system']}, project {target['project']}"),
+                         ("Action", f"{change['action']} {count} stories, all or none")):
+        if header.get(label) != value:
+            missing.append(f"{label}: expected {value!r}, shown {header.get(label)!r}")
+    if len(shown_stories) != count:
+        missing.append(f"{count} stories expected, {len(shown_stories)} shown")
     for i, s in enumerate(change["stories"], 1):
-        body = section(text, f"Story {i} of {count}", f"Story {i + 1} of {count}" if i < count
-                       else "Preview fingerprint:")
-        wanted = [f"Type: {s['type']}", f"Priority: {s['priority']}", f"Title: {s['title']}",
-                  f"From: {s['from_question']} (answer assumed: {s['answer_assumed']})",
-                  f"Description: {s['description']}"]
-        wanted += [f"{j}. {c}" for j, c in enumerate(s["acceptance_criteria"], 1)]
-        for w in wanted:
-            if " ".join(w.split()) not in body:
-                missing.append(f"story {i} {w[:40]!r}")
+        if i > len(shown_stories):
+            break
+        heading, values, criteria = shown_stories[i - 1]
+        expected_heading = f"Story {i} of {count}, to be created as {target['project']}-{i}"
+        if heading != expected_heading:
+            missing.append(f"story {i} heading: shown {heading!r}")
+        expected = {"Type": s["type"], "Priority": s["priority"], "Title": s["title"],
+                    "From": f"{s['from_question']} (answer assumed: {s['answer_assumed']})",
+                    "Description": s["description"], "Acceptance criteria": ""}
+        for label, value in expected.items():
+            if values.get(label) != value:
+                missing.append(f"story {i} {label}: expected {value[:30]!r}, shown "
+                               f"{(values.get(label) or '')[:30]!r}")
+        extra = sorted(set(values) - set(expected))
+        if extra:
+            missing.append(f"story {i} shows unexpected labels {extra}")
+        if criteria != s["acceptance_criteria"]:
+            missing.append(f"story {i} acceptance criteria differ from the stories file")
     return missing
 
 
@@ -112,7 +153,9 @@ def main(argv: list[str] | None = None) -> int:
             return str(exc)
         return None
 
-    with tempfile.TemporaryDirectory() as tmp:
+    printed_out, printed_err = io.StringIO(), io.StringIO()
+    with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(printed_out), \
+            contextlib.redirect_stderr(printed_err):
         try:
             work = Path(tmp)
             stories = work / "stories.yaml"
@@ -132,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
             lines, fp1 = t.do_preview(stories, data, CLOCK)
             text = "\n".join(lines)
             missing = labeled_values_missing(text, change)
-            total = 2 + sum(5 + len(s["acceptance_criteria"]) for s in change["stories"])
+            total = 2 + sum(5 + len(s["acceptance_criteria"]) for s in change["stories"])  # each compared whole
             check("1. Preview lists target, action and every field", not missing,
                   f"{total - len(missing)} of {total} labeled values shown in the right place"
                   + (f"; missing: {missing[0]}" if missing else ""))
@@ -268,9 +311,27 @@ def main(argv: list[str] | None = None) -> int:
                   bool(fp_line) and confirming.returncode == 0 and "Tracker: 3 stories" in listed.stdout,
                   "preview, confirm with the fingerprint typed at a keyboard, then list shows 3 stories")
 
-            stored = "".join(p.read_text(encoding="utf-8") for p in work.rglob("*.json"))
-            shown_text = "\n".join([text, *written_lines, *said])
-            check("   The token is never stored or shown", TOKEN not in stored and TOKEN not in shown_text,
+            # A tracker folder that is a link to somewhere else is refused, and nothing is written
+            # through it.
+            elsewhere = work / "elsewhere"
+            elsewhere.mkdir()
+            (elsewhere / "stories.json").write_text("[]\n", encoding="utf-8")
+            linked = work / "linked"
+            linked.mkdir()
+            os.symlink(elsewhere, linked / "tracker")
+            via_link = refused(lambda: t.do_preview(stories, linked / "tracker", CLOCK))
+            check("   A tracker folder that is a link is refused",
+                  bool(via_link) and sorted(x.name for x in elsewhere.iterdir()) == ["stories.json"]
+                  and (elsewhere / "stories.json").read_text(encoding="utf-8") == "[]\n",
+                  "nothing is read or written through it, and the folder it points to is untouched")
+
+            # Every file saved anywhere in the check's folder, read as bytes, and everything the
+            # tracker printed (in this process or the real commands) or returned.
+            stored = b"".join(p.read_bytes() for p in work.rglob("*") if p.is_file() and not p.is_symlink())
+            shown_text = "\n".join([text, *written_lines, *said, printed_out.getvalue(),
+                                    printed_err.getvalue()])
+            check("   The token is never stored or shown",
+                  TOKEN.encode() not in stored and TOKEN not in shown_text,
                   "not in any saved file, nor in anything the tracker printed or returned")
         except t.Refused as exc:
             # A step was refused that should have worked: something earlier wrote when it
