@@ -44,7 +44,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -246,6 +246,22 @@ def wrapped(label: str, text: str, indent: int = 4) -> list[str]:
     return textwrap.wrap(text, WIDTH, initial_indent=first, subsequent_indent=" " * len(first)) or [first]
 
 
+def story_lines(heading: str, story: dict) -> list[str]:
+    """One story with every field, the same way in a preview and in the list, so the two can be
+    compared side by side."""
+    lines = ["", heading]
+    lines += wrapped("Type:", story.get("type", "?"))
+    lines += wrapped("Priority:", story.get("priority", "?"))
+    lines += wrapped("Title:", story.get("title", "?"))
+    lines += wrapped("From:", f"{story.get('from_question', '?')} (answer assumed: "
+                              f"{story.get('answer_assumed', '?')})")
+    lines += wrapped("Description:", story.get("description", "?"))
+    lines.append("    Acceptance criteria:")
+    for j, criterion in enumerate(story.get("acceptance_criteria", []), 1):
+        lines += textwrap.wrap(criterion, WIDTH, initial_indent=f"      {j}. ", subsequent_indent=" " * 9)
+    return lines
+
+
 def preview_lines(change: dict, items: list[dict], fingerprint: str, made: dt.datetime) -> list[str]:
     project = change["target"]["project"]
     count = len(change["stories"])
@@ -258,16 +274,8 @@ def preview_lines(change: dict, items: list[dict], fingerprint: str, made: dt.da
         f"Tracker now: {len(items)} {'story' if len(items) == 1 else 'stories'}",
     ]
     for i, story in enumerate(change["stories"]):
-        lines += ["", f"Story {i + 1} of {count}, to be created as {project}-{next_number + i}"]
-        lines += wrapped("Type:", story["type"])
-        lines += wrapped("Priority:", story["priority"])
-        lines += wrapped("Title:", story["title"])
-        lines += wrapped("From:", f"{story['from_question']} (answer assumed: {story['answer_assumed']})")
-        lines += wrapped("Description:", story["description"])
-        lines.append("    Acceptance criteria:")
-        for j, criterion in enumerate(story["acceptance_criteria"], 1):
-            lines += textwrap.wrap(criterion, WIDTH, initial_indent=f"      {j}. ",
-                                   subsequent_indent=" " * 9)
+        lines += story_lines(f"Story {i + 1} of {count}, to be created as {project}-{next_number + i}",
+                             story)
     expires = made + TIME_LIMIT
     lines += [
         "",
@@ -340,8 +348,10 @@ def do_confirm(stories_file: Path, data: Path, clock: Callable[[], dt.datetime],
     if not FINGERPRINT.match(entered):
         raise Refused("that isn't a fingerprint (12 letters and digits, like 7F3A-91C2-0B4D); "
                       "nothing was written")
-    current = load_change(stories_file)
     with tracker_lock(data):
+        # The stories file is read under the lock too, so it is checked as it is at the moment of
+        # writing, even if this run waited for another one.
+        current = load_change(stories_file)
         return _check_and_write(current, data, clock(), entered, who)
 
 
@@ -399,10 +409,10 @@ def list_lines(data: Path) -> list[str]:
     lines = [f"Tracker: {len(items)} {'story' if len(items) == 1 else 'stories'} "
              f"(tracker state {grouped(tracker_state(items))})"]
     for item in items:
-        lines.append(f"  {item.get('key')}  {item.get('priority', '?'):<8} {item.get('title')}")
-        lines.append(f"      from {item.get('from_question')}; confirmed by {item.get('confirmed_by')} at "
-                     f"{shown_time(parse_iso(item['confirmed_at']))} under preview "
-                     f"{grouped(item.get('preview_fingerprint', ''))}")
+        lines += story_lines(str(item.get("key")), item)
+        lines += wrapped("Confirmed:", f"by {item.get('confirmed_by')} at "
+                                       f"{shown_time(parse_iso(item['confirmed_at']))}, under preview "
+                                       f"{grouped(item.get('preview_fingerprint', ''))}")
     return lines
 
 

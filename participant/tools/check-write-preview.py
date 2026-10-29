@@ -18,6 +18,7 @@ import datetime as dt
 import importlib.util
 import json
 import os
+import pty
 import shutil
 import subprocess
 import sys
@@ -26,7 +27,7 @@ import threading
 import time
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 ROOT = Path(__file__).resolve().parents[2]
 TOOL_PATH = ROOT / "participant/tools/fake-story-tracker.py"
 CLOCK = dt.datetime(2026, 10, 29, 13, 0, 0, tzinfo=dt.timezone.utc)  # 09:00 AM in Indiana
@@ -89,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     os.environ["TZ"] = ZONE
     time.tzset()
+    sys.dont_write_bytecode = True  # loading the tracker must not leave a cache file in the repository
     t = load_tool()
     results: list[tuple[str, bool, str]] = []
 
@@ -98,10 +100,15 @@ def main(argv: list[str] | None = None) -> int:
     def minutes(n: float) -> dt.datetime:
         return CLOCK + dt.timedelta(minutes=n)
 
+    said: list[str] = []  # everything the tracker said in this check, scanned for the token at the end
+
     def refused(fn) -> str | None:
         try:
-            fn()
+            result = fn()
+            # A preview returns (lines, fingerprint); a confirmation returns lines.
+            said.extend(str(x) for x in (result[0] if isinstance(result, tuple) else result))
         except t.Refused as exc:
+            said.append(str(exc))
             return str(exc)
         return None
 
@@ -156,6 +163,8 @@ def main(argv: list[str] | None = None) -> int:
                 input=t.grouped(fp1) + "\n", capture_output=True, text=True, cwd=work,
                 env={**os.environ, t.TOKEN_VAR: TOKEN})
             no_token = refused(lambda: t.do_confirm(stories, data, lambda: minutes(3), fp1, None, WHO))
+            no_token_clean = state() == empty
+            said.extend([piped.stdout, piped.stderr])
 
             # The real write: a fresh, matching preview confirmed in time. If an earlier step wrongly
             # wrote anything, this is refused, and the checks below report it rather than crash.
@@ -232,11 +241,37 @@ def main(argv: list[str] | None = None) -> int:
             # Safety constraints and refusals that stand on their own.
             check("   No typed confirmation from a pipe", piped.returncode == 1 and "keyboard" in piped.stdout,
                   "an answer piped in is refused")
-            check("   No token, no write", bool(no_token) and t.TOKEN_VAR in (no_token or ""),
-                  f"{t.TOKEN_VAR} unset is refused")
-            stored = "".join(p.read_text(encoding="utf-8") for p in data.rglob("*.json"))
-            check("   The token is never stored or shown", TOKEN not in stored and TOKEN not in text
-                  and TOKEN not in "\n".join(written_lines), "not in any preview, story or output")
+            check("   No token, no write", bool(no_token) and t.TOKEN_VAR in (no_token or "")
+                  and no_token_clean, f"{t.TOKEN_VAR} unset is refused, and the tracker is unchanged")
+
+            # The real commands, end to end: preview, then confirm with the fingerprint typed at a
+            # simulated keyboard, then list. This is the path a person uses, not just the functions.
+            cli = work / "cli"
+            cli.mkdir()
+            env = {**os.environ, t.TOKEN_VAR: TOKEN}
+            run = [sys.executable, str(TOOL_PATH)]
+            shown_preview = subprocess.run(run + ["preview", "--stories", str(stories)], cwd=cli, env=env,
+                                           capture_output=True, text=True)
+            fp_line = [x for x in shown_preview.stdout.splitlines() if x.startswith("Preview fingerprint:")]
+            keyboard, terminal = pty.openpty()
+            confirming = subprocess.Popen(run + ["confirm", "--stories", str(stories)], cwd=cli, env=env,
+                                          stdin=terminal, stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE, text=True)
+            os.close(terminal)
+            if fp_line:
+                os.write(keyboard, (fp_line[0].split(": ", 1)[1] + "\n").encode())
+            out, err = confirming.communicate(timeout=60)
+            os.close(keyboard)
+            listed = subprocess.run(run + ["list"], cwd=cli, env=env, capture_output=True, text=True)
+            said.extend([shown_preview.stdout, shown_preview.stderr, out, err, listed.stdout, listed.stderr])
+            check("   The real commands work end to end",
+                  bool(fp_line) and confirming.returncode == 0 and "Tracker: 3 stories" in listed.stdout,
+                  "preview, confirm with the fingerprint typed at a keyboard, then list shows 3 stories")
+
+            stored = "".join(p.read_text(encoding="utf-8") for p in work.rglob("*.json"))
+            shown_text = "\n".join([text, *written_lines, *said])
+            check("   The token is never stored or shown", TOKEN not in stored and TOKEN not in shown_text,
+                  "not in any saved file, nor in anything the tracker printed or returned")
         except t.Refused as exc:
             # A step was refused that should have worked: something earlier wrote when it
             # shouldn't have. That is a failure to report, not a crash.
