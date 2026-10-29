@@ -46,7 +46,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -71,7 +71,13 @@ FILE_FLAGS = os.O_NOFOLLOW | os.O_NONBLOCK | getattr(os, "O_CLOEXEC", 0)
 STORED_KEYS = STORY_KEYS | {"key", "confirmed_by", "confirmed_at", "preview_fingerprint"}
 PREVIEW_KEYS = {"fingerprint", "made_at", "change", "tracker_state", "used"}
 MAX_STORIES = 20
+MAX_CRITERIA = 10
+# Every field has a length limit, so a preview and the tracker always stay small enough to read
+# back (MAX_FILE_BYTES below); a write that would still go over that is refused before it starts.
 MAX_TITLE = 120
+MAX_SHORT = 300    # target system, answer assumed
+MAX_DESCRIPTION = 2000
+MAX_CRITERION = 500
 WIDTH = 96
 
 
@@ -169,7 +175,9 @@ def load_change(path: Path) -> dict:
     for i, raw_story in enumerate(raw_stories, 1):
         where = f"story {i}"
         s = exact_keys(raw_story, STORY_KEYS, where)
-        story = {k: plain(s[k], f"{where} {k}") for k in sorted(STORY_KEYS - {"acceptance_criteria"})}
+        limits = {"title": MAX_TITLE, "description": MAX_DESCRIPTION, "answer_assumed": MAX_SHORT}
+        story = {k: plain(s[k], f"{where} {k}", limits.get(k, MAX_SHORT))
+                 for k in sorted(STORY_KEYS - {"acceptance_criteria"})}
         if not QUESTION_ID.match(story["from_question"]):
             raise BadInput(f"{where} from_question must look like Q-02")
         if story["from_question"] in seen:
@@ -182,12 +190,12 @@ def load_change(path: Path) -> dict:
         if len(story["title"]) > MAX_TITLE:
             raise BadInput(f"{where} title is {len(story['title'])} characters; the limit is {MAX_TITLE}")
         criteria = s["acceptance_criteria"]
-        if not isinstance(criteria, list) or not criteria:
-            raise BadInput(f"{where} acceptance_criteria must be a list of at least one item")
-        story["acceptance_criteria"] = [plain(c, f"{where} acceptance criterion {j}")
+        if not isinstance(criteria, list) or not criteria or len(criteria) > MAX_CRITERIA:
+            raise BadInput(f"{where} acceptance_criteria must be a list of 1 to {MAX_CRITERIA} items")
+        story["acceptance_criteria"] = [plain(c, f"{where} acceptance criterion {j}", MAX_CRITERION)
                                         for j, c in enumerate(criteria, 1)]
         stories.append(story)
-    return {"target": {"system": plain(target["system"], "target.system"), "project": project},
+    return {"target": {"system": plain(target["system"], "target.system", MAX_SHORT), "project": project},
             "action": action, "stories": stories}
 
 
@@ -290,7 +298,13 @@ def read_file(folder: int, name: str) -> str | None:
 
 
 def write_file(folder: int, name: str, text: str) -> None:
-    """Replaces a file with the whole text or leaves it as it was, never through a link."""
+    """Replaces a file with the whole text or leaves it as it was, never through a link. A file
+    too big to read back is refused before anything is written, so a write can never leave the
+    tracker unreadable."""
+    data = text.encode("utf-8")
+    if len(data) > MAX_FILE_BYTES:
+        raise Refused(f"{name} would be {len(data)} bytes, over the {MAX_FILE_BYTES} the tracker can "
+                      "read back; nothing was written")
     try:
         if not stat.S_ISREG(os.lstat(name, dir_fd=folder).st_mode):
             raise Refused(f"{name} is a link or special file, so it was not written")
@@ -301,7 +315,7 @@ def write_file(folder: int, name: str, text: str) -> None:
                          dir_fd=folder)
     try:
         with os.fdopen(descriptor, "wb") as stream:
-            stream.write(text.encode("utf-8"))
+            stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, name, src_dir_fd=folder, dst_dir_fd=folder)
@@ -435,7 +449,10 @@ def _record_preview(change: dict, opened: Folders, now: dt.datetime,
     fingerprint = make_fingerprint(change, state, iso(made))
     record = {"fingerprint": fingerprint, "made_at": iso(made), "change": change,
               "tracker_state": state, "used": False}
-    write_file(opened.previews, f"{fingerprint}.json", json.dumps(record, indent=2) + "\n")
+    try:
+        write_file(opened.previews, f"{fingerprint}.json", json.dumps(record, indent=2) + "\n")
+    except OSError as exc:
+        raise Refused(f"the preview couldn't be saved ({exc.strerror}); nothing was written") from exc
     lines = preview_lines(change, items, fingerprint, made)
     if made_at is not None:
         lines.insert(1, f"(Dated {shown_time(made)} with --made-at, earlier than now, to show expiry.)")
@@ -508,7 +525,8 @@ def _check_and_write(current: dict, opened: Folders, now: dt.datetime, entered: 
     # The record must still match its own fingerprint, so editing a saved preview (its time, its
     # stories or the tracker state it was made against) makes it useless rather than trusted.
     try:
-        intact = make_fingerprint(record["change"], record["tracker_state"], record["made_at"]) == entered
+        intact = (record["fingerprint"] == entered
+                  and make_fingerprint(record["change"], record["tracker_state"], record["made_at"]) == entered)
     except (KeyError, TypeError):
         intact = False
     if not intact:
@@ -536,9 +554,21 @@ def _check_and_write(current: dict, opened: Folders, now: dt.datetime, entered: 
     for i, story in enumerate(record["change"]["stories"], len(items) + 1):
         written.append({"key": f"{project}-{i}", **story, "confirmed_by": who,
                         "confirmed_at": iso(now), "preview_fingerprint": entered})
-    write_file(opened.data, "stories.json", json.dumps(items + written, indent=2) + "\n")
+    # The preview is marked used before the stories are written. If writing them then fails,
+    # nothing was written and this preview can't be used again, so the person previews again;
+    # a failure can never be reported for a write that in fact happened.
     record["used"] = True
-    write_file(opened.previews, name, json.dumps(record, indent=2) + "\n")
+    try:
+        write_file(opened.previews, name, json.dumps(record, indent=2) + "\n")
+    except OSError as exc:
+        raise Refused(f"the preview couldn't be marked as used ({exc.strerror}); "
+                      "nothing was written") from exc
+    try:
+        write_file(opened.data, "stories.json", json.dumps(items + written, indent=2) + "\n")
+    except (OSError, Refused) as exc:
+        reason = exc.strerror if isinstance(exc, OSError) else str(exc).split(";")[0]
+        raise Refused(f"the stories couldn't be written ({reason}). Nothing was written, and "
+                      f"preview {grouped(entered)} can't be used again; preview again") from exc
     lines = [f"Confirmed by {who} at {shown_time(now)}, for preview {grouped(entered)}.", "Written:"]
     lines += [f"  {w['key']}  {w['priority']:<8} {w['title']}" for w in written]
     lines.append(f"The tracker now has {len(items) + len(written)} stories.")

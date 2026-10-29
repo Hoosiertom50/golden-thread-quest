@@ -21,6 +21,11 @@ A preview shows everything the write would do, before it does any of it:
 A preview writes no story. The only thing it saves is a record of itself, so a confirmation can be
 checked against it later.
 
+Every field has a length limit (a title 120 characters, a description 2,000, an acceptance
+criterion 500, at most 10 criteria and 20 stories per preview), so a preview stays readable in a
+minute and the tracker's files always stay small enough to read back. A write that would still
+make a file too big to read back is refused before anything is written.
+
 ## 2. How a confirmation is tied to its preview
 
 - The **fingerprint** is a code made from three things: the exact change (every field of every
@@ -34,7 +39,8 @@ checked against it later.
   not a different change.
 - It also checks that the **tracker hasn't changed** since the preview, so the keys and the "all or
   none" promise still hold, and that the saved preview still matches its own fingerprint, so an
-  edited preview record can't be confirmed.
+  edited preview record can't be confirmed (its saved fingerprint must equal the one typed, and
+  recomputing it from its contents must give the same code).
 - A preview approves **one write**. Once confirmed, the same fingerprint is refused, and stories
   that already exist can't be previewed again, so a second run duplicates nothing.
 - Only **one run at a time** may check and change the tracker. If two people confirm at the same
@@ -57,6 +63,10 @@ checked against it later.
   it. It can't be dated in the future.
 
 ## 4. What a confirmed write records
+
+The preview is marked as used **before** the stories are written. If writing them then fails,
+nothing was written and that preview can't be used again, so the person previews again. A failure
+is never reported for a write that in fact happened.
 
 Each story written records its key, every field, **who confirmed it**, **when**, and the
 **fingerprint of the preview** it was confirmed under. `list` shows all of this, so anyone can see

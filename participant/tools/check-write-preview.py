@@ -30,7 +30,7 @@ import threading
 import time
 from pathlib import Path
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 ROOT = Path(__file__).resolve().parents[2]
 TOOL_PATH = ROOT / "participant/tools/fake-story-tracker.py"
 CLOCK = dt.datetime(2026, 10, 29, 13, 0, 0, tzinfo=dt.timezone.utc)  # 09:00 AM in Indiana
@@ -248,36 +248,44 @@ def main(argv: list[str] | None = None) -> int:
                   "when and the fingerprint; the same preview can't be confirmed twice, and the same "
                   "stories can't be previewed again")
 
-            # Two confirmations of one preview at the same moment: exactly one writes. The tracker is
-            # slowed down between reading and writing so the two really overlap.
+            # Two confirmations of one preview at the same moment: exactly one writes. The function
+            # confirm uses to read the tracker is slowed down, and both start together, so without
+            # the lock they would both read the empty tracker before either wrote.
             race_dir = work / "race"
             _, fp_race = t.do_preview(stories, race_dir, CLOCK)
-            real_load = t.load_tracker
+            real_read = t.stored_items
+            reads: list[int] = []
 
-            def slow_load(where: Path) -> list[dict]:
-                found = real_load(where)
+            def slow_read(opened):
+                found = real_read(opened)
+                reads.append(len(found))
                 time.sleep(0.2)
                 return found
 
-            t.load_tracker = slow_load
             outcomes: list[str] = []
+            start_together = threading.Barrier(2)
 
             def racer() -> None:
+                start_together.wait()
                 try:
                     t.do_confirm(stories, race_dir, lambda: minutes(1), fp_race, TOKEN, WHO)
                     outcomes.append("written")
                 except t.Refused:
                     outcomes.append("refused")
 
-            racers = [threading.Thread(target=racer) for _ in range(2)]
-            for r in racers:
-                r.start()
-            for r in racers:
-                r.join()
-            t.load_tracker = real_load
+            t.stored_items = slow_read
+            try:
+                racers = [threading.Thread(target=racer) for _ in range(2)]
+                for r in racers:
+                    r.start()
+                for r in racers:
+                    r.join()
+            finally:
+                t.stored_items = real_read
             raced = t.load_tracker(race_dir)
             check("   Two confirmations at the same moment: one write",
-                  sorted(outcomes) == ["refused", "written"] and len(raced) == len(change["stories"]),
+                  sorted(outcomes) == ["refused", "written"] and len(raced) == len(change["stories"])
+                  and len(reads) >= 1,  # the slowed reader really ran
                   f"one written, one refused; the tracker holds {len(raced)} stories, not "
                   f"{2 * len(change['stories'])}")
 
