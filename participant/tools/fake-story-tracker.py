@@ -46,7 +46,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.8.0"
+VERSION = "1.9.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -110,13 +110,19 @@ def grouped(fingerprint: str) -> str:
     return "-".join(fingerprint[i:i + 4] for i in range(0, len(fingerprint), 4))
 
 
+def tidy_name(name: str) -> str:
+    """A name as one line of visible text: invisible characters removed, spacing collapsed."""
+    return " ".join("".join(c for c in name if c.isprintable() or c.isspace()).split())[:MAX_SHORT]
+
+
 def actor() -> str:
+    """Who is confirming: the Git user name, or the login name if that is empty or unusable."""
     try:
         name = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True,
-                              timeout=5).stdout.strip()
+                              timeout=5).stdout
     except (OSError, subprocess.SubprocessError):
         name = ""
-    return name or getpass.getuser()
+    return tidy_name(name) or tidy_name(getpass.getuser()) or "unknown person"
 
 
 # --- the stories file -----------------------------------------------------------------------------
@@ -514,6 +520,9 @@ def do_confirm(stories_file: Path, data: Path, clock: Callable[[], dt.datetime],
     recorded time are the moment of approval, not the moment the command started."""
     if not token:
         raise Refused(f"{TOKEN_VAR} isn't set, so the tracker can't be written to; nothing was written")
+    if not (who and visible_line(who) and len(who) <= MAX_SHORT):
+        raise Refused("the name of the person confirming isn't one line of visible text, so it "
+                      "can't be recorded; nothing was written")
     entered = re.sub(r"[\s-]", "", typed).upper()
     if not FINGERPRINT.match(entered):
         raise Refused("that isn't a fingerprint (12 letters and digits, like 7F3A-91C2-0B4D); "
