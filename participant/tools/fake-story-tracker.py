@@ -41,12 +41,13 @@ import stat
 import subprocess
 import sys
 import textwrap
+import unicodedata
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import yaml
 
-VERSION = "1.10.0"
+VERSION = "1.11.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -137,7 +138,10 @@ def visible_line(text: str) -> bool:
 
 
 def plain(value: object, where: str, limit: int | None = None) -> str:
-    """A field's value: one line of visible text."""
+    """A field's value: one line of visible text, in one standard form. Characters that look the
+    same are stored the same way (Unicode's composed form, so "café" typed either way is one
+    text), and runs of spaces become one, so what a person sees in the preview is exactly what is
+    fingerprinted and stored."""
     if not isinstance(value, str):
         raise BadInput(f"{where} must be text")
     text = value.strip()
@@ -145,6 +149,7 @@ def plain(value: object, where: str, limit: int | None = None) -> str:
         raise BadInput(f"{where} is empty")
     if not visible_line(text):
         raise BadInput(f"{where} must be one line of visible text")
+    text = re.sub(" {2,}", " ", unicodedata.normalize("NFC", text))
     if limit is not None and len(text) > limit:
         raise BadInput(f"{where} is {len(text)} characters; the limit is {limit}")
     return text

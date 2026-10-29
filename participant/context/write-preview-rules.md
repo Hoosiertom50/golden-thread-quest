@@ -21,7 +21,9 @@ A preview shows everything the write would do, before it does any of it:
 A preview writes no story. The only thing it saves is a record of itself, so a confirmation can be
 checked against it later.
 
-Every field has a length limit (a title 120 characters, a description 2,000, an acceptance
+Every field is stored in one standard form: characters that look the same are stored the same way,
+and runs of spaces become one, so what the preview shows is exactly what is fingerprinted and
+written. Every field has a length limit (a title 120 characters, a description 2,000, an acceptance
 criterion 500, at most 10 criteria and 20 stories per preview), so a preview stays readable in a
 minute and the tracker's files always stay small enough to read back. A write that would still
 make a file too big to read back is refused before anything is written.
