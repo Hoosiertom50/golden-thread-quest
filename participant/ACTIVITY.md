@@ -37,3 +37,8 @@ Every change this application made to your files, newest last.
 - `2026-10-28T16:07:53Z` ba-clarification-questions: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-10-28T16:07:53Z` Submitted ba-clarification-questions for review as submission-20261028160753-c52ce5.
 - `2026-10-28T16:36:36Z` Review of ba-clarification-questions: approved by Gregg Reed.
+- `2026-10-29T12:36:14Z` Started base-camp-write-preview as attempt base-attempt-002.
+- `2026-10-29T16:38:25Z` base-camp-write-preview: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-10-29T16:38:40Z` base-camp-write-preview: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-10-29T16:38:58Z` base-camp-write-preview: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-10-29T16:38:58Z` Submitted base-camp-write-preview for review as submission-20261029163858-c502f2.
