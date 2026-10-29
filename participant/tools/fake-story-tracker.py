@@ -46,7 +46,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -158,6 +158,12 @@ def load_change(path: Path) -> dict:
         raw = yaml.load(text, Loader=yaml.BaseLoader)
     except yaml.YAMLError as exc:
         raise BadInput(f"{path} isn't valid YAML: {exc}") from exc
+    return validate_change(raw)
+
+
+def validate_change(raw: object) -> dict:
+    """A proposed change checked against every rule, in a fixed form. The same rules apply to the
+    stories file and to the change saved in a preview, so neither can hold what the other can't."""
     top = exact_keys(raw, TOP_KEYS, "the stories file")
     target = exact_keys(top["target"], TARGET_KEYS, "target")
     project = plain(target["project"], "target.project")
@@ -235,19 +241,31 @@ def folders(data: Path, create: bool) -> Iterator[Folders | None]:
     folder that holds the tracker (local-data) is refused if it is itself a link."""
     opened: list[int] = []
     try:
-        if create:
-            data.parent.mkdir(parents=True, exist_ok=True)
-        holder = _open_folder(None, data.parent, create=False)
+        try:
+            if create:
+                data.parent.mkdir(parents=True, exist_ok=True)
+            holder = _open_folder(None, data.parent, create=False)
+        except OSError as exc:
+            raise Refused(f"the tracker folder can't be set up ({exc.strerror}); "
+                          "nothing was written") from exc
         if holder is None:
             yield None
             return
         opened.append(holder)
-        tracker = _open_folder(holder, data.name, create)
+        try:
+            tracker = _open_folder(holder, data.name, create)
+        except OSError as exc:
+            raise Refused(f"the tracker folder can't be set up ({exc.strerror}); "
+                          "nothing was written") from exc
         if tracker is None:
             yield None
             return
         opened.append(tracker)
-        previews = _open_folder(tracker, "previews", create)
+        try:
+            previews = _open_folder(tracker, "previews", create)
+        except OSError as exc:
+            raise Refused(f"the tracker's previews folder can't be set up ({exc.strerror}); "
+                          "nothing was written") from exc
         if previews is not None:
             opened.append(previews)
         yield Folders(tracker, previews)
@@ -517,6 +535,11 @@ def preview_record(text: str, entered: str) -> tuple[dict, dt.datetime]:
         raise Refused(damaged) from exc
     if made.tzinfo is None:
         raise Refused(damaged)
+    try:
+        if validate_change(record["change"]) != record["change"]:
+            raise Refused(damaged)
+    except BadInput as exc:
+        raise Refused(damaged) from exc
     return record, made
 
 
@@ -541,7 +564,10 @@ def _check_and_write(current: dict, opened: Folders, now: dt.datetime, entered: 
         raise Refused(f"preview {grouped(entered)} was already confirmed; a preview approves one "
                       "write only. Nothing was written")
     reasons = []
-    if now - made > TIME_LIMIT:
+    if now < made:
+        reasons.append(f"the computer's clock reads {shown_time(now)}, earlier than the preview was "
+                       f"made ({shown_time(made)}), so the preview's age can't be trusted")
+    elif now - made > TIME_LIMIT:
         reasons.append(f"the preview expired at {shown_time(made + TIME_LIMIT)} "
                        f"(made {shown_time(made)}; the limit is 15 minutes)")
     if current != record["change"]:
@@ -644,6 +670,13 @@ def main(argv: list[str] | None = None) -> int:
     except Refused as exc:
         message = str(exc)
         print(message if message.startswith("Refused") else f"Refused: {message}.")
+        return 1
+    except OSError as exc:
+        # A last safety net: any file-system problem not caught above happens before the stories
+        # are written (that write is the last step and has its own handling), so it is reported
+        # plainly, never as an error dump.
+        print(f"Refused: the tracker's files couldn't be read or written ({exc.strerror}). "
+              "Nothing was written.")
         return 1
 
 

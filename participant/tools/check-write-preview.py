@@ -30,7 +30,7 @@ import threading
 import time
 from pathlib import Path
 
-VERSION = "1.4.1"
+VERSION = "1.5.0"
 ROOT = Path(__file__).resolve().parents[2]
 TOOL_PATH = ROOT / "participant/tools/fake-story-tracker.py"
 CLOCK = dt.datetime(2026, 10, 29, 13, 0, 0, tzinfo=dt.timezone.utc)  # 09:00 AM in Indiana
@@ -234,6 +234,14 @@ def main(argv: list[str] | None = None) -> int:
             check("   (at exactly 15 minutes the preview is still valid, until the tracker changes)",
                   bool(edge) and "expired" not in (edge or "") and "tracker has changed" in (edge or ""),
                   "refused only because the stories were already written")
+            rollback_dir = work / "rollback"
+            _, fp_back = t.do_preview(stories, rollback_dir, CLOCK)
+            rolled_back = refused(lambda: t.do_confirm(stories, rollback_dir, lambda: minutes(-120), fp_back,
+                                                       STAND_IN, WHO))
+            check("   (a clock set back can't stretch the limit)",
+                  bool(rolled_back) and "earlier than the preview was made" in (rolled_back or "")
+                  and not t.load_tracker(rollback_dir),
+                  "a confirmation with the clock 2 hours behind the preview is refused")
 
             # 6. The result records what was written and that a person confirmed it: every stored
             # field equals the previewed one, plus the key, who confirmed, when, and the fingerprint.

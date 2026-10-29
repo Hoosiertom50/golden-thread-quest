@@ -58,7 +58,9 @@ make a file too big to read back is refused before anything is written.
   and writes nothing. The person previews again and reads the change as it is now.
 - The time limit is measured with the computer's own clock at the moment the fingerprint is
   typed, not when `confirm` was started, so leaving the prompt open doesn't stretch the limit; the
-  confirmed time recorded on each story is that same moment. Only a preview can be
+  confirmed time recorded on each story is that same moment. If the computer's clock reads earlier
+  than the time the preview was made (a clock set back), the preview's age can't be trusted, and the
+  confirmation is refused. Only a preview can be
   dated earlier (`--made-at`, used to show expiry), which can only shorten its life, never extend
   it. It can't be dated in the future.
 
@@ -78,6 +80,9 @@ what was written and that a person approved it.
   folder that holds it, its previews folder or one of its files is a link to somewhere else, the
   run is refused and nothing is read or written through it, so a write can never land in some
   other place's files.
-- Every stored story and every saved preview is checked to have exactly the shape it should. A
+- If the tracker's folders can't be created or opened (no permission, or a file where a folder
+  should be), the run is refused with the reason, and nothing is written.
+- Every stored story and every saved preview is checked to have exactly the shape it should, and a
+  saved preview's change must pass the same rules as the stories file. A
   damaged one is refused with a plain explanation, and nothing is written; the tool never stops
   with an error dump instead of saying what's wrong.
