@@ -46,7 +46,7 @@ from pathlib import Path
 
 import yaml
 
-VERSION = "1.9.0"
+VERSION = "1.10.0"
 DATA_DIR = Path("local-data/fake-story-tracker")
 TIME_LIMIT = dt.timedelta(minutes=15)
 TOKEN_VAR = "FAKE_STORY_TRACKER_TOKEN"
@@ -79,6 +79,9 @@ MAX_SHORT = 300    # target system, answer assumed
 MAX_DESCRIPTION = 2000
 MAX_CRITERION = 500
 WIDTH = 96
+# Lines wrap only at spaces, never inside a word or at a hyphen ("doors-open" stays whole), so
+# joining a wrapped value's lines with single spaces gives back exactly the text in the file.
+WRAP = {"break_long_words": False, "break_on_hyphens": False}
 
 
 class Refused(Exception):
@@ -416,7 +419,8 @@ def make_fingerprint(change: dict, state: str, made_at: str) -> str:
 
 def wrapped(label: str, text: str, indent: int = 4) -> list[str]:
     first = " " * indent + f"{label:<13}"
-    return textwrap.wrap(text, WIDTH, initial_indent=first, subsequent_indent=" " * len(first)) or [first]
+    return textwrap.wrap(text, WIDTH, initial_indent=first, subsequent_indent=" " * len(first),
+                         **WRAP) or [first]
 
 
 def story_lines(heading: str, story: dict) -> list[str]:
@@ -431,7 +435,8 @@ def story_lines(heading: str, story: dict) -> list[str]:
     lines += wrapped("Description:", story.get("description", "?"))
     lines.append("    Acceptance criteria:")
     for j, criterion in enumerate(story.get("acceptance_criteria", []), 1):
-        lines += textwrap.wrap(criterion, WIDTH, initial_indent=f"      {j}. ", subsequent_indent=" " * 9)
+        lines += textwrap.wrap(criterion, WIDTH, initial_indent=f"      {j}. ", subsequent_indent=" " * 9,
+                               **WRAP)
     return lines
 
 
