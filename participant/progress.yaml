@@ -64,4 +64,13 @@ attempts:
   evidence_path: participant/evidence/base-camp-write-preview/base-attempt-002
   submission_id: submission-20261029163858-c502f2
   review_id: review-20261029195307-9d7806
-updated_at: '2026-10-29T19:53:07Z'
+- attempt_id: playwright-attempt-001
+  quest_id: playwright-risk-strategy
+  quest_version: 1
+  content_hash: sha256:2852c5eb432ca5be45d16b30522d653b23d5d60f5ef765ff705dbfec8ef51996
+  state: submitted
+  started_at: '2026-10-30T12:18:06Z'
+  updated_at: '2026-10-30T16:56:38Z'
+  evidence_path: participant/evidence/playwright-risk-strategy/playwright-attempt-001
+  submission_id: submission-20261030165638-016a55
+updated_at: '2026-10-30T16:56:38Z'
