@@ -295,11 +295,11 @@ connect, so nothing cheaper would fail if it broke.
 
 ### R-28
 - **Requirement:** CHK-03
-- **Risk:** A hold reaches 10 minutes while its payment is still being processed, so the seat is released and held by another buyer although the first buyer's payment then succeeds.
+- **Risk:** A hold reaches 10 minutes while its payment is still being processed, and the server gets it wrong: the seat is released and held by another buyer although the payment then succeeds, or after the payment is declined the seat is kept past the original 10 minutes (held on, or given a fresh 10 minutes).
 - **Likelihood:** 3 (a time limit, another system and two buyers at once)
-- **Impact:** 3 (a seat goes to two buyers)
+- **Impact:** 3 (a seat goes to two buyers; a seat kept too long only blocks other buyers, but the highest level applies)
 - **Layer:** API
-- **Reason:** It needs a fake clock and a fake payment provider that answers slowly, which only the server-level tests have. An API test starts a payment at 9:58, moves the clock past 10:00 before the provider answers, has a second buyer try to hold the seat, then lets the payment succeed, and checks the seat belongs only to the first buyer.
+- **Reason:** It needs a fake clock and a fake payment provider that answers slowly, which only the server-level tests have. One API test runs three times. Each run starts a payment at 9:58 and holds the provider's answer. In the first, the clock moves past 10:00, a second buyer tries to hold the seat, the payment succeeds, and the seat must belong only to the first buyer. In the second, the clock moves past 10:00 and the payment is declined, and the seat must be released at once. In the third, the payment is declined at 9:59, and the seat must be released at 10:00, not 10 minutes after the decline.
 
 ## Accepted as untested
 
