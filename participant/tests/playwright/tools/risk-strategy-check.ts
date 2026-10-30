@@ -323,7 +323,12 @@ function readStrategy(path: string): {
     scalesOk = false;
   } else {
     const levels = new Map<string, string[]>();
+    // Each level's text, with any indented lines that continue it, so a wrapped definition is
+    // counted whole.
+    const definitions: { scale: string; level: string; at: string; text: string }[] = [];
     let scale: string | null = null;
+    // The level an indented line continues: only the one directly above it, in the same scale.
+    let continuing: { text: string } | null = null;
     scoring.lines.forEach((line, offset) => {
       const at = `${path} line ${scoring.start + offset}`;
       const opening = /^\*\*(Likelihood|Impact)\*\* /.exec(line);
@@ -334,23 +339,33 @@ function readStrategy(path: string): {
           scalesOk = false;
         }
         levels.set(scale, []);
+        continuing = null;
       } else if (line.startsWith("- ")) {
         const level = /^- \*\*([^*]+):\*\* (.*)$/.exec(line);
         if (scale === null || !level?.[1]) {
           problem(`${at}: "${line}" is a list line that isn't a level of a scale`);
           scalesOk = false;
+          continuing = null;
         } else {
-          if (words(level[2] ?? "") < MIN_LEVEL_WORDS) {
-            problem(`${at}: level ${level[1]} of the ${scale.toLowerCase()} scale should say what it means in at least ${MIN_LEVEL_WORDS} words`);
-            scalesOk = false;
-          }
+          const definition = { scale, level: level[1], at, text: level[2] ?? "" };
+          definitions.push(definition);
           levels.get(scale)?.push(level[1]);
+          continuing = definition;
         }
-      } else if (line.trim() !== "" && !line.startsWith("  ")) {
+      } else if (line.startsWith("  ") && line.trim() !== "") {
+        if (continuing) continuing.text += ` ${line.trim()}`;
+      } else if (line.trim() !== "") {
         // Any other paragraph ends the scale; a blank line or an indented continuation doesn't.
         scale = null;
+        continuing = null;
       }
     });
+    for (const definition of definitions) {
+      if (words(definition.text) < MIN_LEVEL_WORDS) {
+        problem(`${definition.at}: level ${definition.level} of the ${definition.scale.toLowerCase()} scale should say what it means in at least ${MIN_LEVEL_WORDS} words`);
+        scalesOk = false;
+      }
+    }
     for (const name of ["Likelihood", "Impact"]) {
       const defined = levels.get(name);
       if (defined === undefined) {
