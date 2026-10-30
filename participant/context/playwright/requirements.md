@@ -8,7 +8,8 @@ These are the twelve checkout requirements from `participant/context/ambiguity/r
 (quest 4), rewritten so each one can be tested. Where the original was vague or contradictory, it
 now uses one **assumed answer** to a question in `participant/context/clarification/questions.md`
 (quest 5). The three answers already used for the follow-up stories in
-`participant/context/write-preview/follow-up-stories.yaml` (quest 6) are kept the same. Decisions
+`participant/context/write-preview/follow-up-stories.yaml` (quest 6) are kept the same. One more
+answer, for CHK-03, was added during the strategy review and is marked as such. Decisions
 by Tom Carter; wording drafted with Claude (Claude Code), 10-30-2026.
 
 **Importance** says how much the business depends on the requirement:
@@ -34,8 +35,8 @@ that is scored in `strategy.md`.
 
 ### CHK-03
 - **Importance:** High
-- **Requirement:** Held seats are released 10 minutes after the hold starts if payment has not completed. Released seats show as available on the seat map.
-- **Assumed answer:** None needed; the original was already clear.
+- **Requirement:** Held seats are released 10 minutes after the hold starts if payment has not completed. A hold does not expire while its payment is being processed: if the payment succeeds, the seats are the buyer's; if it fails, the 10-minute rule applies as usual. Released seats show as available on the seat map.
+- **Assumed answer:** Added during the strategy review, not one of the quest 5 questions: the original said nothing about a hold that reaches 10 minutes while its payment is still being processed, so this answer was decided by Tom Carter for this exercise.
 
 ### CHK-04
 - **Importance:** High

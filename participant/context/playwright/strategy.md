@@ -63,26 +63,27 @@ risk happened.
 | 7 | R-15 | CHK-09 | 3 | 3 | 9 | unit |
 | 8 | R-19 | CHK-11 | 3 | 3 | 9 | API |
 | 9 | R-20 | CHK-12 | 3 | 3 | 9 | API |
-| 10 | R-21 | CHK-12 | 3 | 2 | 6 | untested |
-| 11 | R-24 | CHK-11 | 2 | 3 | 6 | UI |
-| 12 | R-03 | CHK-02 | 3 | 2 | 6 | UI |
-| 13 | R-10 | CHK-06 | 3 | 2 | 6 | API |
-| 14 | R-11 | CHK-06 | 3 | 2 | 6 | manual |
-| 15 | R-17 | CHK-10 | 3 | 2 | 6 | API |
-| 16 | R-05 | CHK-03 | 2 | 2 | 4 | API |
-| 17 | R-22 | CHK-03, CHK-09, CHK-11 | 2 | 2 | 4 | UI |
-| 18 | R-23 | CHK-03 | 2 | 2 | 4 | UI |
-| 19 | R-26 | CHK-05, CHK-08 | 2 | 2 | 4 | UI |
-| 20 | R-01 | CHK-01 | 2 | 2 | 4 | unit |
-| 21 | R-18 | CHK-10 | 2 | 2 | 4 | UI |
-| 22 | R-27 | CHK-01 | 2 | 2 | 4 | API |
-| 23 | R-16 | CHK-09 | 1 | 2 | 2 | UI |
-| 24 | R-25 | CHK-04 | 1 | 2 | 2 | UI |
-| 25 | R-02 | CHK-01 | 1 | 2 | 2 | UI |
-| 26 | R-12 | CHK-06 | 2 | 1 | 2 | untested |
-| 27 | R-13 | CHK-07 | 1 | 2 | 2 | UI |
+| 10 | R-28 | CHK-03 | 3 | 3 | 9 | API |
+| 11 | R-21 | CHK-12 | 3 | 2 | 6 | untested |
+| 12 | R-24 | CHK-11 | 2 | 3 | 6 | UI |
+| 13 | R-03 | CHK-02 | 3 | 2 | 6 | UI |
+| 14 | R-10 | CHK-06 | 3 | 2 | 6 | API |
+| 15 | R-11 | CHK-06 | 3 | 2 | 6 | manual |
+| 16 | R-17 | CHK-10 | 3 | 2 | 6 | API |
+| 17 | R-05 | CHK-03 | 2 | 2 | 4 | API |
+| 18 | R-22 | CHK-03, CHK-09, CHK-11 | 2 | 2 | 4 | UI |
+| 19 | R-23 | CHK-03 | 2 | 2 | 4 | UI |
+| 20 | R-26 | CHK-05, CHK-08 | 2 | 2 | 4 | UI |
+| 21 | R-01 | CHK-01 | 2 | 2 | 4 | unit |
+| 22 | R-18 | CHK-10 | 2 | 2 | 4 | UI |
+| 23 | R-27 | CHK-01 | 2 | 2 | 4 | API |
+| 24 | R-16 | CHK-09 | 1 | 2 | 2 | UI |
+| 25 | R-25 | CHK-04 | 1 | 2 | 2 | UI |
+| 26 | R-02 | CHK-01 | 1 | 2 | 2 | UI |
+| 27 | R-12 | CHK-06 | 2 | 1 | 2 | untested |
+| 28 | R-13 | CHK-07 | 1 | 2 | 2 | UI |
 
-Totals: 5 unit, 9 API, 10 UI, 1 manual, 2 untested. Every requirement from CHK-01 to CHK-12 has at
+Totals: 5 unit, 10 API, 10 UI, 1 manual, 2 untested. Every requirement from CHK-01 to CHK-12 has at
 least one tested risk.
 
 ## Risks that need a browser
@@ -291,6 +292,14 @@ connect, so nothing cheaper would fail if it broke.
 - **Impact:** 2 (the buyer holds more seats than allowed, blocking other buyers from them)
 - **Layer:** API
 - **Reason:** R-01 proves the limit rule on its own and R-02 the message on the page; this checks the server actually applies the limit to every request. An API test asks the server for a 9th seat in one order and checks it is refused and only 8 seats are held.
+
+### R-28
+- **Requirement:** CHK-03
+- **Risk:** A hold reaches 10 minutes while its payment is still being processed, so the seat is released and held by another buyer although the first buyer's payment then succeeds.
+- **Likelihood:** 3 (a time limit, another system and two buyers at once)
+- **Impact:** 3 (a seat goes to two buyers)
+- **Layer:** API
+- **Reason:** It needs a fake clock and a fake payment provider that answers slowly, which only the server-level tests have. An API test starts a payment at 9:58, moves the clock past 10:00 before the provider answers, has a second buyer try to hold the seat, then lets the payment succeed, and checks the seat belongs only to the first buyer.
 
 ## Accepted as untested
 
