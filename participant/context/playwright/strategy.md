@@ -75,13 +75,14 @@ risk happened.
 | 19 | R-26 | CHK-05, CHK-08 | 2 | 2 | 4 | UI |
 | 20 | R-01 | CHK-01 | 2 | 2 | 4 | unit |
 | 21 | R-18 | CHK-10 | 2 | 2 | 4 | UI |
-| 22 | R-16 | CHK-09 | 1 | 2 | 2 | UI |
-| 23 | R-25 | CHK-04 | 1 | 2 | 2 | UI |
-| 24 | R-02 | CHK-01 | 1 | 2 | 2 | UI |
-| 25 | R-12 | CHK-06 | 2 | 1 | 2 | untested |
-| 26 | R-13 | CHK-07 | 1 | 2 | 2 | UI |
+| 22 | R-27 | CHK-01 | 2 | 2 | 4 | API |
+| 23 | R-16 | CHK-09 | 1 | 2 | 2 | UI |
+| 24 | R-25 | CHK-04 | 1 | 2 | 2 | UI |
+| 25 | R-02 | CHK-01 | 1 | 2 | 2 | UI |
+| 26 | R-12 | CHK-06 | 2 | 1 | 2 | untested |
+| 27 | R-13 | CHK-07 | 1 | 2 | 2 | UI |
 
-Totals: 5 unit, 8 API, 10 UI, 1 manual, 2 untested. Every requirement from CHK-01 to CHK-12 has at
+Totals: 5 unit, 9 API, 10 UI, 1 manual, 2 untested. Every requirement from CHK-01 to CHK-12 has at
 least one tested risk.
 
 ## Risks that need a browser
@@ -282,6 +283,14 @@ connect, so nothing cheaper would fail if it broke.
 - **Impact:** 3 (a seat goes to two buyers)
 - **Layer:** API
 - **Reason:** The risk is two requests reaching the server at the same moment. An API test can send both at once, many times over, and check only one succeeds. Two browsers could not time their clicks closely enough to find it reliably.
+
+### R-27
+- **Requirement:** CHK-01
+- **Risk:** The server holds a 9th seat when it is asked directly, without going through the seat map, so a buyer can hold more than 8 seats in one order.
+- **Likelihood:** 2 (a rule with a few cases)
+- **Impact:** 2 (the buyer holds more seats than allowed, blocking other buyers from them)
+- **Layer:** API
+- **Reason:** R-01 proves the limit rule on its own and R-02 the message on the page; this checks the server actually applies the limit to every request. An API test asks the server for a 9th seat in one order and checks it is refused and only 8 seats are held.
 
 ## Accepted as untested
 

@@ -305,6 +305,7 @@ function readStrategy(path: string): {
   risks: Risk[];
   table: string[][];
   totals: string | null;
+  totalsClaim: string | null;
 } {
   const lines = readLines(path, "strategy");
   const found = sections(path, lines, STRATEGY_LAYOUT);
@@ -402,6 +403,7 @@ function readStrategy(path: string): {
   const table: string[][] = [];
   const ranking = found.get(RANKING_SECTION);
   let totals: string | null = null;
+  let totalsClaim: string | null = null;
   if (ranking) {
     const rows: { line: string; offset: number }[] = [];
     ranking.lines.forEach((line, offset) => {
@@ -432,10 +434,25 @@ function readStrategy(path: string): {
       }
       table.push(values);
     }
-    const totalsLine = ranking.lines.find((line) => line.startsWith("Totals: "));
-    totals = totalsLine === undefined ? null : (totalsLine.slice("Totals: ".length).split(". ")[0] ?? "");
+    // The totals paragraph: exactly one, read whole (it may wrap over several lines). Its first
+    // sentence gives the count per layer; anything after it is a claim the check must verify.
+    const totalsAt = ranking.lines.flatMap((line, i) => (line.startsWith("Totals: ") ? [i] : []));
+    if (totalsAt.length > 1) {
+      problem(`${path}: the ranking section has ${totalsAt.length} totals paragraphs; it should have one`);
+    }
+    const first = totalsAt[0];
+    if (first !== undefined) {
+      const paragraph: string[] = [];
+      for (const line of ranking.lines.slice(first)) {
+        if (line.trim() === "") break;
+        paragraph.push(line.trim());
+      }
+      const match = /^Totals: ([^.]*)\.(?: (.+))?$/.exec(paragraph.join(" "));
+      totals = match?.[1] ?? "";
+      totalsClaim = match?.[2] ?? null;
+    }
   }
-  return { scalesOk, missingRules: scoring ? missingRules : null, risks, table, totals };
+  return { scalesOk, missingRules: scoring ? missingRules : null, risks, table, totals, totalsClaim };
 }
 
 function words(text: string): number {
@@ -610,12 +627,29 @@ function main(argv: string[]): number {
     rankProblems,
   );
 
-  // The totals sentence under the table must agree with the risks.
+  // The totals paragraph under the table must agree with the risks. If it goes on to say every
+  // requirement has a tested risk, that must be the exact sentence below, and it must be true.
   const actualTotals = LAYERS.map((layer) => `${risks.filter((r) => r.layer === layer).length} ${layer}`).join(", ");
+  const firstId = requirements[0]?.id ?? "";
+  const lastId = requirements[requirements.length - 1]?.id ?? "";
+  const claim = `Every requirement from ${firstId} to ${lastId} has at least one tested risk.`;
+  const untestedOnly = requirements.filter(
+    (requirement) => !risks.some((r) => r.requirements.includes(requirement.id) && r.layer !== "untested"),
+  );
+  const totalsProblems: string[] = [];
+  if (totals !== actualTotals) totalsProblems.push(`the table says: ${totals ?? "no totals paragraph"}`);
+  if (strategy.totalsClaim !== null && strategy.totalsClaim !== claim) {
+    totalsProblems.push(`the sentence after the totals should be exactly: ${claim}`);
+  } else if (strategy.totalsClaim !== null && untestedOnly.length > 0) {
+    totalsProblems.push(
+      `it says every requirement has a tested risk, but these have none: ${untestedOnly.map((r) => r.id).join(", ")}`,
+    );
+  }
   check(
-    totals === actualTotals,
-    `the totals under the table match the risks: ${actualTotals}`,
-    totals === actualTotals ? [] : [`the table says: ${totals ?? "no totals line"}`],
+    totalsProblems.length === 0,
+    `the totals under the table match the risks (${actualTotals})` +
+      (strategy.totalsClaim === null ? "" : " and the sentence after them is true"),
+    totalsProblems,
   );
 
   const failed = out.some((line) => line.startsWith("FAIL"));
