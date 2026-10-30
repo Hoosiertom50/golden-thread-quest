@@ -15,6 +15,10 @@
 // escapes, code fences) is refused. Anything else is reported, not skipped, so a typo or a
 // disguise can't quietly drop something from the check or hide it from a reader.
 //
+// It checks that the strategy is complete and consistent, not that its judgments are right: it
+// can't tell whether a score, a layer or a reason is the right one, or whether other prose
+// contradicts the stated rules. Those are for the person reading the strategy.
+//
 // Run from the repository root (Node 22.18 or later runs TypeScript directly, nothing to install):
 //   node participant/tests/playwright/tools/risk-strategy-check.ts
 // Optional: --requirements <path> --strategy <path>
@@ -83,10 +87,20 @@ const INVISIBLE =
   /[\p{Cc}\p{Cf}\p{Co}\p{Cn}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]|(?! )\p{Zs}/u;
 
 // Markup that would make the rendered page differ from the text checked here: HTML and its
-// comments, character references, backslash escapes, hidden link definitions, code fences, and
-// lines that underline the line above into a heading or draw a rule. None of it is part of the
-// format, so nothing in either file can be hidden from, or disguised to, a reader.
-const HIDING = /[<>&\\]|^ {0,3}(?:```|~~~|\[[^\]]*\]:|=+ *$|-{2,} *$|(?:[-*_] *){3,}$)/;
+// comments, character references, backslash escapes, links and images (square brackets), code
+// fences, and lines that underline the line above into a heading or draw a rule. None of it is
+// part of the format, so nothing in either file can be hidden from, or disguised to, a reader.
+const HIDING = /[<>&\\[\]]|^ {0,3}(?:```|~~~|=+ *$|-{2,} *$|(?:[-*_] *){3,}$)/;
+
+// The only list form the format uses is "- " at the very start of a line. Any other list marker
+// ("*", "+", a number, or an indented "-") would show as a list item the check doesn't read.
+const OTHER_LIST = /^\s*(?:[*+]|\d+[.)])\s|^\s+-\s/;
+
+// The field names entries use. A line with one of them belongs inside an entry; anywhere else it is
+// an entry in the wrong place, and is reported rather than dropped with the surrounding prose.
+const ENTRY_FIELD = new RegExp(
+  "^- \\*\\*(?:Importance|Requirement|Assumed answer|Risk|Likelihood|Impact|Layer|Reason|Accepted by):\\*\\*",
+);
 
 function readLines(path: string, what: string): string[] {
   let bytes: Buffer;
@@ -109,7 +123,10 @@ function readLines(path: string, what: string): string[] {
       problem(`${path} line ${index + 1}: contains an invisible or unusual character`);
     }
     if (HIDING.test(line)) {
-      problem(`${path} line ${index + 1}: contains markup the format doesn't allow (HTML, <, >, &, \\, a code fence, a link definition or a heading underline)`);
+      problem(`${path} line ${index + 1}: contains markup the format doesn't allow (HTML, <, >, &, \\, [ ], a code fence or a heading underline)`);
+    }
+    if (OTHER_LIST.test(line)) {
+      problem(`${path} line ${index + 1}: uses a list marker the format doesn't allow (only "- " at the start of a line)`);
     }
   });
   return lines;
@@ -146,8 +163,12 @@ function sections(path: string, lines: string[], layout: Layout): Map<string, Se
   let titled = false;
   let name = "";
   let current: Section | null = null;
+  let inEntry = false;
   lines.forEach((line, index) => {
     const at = `${path} line ${index + 1}`;
+    if (ENTRY_FIELD.test(line) && !inEntry) {
+      problem(`${at}: "${line}" is an entry field outside an entry`);
+    }
     if (/^ {0,3}#/.test(line)) {
       const heading = /^(#{1,6}) (\S.*)$/.exec(line);
       const level = heading?.[1]?.length ?? 0;
@@ -157,10 +178,12 @@ function sections(path: string, lines: string[], layout: Layout): Map<string, Se
       } else if (level === 2 && layout.sections.includes(text)) {
         if (found.has(text)) problem(`${path}: the section "${text}" appears more than once`);
         name = text;
+        inEntry = false;
         current = { start: index + 2, lines: [] };
         found.set(text, current);
         order.push(text);
       } else if (level === 3 && layout.entrySections.includes(name)) {
+        inEntry = true;
         current?.lines.push(line);
       } else {
         problem(`${at}: "${line}" is not a heading this file's format allows here`);
@@ -535,7 +558,7 @@ function main(argv: string[]): number {
   check(
     misplaced.length === 0,
     `browser risks are separated: ${count(BROWSER_SECTION)} in "${BROWSER_SECTION}", ` +
-      `${count(NO_BROWSER_SECTION)} in "${NO_BROWSER_SECTION}", no UI layer outside the browser section`,
+      `${count(NO_BROWSER_SECTION)} in "${NO_BROWSER_SECTION}", each holding only the layers it allows`,
     misplaced.map((r) => `${r.id} has layer ${r.layer} but is in "${r.section}"`),
   );
 
