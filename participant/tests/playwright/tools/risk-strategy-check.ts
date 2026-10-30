@@ -9,9 +9,11 @@
 //   - the scoring and ranking rules it applies are the ones the strategy states, and the ranking
 //     table is exactly what they produce.
 //
-// It reads only those two files and writes nothing. Both files are read strictly: a line it
-// doesn't recognise in a requirement or risk entry is reported, not skipped, so a typo can't
-// quietly drop an entry from the check.
+// It reads only those two files and writes nothing. Both files are read against an allowlist:
+// every heading, entry, field, scale level and table line must be in the exact form the format
+// allows, and markup that would make the rendered page differ from the text (HTML, comments,
+// escapes, code fences) is refused. Anything else is reported, not skipped, so a typo or a
+// disguise can't quietly drop something from the check or hide it from a reader.
 //
 // Run from the repository root (Node 22.18 or later runs TypeScript directly, nothing to install):
 //   node participant/tests/playwright/tools/risk-strategy-check.ts
@@ -80,6 +82,12 @@ function problem(message: string): void {
 const INVISIBLE =
   /[\p{Cc}\p{Cf}\p{Co}\p{Cn}\p{Zl}\p{Zp}\p{Default_Ignorable_Code_Point}]|(?! )\p{Zs}/u;
 
+// Markup that would make the rendered page differ from the text checked here: HTML and its
+// comments, character references, backslash escapes, hidden link definitions, code fences, and
+// lines that underline the line above into a heading or draw a rule. None of it is part of the
+// format, so nothing in either file can be hidden from, or disguised to, a reader.
+const HIDING = /[<>&\\]|^ {0,3}(?:```|~~~|\[[^\]]*\]:|=+ *$|-{2,} *$|(?:[-*_] *){3,}$)/;
+
 function readLines(path: string, what: string): string[] {
   let bytes: Buffer;
   try {
@@ -100,6 +108,9 @@ function readLines(path: string, what: string): string[] {
     if (INVISIBLE.test(line)) {
       problem(`${path} line ${index + 1}: contains an invisible or unusual character`);
     }
+    if (HIDING.test(line)) {
+      problem(`${path} line ${index + 1}: contains markup the format doesn't allow (HTML, <, >, &, \\, a code fence, a link definition or a heading underline)`);
+    }
   });
   return lines;
 }
@@ -112,31 +123,59 @@ function field(line: string | undefined, name: string): string | null {
   return value === "" ? null : value;
 }
 
-// Splits a file into its "## " sections, keeping each section's lines and where they start.
-// An entry heading ("### ") is allowed only in the sections named in entrySections, so an entry
-// placed anywhere else is reported rather than silently left out of the check.
-function sections(
-  path: string,
-  lines: string[],
-  entrySections: string[],
-): Map<string, { start: number; lines: string[] }> {
-  const found = new Map<string, { start: number; lines: string[] }>();
+// What a file may contain: its "## " sections, exactly and in order; which of them hold "### "
+// entries; and which one may hold the table.
+interface Layout {
+  sections: string[];
+  entrySections: string[];
+  tableSection: string | null;
+}
+
+interface Section {
+  start: number;
+  lines: string[];
+}
+
+// Splits a file into its sections. The file must open with one "# " title, then have exactly the
+// layout's "## " sections in order. Any other heading, an entry heading outside the entry
+// sections, or a table line outside the table section is reported, so nothing written in an
+// unexpected form is silently left out of the check.
+function sections(path: string, lines: string[], layout: Layout): Map<string, Section> {
+  const found = new Map<string, Section>();
+  const order: string[] = [];
+  let titled = false;
   let name = "";
-  let current: { start: number; lines: string[] } | null = null;
+  let current: Section | null = null;
   lines.forEach((line, index) => {
-    const heading = /^## (.+)$/.exec(line);
-    if (heading) {
-      name = (heading[1] ?? "").trim();
-      current = { start: index + 2, lines: [] };
-      if (found.has(name)) problem(`${path}: the section "${name}" appears more than once`);
-      found.set(name, current);
+    const at = `${path} line ${index + 1}`;
+    if (/^ {0,3}#/.test(line)) {
+      const heading = /^(#{1,6}) (\S.*)$/.exec(line);
+      const level = heading?.[1]?.length ?? 0;
+      const text = (heading?.[2] ?? "").trim();
+      if (level === 1 && !titled && current === null) {
+        titled = true;
+      } else if (level === 2 && layout.sections.includes(text)) {
+        if (found.has(text)) problem(`${path}: the section "${text}" appears more than once`);
+        name = text;
+        current = { start: index + 2, lines: [] };
+        found.set(text, current);
+        order.push(text);
+      } else if (level === 3 && layout.entrySections.includes(name)) {
+        current?.lines.push(line);
+      } else {
+        problem(`${at}: "${line}" is not a heading this file's format allows here`);
+      }
       return;
     }
-    if (/^#{3,6} /.test(line) && !entrySections.includes(name)) {
-      problem(`${path} line ${index + 1}: "${line}" is outside the sections that hold entries`);
+    if (line.includes("|") && name !== layout.tableSection) {
+      problem(`${at}: a table line outside the ranking table`);
     }
     if (current) current.lines.push(line);
   });
+  if (!titled) problem(`${path}: the file should open with a "# " title`);
+  if (order.join("\n") !== layout.sections.join("\n")) {
+    problem(`${path}: the sections should be exactly these, in this order: ${layout.sections.map((s) => `"${s}"`).join(", ")}`);
+  }
   return found;
 }
 
@@ -144,7 +183,7 @@ function sections(
 // unless the section allows prose before its first entry.
 function entries(
   path: string,
-  section: { start: number; lines: string[] },
+  section: Section,
   idPattern: RegExp,
   introAllowed: boolean,
 ): { id: string; line: number; fields: string[] }[] {
@@ -160,8 +199,8 @@ function entries(
     } else if (result.length > 0) {
       const last = result[result.length - 1];
       if (last && line.trim() !== "") last.fields.push(line);
-    } else if (line.trim() !== "" && (!introAllowed || /^\s*(#|- \*\*)/.test(line))) {
-      // An introduction may be prose, but a heading or a field line before the first entry is
+    } else if (line.trim() !== "" && (!introAllowed || /^\s*(#|- )/.test(line))) {
+      // An introduction may be prose, but a heading or a list line before the first entry is
       // an entry in the wrong form, so it is reported rather than read as introduction.
       problem(`${path} line ${lineNumber}: "${line}" is before the first entry heading`);
     }
@@ -169,13 +208,16 @@ function entries(
   return result;
 }
 
+const REQUIREMENTS_LAYOUT: Layout = {
+  sections: ["Requirements"],
+  entrySections: ["Requirements"],
+  tableSection: null,
+};
+
 function readRequirements(path: string): Requirement[] {
   const lines = readLines(path, "requirements");
-  const section = sections(path, lines, ["Requirements"]).get("Requirements");
-  if (!section) {
-    problem(`${path}: no "## Requirements" section`);
-    return [];
-  }
+  const section = sections(path, lines, REQUIREMENTS_LAYOUT).get("Requirements");
+  if (!section) return [];
   const requirements: Requirement[] = [];
   const seen = new Set<string>();
   for (const entry of entries(path, section, /^CHK-\d{2}$/, false)) {
@@ -211,6 +253,29 @@ function score(value: string | null, where: string, name: string): number {
   return Number(match[1]);
 }
 
+const SCORING_SECTION = "How risks are scored";
+const RANKING_SECTION = "Ranking";
+const STRATEGY_LAYOUT: Layout = {
+  sections: [
+    SCORING_SECTION,
+    "The test layers",
+    RANKING_SECTION,
+    BROWSER_SECTION,
+    NO_BROWSER_SECTION,
+    UNTESTED_SECTION,
+    "Outside this strategy",
+  ],
+  entrySections: RISK_SECTIONS,
+  tableSection: RANKING_SECTION,
+};
+const TABLE_HEADER = "| Rank | Risk | Requirement | Likelihood | Impact | Score | Layer |";
+const TABLE_COLUMNS = 7;
+
+// The cells of a table line, without the outer pipes.
+function cells(line: string): string[] {
+  return line.split("|").slice(1, -1).map((cell) => cell.trim());
+}
+
 function readStrategy(path: string): {
   scalesOk: boolean;
   missingRules: string[] | null;
@@ -219,30 +284,48 @@ function readStrategy(path: string): {
   totals: string | null;
 } {
   const lines = readLines(path, "strategy");
-  const found = sections(path, lines, RISK_SECTIONS);
+  const found = sections(path, lines, STRATEGY_LAYOUT);
 
-  // The scales: both must be stated, each with a defined level 3, 2 and 1.
+  // The scales: each stated once, as a "**Likelihood**" or "**Impact**" paragraph followed by its
+  // levels. Every list line in this section must be a level of the scale just above it, and each
+  // scale must define exactly the levels 3, 2 and 1, in that order.
   let scalesOk = true;
-  const scoring = found.get("How risks are scored");
+  const scoring = found.get(SCORING_SECTION);
   if (!scoring) {
-    problem(`${path}: no "## How risks are scored" section`);
     scalesOk = false;
   } else {
-    for (const scale of ["Likelihood", "Impact"]) {
-      const start = scoring.lines.findIndex((line) => line.startsWith(`**${scale}**`));
-      if (start < 0) {
-        problem(`${path}: the ${scale.toLowerCase()} scale is not stated`);
+    const levels = new Map<string, string[]>();
+    let scale: string | null = null;
+    scoring.lines.forEach((line, offset) => {
+      const at = `${path} line ${scoring.start + offset}`;
+      const opening = /^\*\*(Likelihood|Impact)\*\* /.exec(line);
+      if (opening?.[1]) {
+        scale = opening[1];
+        if (levels.has(scale)) {
+          problem(`${at}: the ${scale.toLowerCase()} scale is stated more than once`);
+          scalesOk = false;
+        }
+        levels.set(scale, []);
+      } else if (line.startsWith("- ")) {
+        const level = /^- \*\*([^*]+):\*\* \S/.exec(line);
+        if (scale === null || !level?.[1]) {
+          problem(`${at}: "${line}" is a list line that isn't a level of a scale`);
+          scalesOk = false;
+        } else {
+          levels.get(scale)?.push(level[1]);
+        }
+      } else if (line.trim() !== "" && !line.startsWith("  ")) {
+        // Any other paragraph ends the scale; a blank line or an indented continuation doesn't.
+        scale = null;
+      }
+    });
+    for (const name of ["Likelihood", "Impact"]) {
+      const defined = levels.get(name);
+      if (defined === undefined) {
+        problem(`${path}: the ${name.toLowerCase()} scale is not stated`);
         scalesOk = false;
-        continue;
-      }
-      const levels: string[] = [];
-      for (const line of scoring.lines.slice(start + 1)) {
-        if (line.startsWith("**")) break;
-        const level = /^- \*\*([1-3]):\*\* \S/.exec(line);
-        if (level?.[1]) levels.push(level[1]);
-      }
-      if (levels.join(",") !== "3,2,1") {
-        problem(`${path}: the ${scale.toLowerCase()} scale should define levels 3, 2 and 1 in that order (found ${levels.join(", ") || "none"})`);
+      } else if (defined.join(",") !== "3,2,1") {
+        problem(`${path}: the ${name.toLowerCase()} scale should define exactly the levels 3, 2 and 1, in that order (found ${defined.join(", ") || "none"})`);
         scalesOk = false;
       }
     }
@@ -261,10 +344,7 @@ function readStrategy(path: string): {
   const risks: Risk[] = [];
   for (const name of RISK_SECTIONS) {
     const section = found.get(name);
-    if (!section) {
-      problem(`${path}: no "## ${name}" section`);
-      continue;
-    }
+    if (!section) continue;
     for (const entry of entries(path, section, /^R-\d{2}$/, true)) {
       const where = `${path} ${entry.id} (line ${entry.line})`;
       const names = ["Requirement", "Risk", "Likelihood", "Impact", "Layer", "Reason"];
@@ -294,21 +374,40 @@ function readStrategy(path: string): {
     }
   }
 
-  // The ranking table: every row after the header and its divider.
+  // The ranking table: one unbroken block of lines, each starting and ending with "|": the
+  // header, a divider of exactly seven cells, then one row of seven cells per risk.
   const table: string[][] = [];
-  const ranking = found.get("Ranking");
+  const ranking = found.get(RANKING_SECTION);
   let totals: string | null = null;
-  if (!ranking) {
-    problem(`${path}: no "## Ranking" section`);
-  } else {
-    const rows = ranking.lines.filter((line) => line.startsWith("|"));
-    const header = "| Rank | Risk | Requirement | Likelihood | Impact | Score | Layer |";
-    if (rows[0] !== header) problem(`${path}: the ranking table should start with the header ${header}`);
-    if (rows[1] === undefined || !/^\|( *:?-+:? *\|)+$/.test(rows[1])) {
-      problem(`${path}: the ranking table's second line should be its divider row`);
+  if (ranking) {
+    const rows: { line: string; offset: number }[] = [];
+    ranking.lines.forEach((line, offset) => {
+      if (!line.includes("|")) return;
+      if (!/^\|.*\|$/.test(line)) {
+        problem(`${path} line ${ranking.start + offset}: a table line should start and end with "|"`);
+        return;
+      }
+      rows.push({ line, offset });
+    });
+    rows.forEach((row, i) => {
+      const previous = rows[i - 1];
+      if (previous && row.offset !== previous.offset + 1) {
+        problem(`${path} line ${ranking.start + row.offset}: the ranking table is broken by another line above this one`);
+      }
+    });
+    if (rows[0]?.line !== TABLE_HEADER) {
+      problem(`${path}: the ranking table should start with the header ${TABLE_HEADER}`);
+    }
+    const divider = rows[1] === undefined ? [] : cells(rows[1].line);
+    if (divider.length !== TABLE_COLUMNS || !divider.every((cell) => /^:?-+:?$/.test(cell))) {
+      problem(`${path}: the ranking table's second line should be a divider of exactly ${TABLE_COLUMNS} cells`);
     }
     for (const row of rows.slice(2)) {
-      table.push(row.split("|").slice(1, -1).map((cell) => cell.trim()));
+      const values = cells(row.line);
+      if (values.length !== TABLE_COLUMNS) {
+        problem(`${path} line ${ranking.start + row.offset}: a ranking row should have exactly ${TABLE_COLUMNS} cells`);
+      }
+      table.push(values);
     }
     const totalsLine = ranking.lines.find((line) => line.startsWith("Totals: "));
     totals = totalsLine === undefined ? null : (totalsLine.slice("Totals: ".length).split(". ")[0] ?? "");

@@ -72,14 +72,16 @@ risk happened.
 | 16 | R-05 | CHK-03 | 2 | 2 | 4 | API |
 | 17 | R-22 | CHK-03, CHK-09, CHK-11 | 2 | 2 | 4 | UI |
 | 18 | R-23 | CHK-03 | 2 | 2 | 4 | UI |
-| 19 | R-01 | CHK-01 | 2 | 2 | 4 | unit |
-| 20 | R-18 | CHK-10 | 2 | 2 | 4 | UI |
-| 21 | R-16 | CHK-09 | 1 | 2 | 2 | UI |
-| 22 | R-02 | CHK-01 | 1 | 2 | 2 | UI |
-| 23 | R-12 | CHK-06 | 2 | 1 | 2 | untested |
-| 24 | R-13 | CHK-07 | 1 | 2 | 2 | UI |
+| 19 | R-26 | CHK-05, CHK-08 | 2 | 2 | 4 | UI |
+| 20 | R-01 | CHK-01 | 2 | 2 | 4 | unit |
+| 21 | R-18 | CHK-10 | 2 | 2 | 4 | UI |
+| 22 | R-16 | CHK-09 | 1 | 2 | 2 | UI |
+| 23 | R-25 | CHK-04 | 1 | 2 | 2 | UI |
+| 24 | R-02 | CHK-01 | 1 | 2 | 2 | UI |
+| 25 | R-12 | CHK-06 | 2 | 1 | 2 | untested |
+| 26 | R-13 | CHK-07 | 1 | 2 | 2 | UI |
 
-Totals: 5 unit, 8 API, 8 UI, 1 manual, 2 untested. Every requirement from CHK-01 to CHK-12 has at
+Totals: 5 unit, 8 API, 10 UI, 1 manual, 2 untested. Every requirement from CHK-01 to CHK-12 has at
 least one tested risk.
 
 ## Risks that need a browser
@@ -133,7 +135,7 @@ connect, so nothing cheaper would fail if it broke.
 - **Likelihood:** 2 (a few steps that must connect)
 - **Impact:** 2 (buyers are blocked; no money is taken and no seat goes to the wrong buyer)
 - **Layer:** UI
-- **Reason:** Only a browser goes through the real pages in order. This is the one end-to-end checkout test: one buyer, two seats, the fake payment provider accepts, and the confirmation page shows the order. The detailed rules stay in the unit and API tests; this test adds only the page checks in R-13, R-16 and R-24.
+- **Reason:** Only a browser goes through the real pages in order. This is the one end-to-end checkout test: one buyer, two seats, the fake payment provider accepts, and the confirmation page shows the order. The detailed rules stay in the unit and API tests; this test adds only the page checks in R-13, R-16, R-24 and R-25.
 
 ### R-23
 - **Requirement:** CHK-03
@@ -145,11 +147,27 @@ connect, so nothing cheaper would fail if it broke.
 
 ### R-24
 - **Requirement:** CHK-11
-- **Risk:** The total the payment page shows differs from the amount charged, for example a total not updated after a gift card is applied, or rounded differently on the page.
+- **Risk:** The total the payment page shows differs from the amount charged, for example because the page still shows the total from before a gift card was applied. The page only shows the total the server sends; working it out and rounding it are the server's step, covered by R-19.
 - **Likelihood:** 2 (a rule with a few cases: show the server's total, and show it again after a gift card)
 - **Impact:** 3 (money is wrong: the buyer is charged an amount they were not shown)
 - **Layer:** UI
 - **Reason:** R-19 proves the server's total matches the charge, but only a browser sees the total the buyer actually reads. The checkout test in R-22 reads the total on the payment page and compares it with the amount the fake payment provider received, once without a gift card and once with one.
+
+### R-25
+- **Requirement:** CHK-04
+- **Risk:** The payment page offers a field for choosing how much of the gift card to use, although the card should always cover as much of the order as its balance allows.
+- **Likelihood:** 1 (a fixed part of the page: the field is there or it isn't)
+- **Impact:** 2 (the buyer is misled into thinking they can choose the amount)
+- **Layer:** UI
+- **Reason:** R-06 proves the amount the server takes from the card; whether the page offers an amount field can only be seen in a browser. It is one extra check in the gift-card run of the checkout test in R-24, not a test of its own.
+
+### R-26
+- **Requirement:** CHK-05, CHK-08
+- **Risk:** On the refund page, a refund refused after the doors opened doesn't show the message that refunds closed, or a cancellation made in time asks the buyer for a reason.
+- **Likelihood:** 2 (a rule with a few cases: the request is refused or accepted)
+- **Impact:** 2 (the buyer is misled, or blocked by a question they shouldn't be asked)
+- **Layer:** UI
+- **Reason:** R-09 proves the server refuses a late refund with the right message, and R-14 proves a cancellation needs nothing but the request; only a browser shows what the refund page then asks and says. One refund-page test cancels an order before the doors open and checks no reason is asked for, then tries one after and checks the message is shown.
 
 ## Risks that don't need a browser
 
