@@ -117,11 +117,11 @@ connect, so nothing cheaper would fail if it broke.
 
 ### R-16
 - **Requirement:** CHK-09
-- **Risk:** The service fee isn't shown as its own line on the payment page.
-- **Likelihood:** 1 (a fixed line)
+- **Risk:** The service fee isn't shown as its own line on the payment page, or the line shows an amount other than $2.50 for each ticket.
+- **Likelihood:** 1 (a fixed line showing the fee the server works out)
 - **Impact:** 2 (the buyer is misled about what they're paying for)
 - **Layer:** UI
-- **Reason:** The fee amount is tested in R-15; whether it appears as its own line is about the page, so it is one extra check in the checkout test in R-22.
+- **Reason:** The fee is worked out and tested in R-15; whether the page shows it as its own line, with the right amount, can only be seen in a browser. It is one extra check in the checkout test in R-22: two seats, so the line must show $5.00.
 
 ### R-18
 - **Requirement:** CHK-10

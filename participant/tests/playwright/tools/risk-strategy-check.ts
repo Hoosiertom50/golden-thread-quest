@@ -1,13 +1,14 @@
 // risk-strategy-check: checks the Tixly layered test strategy against its requirements.
 //
 // Reads participant/context/playwright/requirements.md and strategy.md and checks that:
-//   - the likelihood and impact scales are stated, each at 3, 2 and 1;
+//   - the likelihood and impact scales are stated once each, with levels 3, 2 and 1 defined in words;
 //   - every risk has exactly one layer (unit, API, UI, manual or untested) and a reason;
 //   - every requirement appears in the strategy;
 //   - risks that need a browser are kept apart from those that don't;
 //   - every untested risk is listed with its reason and who accepted it;
 //   - the scoring and ranking rules it applies are the ones the strategy states, and the ranking
-//     table is exactly what they produce.
+//     table is exactly what they produce;
+//   - the totals under the table match the risks, and the sentence after them, if present, is true.
 //
 // It reads only those two files and writes nothing. Both files are read against an allowlist:
 // every heading, entry, field, scale level and table line must be in the exact form the format
@@ -34,6 +35,8 @@ const LAYERS = ["unit", "API", "UI", "manual", "untested"] as const;
 type Layer = (typeof LAYERS)[number];
 const IMPORTANCE = new Map<string, number>([["High", 3], ["Medium", 2], ["Low", 1]]);
 const MIN_REASON_WORDS = 8;
+// A scale level must say what it means in words, so another person can score with it.
+const MIN_LEVEL_WORDS = 3;
 
 // The scoring and ranking rules this check applies. The strategy must state each one word for
 // word (line breaks aside), so the document can't describe one ranking while the check enforces
@@ -265,12 +268,13 @@ function readRequirements(path: string): Requirement[] {
   return requirements;
 }
 
-// "3 (a time limit)": a score from 1 to 3 followed by a short explanation in brackets. Only the
-// number is checked against the scale; whether the explanation fits it is for the reader to judge.
+// "3 (a time limit)": a score from 1 to 3 followed by a short explanation in brackets, which must
+// contain words. Only the number is checked against the scale; whether the explanation fits it is
+// for the reader to judge.
 function score(value: string | null, where: string, name: string): number {
-  const match = value === null ? null : /^([1-3]) \((.+)\)$/.exec(value);
+  const match = value === null ? null : /^([1-3]) \((.*\p{L}.*)\)$/u.exec(value);
   if (!match) {
-    problem(`${where}: ${name} should be 1, 2 or 3 followed by a short explanation in brackets`);
+    problem(`${where}: ${name} should be 1, 2 or 3 followed by a short explanation in words, in brackets`);
     return 0;
   }
   return Number(match[1]);
@@ -331,11 +335,15 @@ function readStrategy(path: string): {
         }
         levels.set(scale, []);
       } else if (line.startsWith("- ")) {
-        const level = /^- \*\*([^*]+):\*\* \S/.exec(line);
+        const level = /^- \*\*([^*]+):\*\* (.*)$/.exec(line);
         if (scale === null || !level?.[1]) {
           problem(`${at}: "${line}" is a list line that isn't a level of a scale`);
           scalesOk = false;
         } else {
+          if (words(level[2] ?? "") < MIN_LEVEL_WORDS) {
+            problem(`${at}: level ${level[1]} of the ${scale.toLowerCase()} scale should say what it means in at least ${MIN_LEVEL_WORDS} words`);
+            scalesOk = false;
+          }
           levels.get(scale)?.push(level[1]);
         }
       } else if (line.trim() !== "" && !line.startsWith("  ")) {
