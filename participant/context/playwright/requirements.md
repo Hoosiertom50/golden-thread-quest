@@ -44,8 +44,8 @@ that is scored in `strategy.md`.
 
 ### CHK-05
 - **Importance:** High
-- **Requirement:** A refund requested after the venue doors open is refused, and the buyer is told refunds closed when the doors opened.
-- **Assumed answer:** Q-03 (refunds are available until the venue doors open), which removes the contradiction with CHK-08.
+- **Requirement:** A refund requested at or after the moment the venue doors open is refused, and the buyer is told refunds closed when the doors opened.
+- **Assumed answer:** Q-03 (refunds are available until the venue doors open), which removes the contradiction with CHK-08. A request at the exact moment the doors open is refused, so the boundary has one expected result.
 
 ### CHK-06
 - **Importance:** Medium
@@ -59,7 +59,7 @@ that is scored in `strategy.md`.
 
 ### CHK-08
 - **Importance:** High
-- **Requirement:** Until the venue doors open, a buyer can cancel an order and receive a full refund to the original payment. Every request made in time is approved, and no reason is asked for.
+- **Requirement:** Before the venue doors open, a buyer can cancel an order and receive a full refund to the original payment. Every request made in time is approved, and no reason is asked for.
 - **Assumed answer:** Q-03 (until the venue doors open), Q-04 (back to the original payment), Q-06 (every request made in time is approved) and Q-13 (no reason needed).
 
 ### CHK-09

@@ -6,7 +6,8 @@
 //   - every requirement appears in the strategy;
 //   - risks that need a browser are kept apart from those that don't;
 //   - every untested risk is listed with its reason and who accepted it;
-//   - the ranking table is exactly what the stated scales and tie rules produce.
+//   - the scoring and ranking rules it applies are the ones the strategy states, and the ranking
+//     table is exactly what they produce.
 //
 // It reads only those two files and writes nothing. Both files are read strictly: a line it
 // doesn't recognise in a requirement or risk entry is reported, not skipped, so a typo can't
@@ -27,6 +28,17 @@ const LAYERS = ["unit", "API", "UI", "manual", "untested"] as const;
 type Layer = (typeof LAYERS)[number];
 const IMPORTANCE = new Map<string, number>([["High", 3], ["Medium", 2], ["Low", 1]]);
 const MIN_REASON_WORDS = 8;
+
+// The scoring and ranking rules this check applies. The strategy must state each one word for
+// word (line breaks aside), so the document can't describe one ranking while the check enforces
+// another.
+const STATED_RULES = [
+  "**Score** = likelihood \u00d7 impact, from 1 to 9.",
+  "Risks are ranked by score, highest first.",
+  "Ties go to the risk whose requirement has the higher importance (High, then Medium, then Low, " +
+    "as defined in `requirements.md`; for a risk with several requirements, the highest of them).",
+  "Remaining ties go in risk number order.",
+];
 
 const BROWSER_SECTION = "Risks that need a browser";
 const NO_BROWSER_SECTION = "Risks that don't need a browser";
@@ -120,7 +132,7 @@ function sections(
       found.set(name, current);
       return;
     }
-    if (line.startsWith("### ") && !entrySections.includes(name)) {
+    if (/^#{3,6} /.test(line) && !entrySections.includes(name)) {
       problem(`${path} line ${index + 1}: "${line}" is outside the sections that hold entries`);
     }
     if (current) current.lines.push(line);
@@ -129,7 +141,7 @@ function sections(
 }
 
 // Splits a section into "### ID" entries. Any other non-blank line outside an entry is reported,
-// unless the section allows free text before its first entry.
+// unless the section allows prose before its first entry.
 function entries(
   path: string,
   section: { start: number; lines: string[] },
@@ -148,8 +160,10 @@ function entries(
     } else if (result.length > 0) {
       const last = result[result.length - 1];
       if (last && line.trim() !== "") last.fields.push(line);
-    } else if (!introAllowed && line.trim() !== "") {
-      problem(`${path} line ${lineNumber}: unexpected text before the first entry`);
+    } else if (line.trim() !== "" && (!introAllowed || /^\s*(#|- \*\*)/.test(line))) {
+      // An introduction may be prose, but a heading or a field line before the first entry is
+      // an entry in the wrong form, so it is reported rather than read as introduction.
+      problem(`${path} line ${lineNumber}: "${line}" is before the first entry heading`);
     }
   });
   return result;
@@ -199,6 +213,7 @@ function score(value: string | null, where: string, name: string): number {
 
 function readStrategy(path: string): {
   scalesOk: boolean;
+  missingRules: string[] | null;
   risks: Risk[];
   table: string[][];
   totals: string | null;
@@ -230,6 +245,15 @@ function readStrategy(path: string): {
         problem(`${path}: the ${scale.toLowerCase()} scale should define levels 3, 2 and 1 in that order (found ${levels.join(", ") || "none"})`);
         scalesOk = false;
       }
+    }
+  }
+
+  // The ranking rules, as stated in the scoring section.
+  const missingRules: string[] = [];
+  if (scoring) {
+    const text = scoring.lines.join(" ").replace(/\s+/g, " ");
+    for (const rule of STATED_RULES) {
+      if (!text.includes(rule)) missingRules.push(rule);
     }
   }
 
@@ -289,7 +313,7 @@ function readStrategy(path: string): {
     const totalsLine = ranking.lines.find((line) => line.startsWith("Totals: "));
     totals = totalsLine === undefined ? null : (totalsLine.slice("Totals: ".length).split(". ")[0] ?? "");
   }
-  return { scalesOk, risks, table, totals };
+  return { scalesOk, missingRules: scoring ? missingRules : null, risks, table, totals };
 }
 
 function words(text: string): number {
@@ -343,6 +367,14 @@ function main(argv: string[]): number {
 
   // Criterion 2 and 7: the scales are stated.
   check(strategy.scalesOk, "the likelihood and impact scales are each stated at 3, 2 and 1");
+
+  // Criterion 7: the rules used to rebuild the ranking are the ones the strategy states.
+  const missingRules = strategy.missingRules;
+  check(
+    missingRules !== null && missingRules.length === 0,
+    "the strategy states the scoring and ranking rules this check applies",
+    missingRules === null ? ["no scoring section"] : missingRules.map((rule) => `not stated: ${rule}`),
+  );
 
   // Risk ids and the requirements each risk names.
   const idProblems: string[] = [];

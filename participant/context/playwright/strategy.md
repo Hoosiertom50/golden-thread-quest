@@ -18,7 +18,9 @@ requirement, so another person scoring the same risk should get the same numbers
 - **2:** it is a rule with a few cases.
 - **1:** it shows a fixed value or a fixed message.
 
-If a risk fits more than one level, it takes the highest.
+If a risk fits more than one level, it takes the highest. A risk is scored for what its own step
+does, not for an earlier step it depends on: the seat map drawing a seat that the hold timer has
+released is a rule with a few cases (2), while the hold timer itself is a time limit (3).
 
 **Impact** (what happens if it does):
 
@@ -54,28 +56,30 @@ risk happened.
 |---|---|---|---|---|---|---|
 | 1 | R-04 | CHK-03 | 3 | 3 | 9 | unit |
 | 2 | R-06 | CHK-04 | 3 | 3 | 9 | unit |
-| 3 | R-08 | CHK-05, CHK-08 | 3 | 3 | 9 | unit |
-| 4 | R-14 | CHK-08 | 3 | 3 | 9 | API |
-| 5 | R-15 | CHK-09 | 3 | 3 | 9 | unit |
-| 6 | R-19 | CHK-11 | 3 | 3 | 9 | API |
-| 7 | R-20 | CHK-12 | 3 | 3 | 9 | API |
-| 8 | R-07 | CHK-04 | 2 | 3 | 6 | API |
-| 9 | R-09 | CHK-05 | 2 | 3 | 6 | API |
+| 3 | R-07 | CHK-04 | 3 | 3 | 9 | API |
+| 4 | R-08 | CHK-05, CHK-08 | 3 | 3 | 9 | unit |
+| 5 | R-09 | CHK-05 | 3 | 3 | 9 | API |
+| 6 | R-14 | CHK-08 | 3 | 3 | 9 | API |
+| 7 | R-15 | CHK-09 | 3 | 3 | 9 | unit |
+| 8 | R-19 | CHK-11 | 3 | 3 | 9 | API |
+| 9 | R-20 | CHK-12 | 3 | 3 | 9 | API |
 | 10 | R-21 | CHK-12 | 3 | 2 | 6 | untested |
-| 11 | R-22 | CHK-03, CHK-09, CHK-11 | 2 | 3 | 6 | UI |
+| 11 | R-24 | CHK-11 | 2 | 3 | 6 | UI |
 | 12 | R-03 | CHK-02 | 3 | 2 | 6 | UI |
 | 13 | R-10 | CHK-06 | 3 | 2 | 6 | API |
 | 14 | R-11 | CHK-06 | 3 | 2 | 6 | manual |
 | 15 | R-17 | CHK-10 | 3 | 2 | 6 | API |
 | 16 | R-05 | CHK-03 | 2 | 2 | 4 | API |
-| 17 | R-01 | CHK-01 | 2 | 2 | 4 | unit |
-| 18 | R-18 | CHK-10 | 2 | 2 | 4 | UI |
-| 19 | R-16 | CHK-09 | 1 | 2 | 2 | UI |
-| 20 | R-02 | CHK-01 | 1 | 2 | 2 | UI |
-| 21 | R-12 | CHK-06 | 2 | 1 | 2 | untested |
-| 22 | R-13 | CHK-07 | 1 | 1 | 1 | UI |
+| 17 | R-22 | CHK-03, CHK-09, CHK-11 | 2 | 2 | 4 | UI |
+| 18 | R-23 | CHK-03 | 2 | 2 | 4 | UI |
+| 19 | R-01 | CHK-01 | 2 | 2 | 4 | unit |
+| 20 | R-18 | CHK-10 | 2 | 2 | 4 | UI |
+| 21 | R-16 | CHK-09 | 1 | 2 | 2 | UI |
+| 22 | R-02 | CHK-01 | 1 | 2 | 2 | UI |
+| 23 | R-12 | CHK-06 | 2 | 1 | 2 | untested |
+| 24 | R-13 | CHK-07 | 1 | 2 | 2 | UI |
 
-Totals: 5 unit, 8 API, 6 UI, 1 manual, 2 untested. Every requirement from CHK-01 to CHK-12 has at
+Totals: 5 unit, 8 API, 8 UI, 1 manual, 2 untested. Every requirement from CHK-01 to CHK-12 has at
 least one tested risk.
 
 ## Risks that need a browser
@@ -103,7 +107,7 @@ connect, so nothing cheaper would fail if it broke.
 - **Requirement:** CHK-07
 - **Risk:** The refund policy or the full total, fees included, isn't shown before the buyer starts paying.
 - **Likelihood:** 1 (fixed content)
-- **Impact:** 1 (it affects how checkout feels)
+- **Impact:** 2 (the buyer is misled about what they will pay before they start paying)
 - **Layer:** UI
 - **Reason:** It is about what is on the screen and when, so only a browser can see it. It costs two extra checks in the checkout test in R-22, not a separate test.
 
@@ -127,9 +131,25 @@ connect, so nothing cheaper would fail if it broke.
 - **Requirement:** CHK-03, CHK-09, CHK-11
 - **Risk:** Every part works on its own, but the full checkout in a browser doesn't: choosing seats, the payment page and the confirmation don't connect.
 - **Likelihood:** 2 (a few steps that must connect)
-- **Impact:** 3 (no one can buy a seat)
+- **Impact:** 2 (buyers are blocked; no money is taken and no seat goes to the wrong buyer)
 - **Layer:** UI
-- **Reason:** Only a browser goes through the real pages in order. This is the one end-to-end checkout test: one buyer, two seats, the fake payment provider accepts, and the confirmation page shows the order. The detailed rules stay in the unit and API tests, so this test doesn't need to repeat them.
+- **Reason:** Only a browser goes through the real pages in order. This is the one end-to-end checkout test: one buyer, two seats, the fake payment provider accepts, and the confirmation page shows the order. The detailed rules stay in the unit and API tests; this test adds only the page checks in R-13, R-16 and R-24.
+
+### R-23
+- **Requirement:** CHK-03
+- **Risk:** After a hold is released, the seat map still draws the seat as taken when it is opened or refreshed, although the server reports it available.
+- **Likelihood:** 2 (a rule with a few cases)
+- **Impact:** 2 (buyers are blocked from that seat)
+- **Layer:** UI
+- **Reason:** R-05 proves the server reports the seat as available; only a browser shows whether the map then draws it that way. One seat-map test holds a seat, moves the test server's clock past 10 minutes, refreshes the map and checks the seat is shown as available.
+
+### R-24
+- **Requirement:** CHK-11
+- **Risk:** The total the payment page shows differs from the amount charged, for example a total not updated after a gift card is applied, or rounded differently on the page.
+- **Likelihood:** 2 (a rule with a few cases: show the server's total, and show it again after a gift card)
+- **Impact:** 3 (money is wrong: the buyer is charged an amount they were not shown)
+- **Layer:** UI
+- **Reason:** R-19 proves the server's total matches the charge, but only a browser sees the total the buyer actually reads. The checkout test in R-22 reads the total on the payment page and compares it with the amount the fake payment provider received, once without a gift card and once with one.
 
 ## Risks that don't need a browser
 
@@ -168,23 +188,23 @@ connect, so nothing cheaper would fail if it broke.
 ### R-07
 - **Requirement:** CHK-04
 - **Risk:** The balance left on a gift card isn't saved after the order, or is saved wrongly, so the next order sees the wrong balance.
-- **Likelihood:** 2 (a rule with a few cases)
+- **Likelihood:** 3 (arithmetic: the balance left is the old balance minus the amount used)
 - **Impact:** 3 (money is wrong)
 - **Layer:** API
 - **Reason:** The risk is in what is saved, which a unit test can't see. An API test can place one order with a card, then read the card's balance back. No browser is needed to check a saved number.
 
 ### R-08
 - **Requirement:** CHK-05, CHK-08
-- **Risk:** The refund deadline is worked out wrongly: refunds close before the venue doors open, or stay open after, for example because of the venue's time zone.
+- **Risk:** The refund deadline is worked out wrongly: refunds close before the venue doors open, or stay open at or after that moment, for example because of the venue's time zone.
 - **Likelihood:** 3 (a time limit)
 - **Impact:** 3 (money is wrong)
 - **Layer:** unit
-- **Reason:** It is a date-and-time rule in one function. A unit test with a fake clock can check one minute before and after doors open, in several time zones, instantly.
+- **Reason:** It is a date-and-time rule in one function. A unit test with a fake clock can check one minute before doors open, the exact moment they open and one minute after, in several time zones, instantly.
 
 ### R-09
 - **Requirement:** CHK-05
-- **Risk:** A refund requested after the doors opened is accepted by the server, or is refused without the message saying refunds closed when the doors opened.
-- **Likelihood:** 2 (a rule with a few cases)
+- **Risk:** A refund requested at or after the moment the doors opened is accepted by the server, or is refused without the message saying refunds closed when the doors opened.
+- **Likelihood:** 3 (a time limit: the event's doors-open time)
 - **Impact:** 3 (money is wrong)
 - **Layer:** API
 - **Reason:** The unit test in R-08 proves the rule; this checks that the server actually uses it with the event's stored doors-open time, and returns the refusal message. Both are in the server's response, so no browser is needed.
@@ -231,11 +251,11 @@ connect, so nothing cheaper would fail if it broke.
 
 ### R-19
 - **Requirement:** CHK-11
-- **Risk:** The total shown on the payment page differs from the amount charged, for example because the two are worked out in different places or rounded differently.
+- **Risk:** The total the server sends to the payment page differs from the amount it charges, for example because the two are worked out in different places or rounded differently.
 - **Likelihood:** 3 (arithmetic)
 - **Impact:** 3 (money is wrong)
 - **Layer:** API
-- **Reason:** The page shows the total the server sends it. An API test can read that total, pay with the fake provider and compare it with the amount charged, to the cent, for orders with fees and gift cards.
+- **Reason:** Both totals come from the server, so an API test can read the total it sends to the payment page, pay with the fake provider and compare it with the amount charged, to the cent, for orders with fees and gift cards.
 
 ### R-20
 - **Requirement:** CHK-12
