@@ -448,14 +448,17 @@ function sectionText(found: Map<string, Section>, names: string[]): string {
 
 function readBrief(path: string): Brief {
   const lines = readLines(path, "brief");
-  // An idea number together with a decision, in one line or one paragraph (for example an example
-  // reply, even wrapped over two lines), gives a decision away.
-  const pairs = /\bI-\d{2}\b[\s\S]*\b(?:automate|manual|drop)\b|\b(?:automate|manual|drop)\b[\s\S]*\bI-\d{2}\b/i;
+  // An idea number together with a decision or a criterion answer ("C2 no"), in one line or one
+  // paragraph (for example an example reply, even wrapped over two lines), gives an answer away.
+  // Formatting characters are removed first, so "d*r*op" reads as "drop".
+  const answer = String.raw`(?:automate|manual|drop|C\d+:? (?:yes|no|low|high|[1-3]))`;
+  const pairRule = new RegExp(String.raw`\bI-\d{2}\b[\s\S]*\b${answer}\b|\b${answer}\b[\s\S]*\bI-\d{2}\b`, "i");
+  const pairs = { test: (text: string): boolean => pairRule.test(text.replace(/[*_`~]/g, "")) };
   let inEntry = false;
   let paragraph: { start: number; text: string } | null = null;
   const endParagraph = (): void => {
     if (paragraph && pairs.test(paragraph.text)) {
-      problem(`${path} line ${paragraph.start}: the brief must not show a decision next to an idea number`);
+      problem(`${path} line ${paragraph.start}: the brief must not show an answer (a decision or a criterion answer) next to an idea number`);
     }
     paragraph = null;
   };
@@ -470,7 +473,7 @@ function readBrief(path: string): Brief {
     if (line.trim() === "" || line.startsWith("#") || /^\s*-\s/.test(line)) {
       endParagraph();
       if ((line.startsWith("#") || /^\s*-\s/.test(line)) && pairs.test(line)) {
-        problem(`${path} line ${index + 1}: the brief must not show a decision next to an idea number`);
+        problem(`${path} line ${index + 1}: the brief must not show an answer (a decision or a criterion answer) next to an idea number`);
       }
     } else {
       paragraph = paragraph ? { start: paragraph.start, text: `${paragraph.text} ${line}` } : { start: index + 1, text: line };
@@ -658,13 +661,13 @@ function main(argv: string[]): number {
     insteadProblems,
   );
 
-  // Criterion 7: no decision rests only on how easy a test is to automate. Every step that decides
-  // (automate, manual or drop) must have a condition on a criterion other than cost that actually
-  // narrows it, not one that allows every answer; and the ease criterion must exist.
+  // Criterion 7: no decision rests only on how easy a test is to automate. No step that decides
+  // (automate, manual or drop) may be one that only cost ever decides, and the ease criterion must
+  // exist.
   const ease = criteria.find((c) => c.name === EASE_CRITERION);
   // Every combination of answers, and for each step the combinations that reach it (no earlier step
-  // applies). A condition narrows a step only if it is false for some combination that reaches the
-  // step, so a condition the earlier steps already made certain, alone or together, doesn't count.
+  // applies), so conditions the earlier steps already settled, alone or together, are taken into
+  // account.
   const holds = (clause: Clause, combo: Map<string, string>): boolean =>
     clause.values.includes(combo.get(clause.criterion) ?? "");
   let reaching: Map<string, string>[] = [new Map()];
@@ -677,8 +680,12 @@ function main(argv: string[]): number {
     for (const step of steps) {
       if (step.clauses === null) continue;
       const clauses = step.clauses;
-      const narrows = (clause: Clause): boolean => reaching.some((combo) => !holds(clause, combo));
-      if (clauses.length > 0 && !clauses.some((clause) => clause.criterion !== ease?.id && narrows(clause))) {
+      // The step decides on cost alone if, wherever its cost conditions let it apply, its other
+      // conditions always hold too: then only cost ever decides whether it applies.
+      const cost = clauses.filter((clause) => clause.criterion === ease?.id);
+      const other = clauses.filter((clause) => clause.criterion !== ease?.id);
+      const costAllows = reaching.filter((combo) => cost.every((clause) => holds(clause, combo)));
+      if (clauses.length > 0 && costAllows.every((combo) => other.every((clause) => holds(clause, combo)))) {
         easeOnly.push(step);
       }
       reaching = reaching.filter((combo) => !clauses.every((clause) => holds(clause, combo)));
