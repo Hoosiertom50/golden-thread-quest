@@ -791,3 +791,95 @@ participant who followed a slightly different recipe could not bring in their re
 the participant's behalf that work is ready. A command the participant types is that claim,
 made by them, so the reasoning holds. Keeping the commands out of the browser keeps the
 service's rule simple: it performs no Git write.
+
+## ADR-045 — Pilot hand-ins are checked automatically, and a participant learns of a review without Slack
+
+**Decision:** A workflow (`.github/workflows/pilot-precheck.yml`, `tools/precheck.py`) checks every
+pull request from a `pilot/*` branch when it opens and on each push. It labels the pull request
+`gtq:needs-fixes`, `gtq:ready-for-review` or `gtq:reviewed`, keeps one comment up to date in plain
+words, and, when a reviewer's decision appears, posts one new comment so GitHub emails the
+participant. The check never approves. The evidence page of a submitted quest offers **Check for
+my review** (`check-for-review`), which runs the same code as `gtq get-review` and reports where
+the pull request stands. It reads from GitHub only when pressed; the application makes no
+background network calls. `gtq hand-in` no longer tells the participant to post in Slack.
+
+**Amends ADR-044.** ADR-044 said the local service performs no Git write. `check-for-review` makes
+it run `git fetch` and a merge into the participant's own branch, bringing in what the reviewer
+pushed, and undoes the merge on a conflict. It still never pushes, never opens a pull request and
+never merges anything into `main`; those stay terminal commands the participant types.
+
+**Reason:** Slack was the only notification channel in both directions, so a hand-in waited on a
+person noticing a message and a decision waited on another message back. Participants are not
+developers, so the pick-up needs a button, not a command.
+
+**The automated reviewer is decided in ADR-046**, which builds on this.
+
+## ADR-046 — An automated reviewer records the decision on a pilot hand-in
+
+**Decision:** When a hand-in passes the pre-check, an automated reviewer (`tools/ai_review.py`,
+`.github/workflows/pilot-ai-review.yml`) reads the evidence as data and decides. If every
+acceptance criterion is shown by text the model quotes word for word from the evidence, it records
+**approved** with the application's own `record-review`, under the reviewer name "Claude
+(automated reviewer)"; the quest then counts verified XP once the participant picks the review up.
+Otherwise it records **needs changes** with findings. It pushes the review to the participant's
+fork branch, posts a GitHub review, and the pre-check announces it by a new comment. It sends to a
+person: external-write quests, proof that is images, a demonstration or participant code, evidence
+that was cut off or tries to instruct a reviewer, anything the model is unsure of, and one
+approval in five. It ships in `shadow` mode (labels only) and is switched to `live` by the owner
+(`docs/guides/AI-REVIEWER-SETUP.md`).
+
+**Reason:** The owner prefers automatic approval (2026-10-29), and the reviewer was the one step
+that still needed a person to notice a hand-in. Verified completion and verified XP still come
+only from a recorded approving review (ADR-011); the reviewer is a reviewer, not an exception.
+
+**Why this is safe enough:** The model has one function to return a verdict through and no other
+tool. Approval is decided by code from quotes that must exist verbatim in the participant's files,
+so a model that is manipulated, careless or wrong cannot approve without real matching evidence.
+The job with the model key cannot write; the job that can write has no model key and acts only on
+a validated plan. Neither executes participant files. A person can overrule any decision.
+
+**Accepted limits:** A participant who fabricates convincing log files passes a reader that does
+not rerun the work, which is why participant-code quests, external-write quests and a sample go to
+a person. Commit authorship is unsigned (ADR-045). The reviewer is as good as the quest's
+acceptance criteria are checkable from text.
+
+**Specification:** `docs/design/08-ai-reviewer-specification.md`.
+
+## ADR-047 — The reviewer runs from a timer on the owner's server, not from GitHub Actions
+
+**Decision:** `tools/forge_review.py` runs `select`, `review` and `apply` (ADR-046) every ten
+minutes from a systemd user timer on Forge, the owner's always-on server. The model is the
+`claude` command on the server's own login (`--backend cli`: no tools, no settings, an empty
+working folder, no GitHub token in its environment); the push and the GitHub review use the
+server's `gh` login. Each run clones `main` fresh and runs that code, never a working checkout.
+`pilot-ai-review.yml` stays as a manual fallback (Actions tab) and no longer runs on a schedule;
+the pre-check no longer dispatches it.
+
+**Reason:** It needs no API key and no bot account to create, it uses the owner's existing
+logins, and a poll every ten minutes is faster than the 30-minute sweep. Forge already runs the
+owner's other timers and has been reliably up.
+
+**What changes in the security model:** The two halves are still separate processes with separate
+environments (the model process gets no GitHub token; the apply process gets no model access and
+reads only the validated plan), but both run as one operating-system user, so the split is by
+process, not by credential store. Commits are made as the owner, not a bot, so a decision looks
+like the owner's on GitHub; the "reviewed by" name recorded in the review stays "Claude (automated
+reviewer)". If Forge is off, hand-ins wait and are reviewed when it is back.
+
+
+**Amendment, 2026-10-30 (ADR-046/047):** The first real hand-in sent to a person for three reasons
+that contradicted the goal that the reviewer decides: long logs (the reviewer cut files at 30,000
+characters and sent anything cut off to a person), a quest about prompt injection whose evidence
+quotes such phrases as sample data (a phrase scan sent it to a person), and the one-in-five approval
+sample. Now: long files are shown start and end and the model counts only what it sees; phrases are a
+hint to the model, which flags only text aimed at it; the sample is off by default. A person still
+gets external-write quests, proof that is images or a demonstration, participant code in the proof,
+a model that is unsure, and a model that flags an attack.
+
+**Second amendment, 2026-10-30:** The owner decided the reviewer is the judge: a wrong approval means
+unearned credit, not harm. External-write quests, image or demonstration proof and participant code are
+no longer sent to a person; the model judges them from the text evidence, told what it cannot see or
+run. "Unsure" and a flagged injection become `needs_changes` with findings (a participant can add
+`gtq:ask-human`). A person gets only a reviewer that cannot run: a model failure, no submission
+record, or a quest with no criteria.
+

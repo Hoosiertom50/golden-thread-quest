@@ -44,6 +44,29 @@ at the end says what the participant should change — for example
 Add `--acknowledge-changed-evidence` to approve evidence that changed after submission,
 which is the checkbox the browser form shows for the same purpose.
 
+## What the automatic check has already done
+
+Every pilot pull request is checked by `.github/workflows/pilot-precheck.yml` when it opens and
+on every push. It reads the participant's files as data and runs nothing they wrote. It looks
+that nothing is changed outside `participant/`, that every required proof file is present and not
+empty, that the secret scan is clean, and that nothing changed after submission. It labels the
+pull request `gtq:needs-fixes`, `gtq:ready-for-review` or `gtq:reviewed`, and comments in plain
+words. A pull request labelled `gtq:ready-for-review` has passed those mechanical checks and
+nothing more. **The check is not a review and never approves.** Your decision is still the only
+thing that produces verified completion, and the check re-runs after you push it and tells the
+participant by a new comment, which GitHub emails.
+
+## The automatic reviewer
+
+Most pilot hand-ins are reviewed before you see them (ADR-046, `docs/guides/AI-REVIEWER-SETUP.md`).
+It records its decisions as "Claude (automated reviewer)". It judges every hand-in itself
+(external-write quests, images and participant code included, from the text evidence). You see only
+the pull requests labelled `gtq:needs-human`: a model failure, a hand-in with no submission record,
+or a quest with no acceptance criteria, plus any a participant asked you to look at with
+`gtq:ask-human`. The journal and the participant's comment say why.
+Review them exactly as below. To overrule one of its decisions, record your own; it supersedes the
+earlier one, which is archived beside it.
+
 ## What you are deciding
 
 Whether the evidence in front of you demonstrates the quest's outcomes strongly enough to
