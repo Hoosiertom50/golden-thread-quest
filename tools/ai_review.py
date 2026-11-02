@@ -990,7 +990,8 @@ def eligible(prs: list[dict[str, Any]]) -> list[int]:
         names = {label["name"] for label in pr["labels"]}
         # Only the reviewer's own shadow verdicts mean "done". A person label never holds a
         # hand-in back: every hand-in is reviewed by the agent, and a failed run is retried.
-        if not pr["headRefName"].startswith("pilot/") or names & {LABEL_AI_APPROVE, LABEL_AI_CHANGES}:
+        done = names & {LABEL_AI_APPROVE, LABEL_AI_CHANGES}
+        if not pr["headRefName"].startswith("pilot/") or done:
             continue
         numbers.append(int(pr["number"]))
     return numbers
