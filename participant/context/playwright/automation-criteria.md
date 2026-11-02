@@ -9,7 +9,7 @@ are for Tixly, an invented ticket app; nothing here describes a real product.
 ## The criteria
 
 ### C1 Needed
-- **Question:** Does the idea check something a current requirement asks for, and is it not already checked by another test idea?
+- **Question:** Does the idea check something a current requirement asks for, and is it not already checked by another test idea? When two ideas check the same thing, the one that checks it more directly (for example on the server rather than through a page) is kept, and the other is already checked.
 - **Answers:** yes, no
 
 ### C2 Objective
@@ -17,7 +17,7 @@ are for Tixly, an invented ticket app; nothing here describes a real product.
 - **Answers:** yes, no
 
 ### C3 Stable
-- **Question:** Will the feature and its screens stay the same for the next three months? A screen being redesigned, or a rule still being decided, is not stable.
+- **Question:** Will the behavior and the parts of the screen this idea checks stay the same for the next three months? A part being redesigned, or a rule still being decided, is not stable; other parts of the same screen may still be stable.
 - **Answers:** yes, no
 
 ### C4 Regression
@@ -64,8 +64,8 @@ Go down the list; the first step that applies gives the decision.
 
 - **A check nobody needs is dropped first,** however easy it would be to automate.
 - **A judgment can't be automated,** so a person checks it, whatever its value.
-- **A changing screen is checked by hand until it settles,** even when it matters: a test written
-  now would need rewriting every sprint. This is the mistake in the quest's scenario.
+- **A changing part of a screen is checked by hand until it settles,** even when it matters: a test
+  written now would need rewriting every sprint. This is the mistake in the quest's scenario.
 - **Automation pays off for checks that run again and again,** so only regression checks are
   automated, and only when they matter (value 3 or 2).
 - **Cost comes last.** It can only decide between automate and manual for a regression check

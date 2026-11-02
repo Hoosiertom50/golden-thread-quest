@@ -327,6 +327,9 @@ function parseCondition(where: string, condition: string, criteria: Criterion[])
         problem(`${where}: "${value}" is not one of ${criterion.id}'s answers (${criterion.answers.join(", ")})`);
       }
     }
+    if (criterion.answers.every((answer) => values.includes(answer))) {
+      problem(`${where}: "${part}" allows every answer of ${criterion.id}, so it doesn't narrow the step`);
+    }
     clauses.push({ criterion: match[1], values });
   }
   if (clauses.length > 1 && !/, and \S/.test(condition)) {
@@ -335,20 +338,25 @@ function parseCondition(where: string, condition: string, criteria: Criterion[])
   return clauses;
 }
 
-// Applies the rule to one idea's answers: the first step whose conditions all hold. A step that
-// needs a criterion the idea didn't answer can't be decided, and is reported.
+// Applies the rule to one idea's answers: the first step whose conditions all hold. A step with a
+// condition the answers already make false is skipped, whatever else it needs. A step that could
+// still apply but needs a criterion the idea didn't answer can't be decided, and is reported.
 function applyRule(
   steps: Step[],
   answers: Map<string, string>,
 ): { step: Step | null; missing: string | null } {
   for (const step of steps) {
     if (step.clauses === null) return { step, missing: null };
+    let knownFalse = false;
+    let missing: string | null = null;
     for (const clause of step.clauses) {
-      if (!answers.has(clause.criterion)) return { step: null, missing: `${step.id} needs ${clause.criterion}` };
+      const answer = answers.get(clause.criterion);
+      if (answer === undefined) missing = missing ?? clause.criterion;
+      else if (!clause.values.includes(answer)) knownFalse = true;
     }
-    if (step.clauses.every((clause) => clause.values.includes(answers.get(clause.criterion) ?? ""))) {
-      return { step, missing: null };
-    }
+    if (knownFalse) continue;
+    if (missing !== null) return { step: null, missing: `${step.id} needs ${missing}` };
+    return { step, missing: null };
   }
   return { step: null, missing: "no step applies" };
 }
@@ -439,6 +447,10 @@ function readBrief(path: string): Brief {
   const lines = readLines(path, "brief");
   lines.forEach((line, index) => {
     if (ANSWER_FIELDS.test(line)) problem(`${path} line ${index + 1}: the brief must not give my answers ("${line}")`);
+    // An idea number next to a decision, anywhere (for example in an example reply), gives one away.
+    if (/\bI-\d{2}\b.*\b(?:automate|manual|drop)\b|\b(?:automate|manual|drop)\b.*\bI-\d{2}\b/i.test(line)) {
+      problem(`${path} line ${index + 1}: the brief must not show a decision next to an idea number`);
+    }
   });
   const found = sections(path, lines, BRIEF_SECTIONS, ["The criteria", "The decision rule", "The test ideas"]);
   const ideas = new Map<string, { idea: string; facts: string }>();
@@ -462,7 +474,7 @@ interface Second {
   decisions: Map<string, string>;
 }
 
-function readSecond(path: string): Second {
+function readSecond(path: string, briefName: string): Second {
   const lines = readLines(path, "second person's decisions");
   const found = sections(path, lines, ["About", "Decisions"], ["Decisions"]);
   const about = found.get("About");
@@ -478,6 +490,10 @@ function readSecond(path: string): Second {
     });
   }
   const decided = info.get("Decided on") ?? "";
+  const given = info.get("Given") ?? "";
+  if (given !== "" && given.split("/").pop() !== briefName) {
+    problem(`${path}: "Given" should be the path of the brief the second person was given (${briefName}), and nothing else`);
+  }
   if (decided !== "" && !/^\d{2}-\d{2}-\d{4}$/.test(decided)) problem(`${path}: "Decided on" should be a date as MM-DD-YYYY`);
   const decisions = new Map<string, string>();
   const section = found.get("Decisions");
@@ -537,7 +553,7 @@ function main(argv: string[]): number {
   let second: Second | null = null;
   let secondMissing: string | null = null;
   try {
-    second = readSecond(paths.second);
+    second = readSecond(paths.second, paths.brief.split("/").pop() ?? paths.brief);
   } catch (error) {
     if (!(error instanceof Unreadable)) throw error;
     secondMissing = error.message;
@@ -614,21 +630,25 @@ function main(argv: string[]): number {
   );
 
   // Criterion 7: no decision rests only on how easy a test is to automate. Every step that decides
-  // automate or manual must name a criterion other than cost, and the ease criterion must exist.
+  // (automate, manual or drop) must have a condition on a criterion other than cost that actually
+  // narrows it, not one that allows every answer; and the ease criterion must exist.
   const ease = criteria.find((c) => c.name === EASE_CRITERION);
+  const narrows = (clause: Clause): boolean => {
+    const criterion = criteria.find((c) => c.id === clause.criterion);
+    return criterion !== undefined && !criterion.answers.every((answer) => clause.values.includes(answer));
+  };
   const easeOnly = steps.filter(
     (step) =>
-      step.then !== "drop" &&
       step.clauses !== null &&
       step.clauses.length > 0 &&
-      step.clauses.every((clause) => clause.criterion === ease?.id),
+      !step.clauses.some((clause) => clause.criterion !== ease?.id && narrows(clause)),
   );
   check(
     ease !== undefined && easeOnly.length === 0,
     `no rule step decides on ${EASE_CRITERION.toLowerCase()} (how easy it is to automate) alone`,
     [
       ...(ease === undefined ? [`no criterion is named "${EASE_CRITERION}"`] : []),
-      ...easeOnly.map((step) => `${step.id} decides ${step.then} on ${ease?.id} alone`),
+      ...easeOnly.map((step) => `${step.id} decides ${step.then} with no narrowing condition other than ${ease?.id ?? "cost"}`),
     ],
   );
 

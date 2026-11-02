@@ -15,7 +15,7 @@ rule stops there.
 
 ### I-01
 - **Idea:** The service fee is $2.50 per ticket for every seat count from 1 to 8.
-- **Facts:** Checks requirement CHK-09 through the function that works out the fee (R-15). Runs against the test environment with no outside system. The fee rule isn't changing.
+- **Facts:** Checks requirement CHK-09 through the function that works out the fee (R-15). Runs against the test environment with no outside system. The fee rule isn't changing. Would run every release.
 - **Criteria:** C1 yes; C2 yes; C3 yes; C4 yes; C5 3; C6 low
 - **Decision:** automate
 - **Rule step:** D4
@@ -23,7 +23,7 @@ rule stops there.
 
 ### I-02
 - **Idea:** Two buyers try to hold the same seat at the same moment, and only one of them gets it.
-- **Facts:** Checks requirement CHK-12 by sending both requests to the server at once, many times over (R-20). Runs against the test environment with no outside system. The seat-hold rule isn't changing.
+- **Facts:** Checks requirement CHK-12 by sending both requests to the server at once, many times over (R-20). Runs against the test environment with no outside system. The seat-hold rule isn't changing. Would run every release.
 - **Criteria:** C1 yes; C2 yes; C3 yes; C4 yes; C5 3; C6 low
 - **Decision:** automate
 - **Rule step:** D4
@@ -31,7 +31,7 @@ rule stops there.
 
 ### I-03
 - **Idea:** A seat hold is released exactly 10 minutes after it starts.
-- **Facts:** Checks requirement CHK-03 with a pretend clock, at 9:59, 10:00 and 10:01 (R-04). Runs against the test environment with no outside system. The 10-minute rule isn't changing.
+- **Facts:** Checks requirement CHK-03 with a pretend clock, at 9:59, 10:00 and 10:01 (R-04). Runs against the test environment with no outside system. The 10-minute rule isn't changing. Would run every release.
 - **Criteria:** C1 yes; C2 yes; C3 yes; C4 yes; C5 3; C6 low
 - **Decision:** automate
 - **Rule step:** D4
@@ -39,7 +39,7 @@ rule stops there.
 
 ### I-04
 - **Idea:** After the venue doors open, the refund page shows the message that refunds have closed.
-- **Facts:** Checks requirement CHK-05 on the refund page in a browser (R-26). Runs against the test environment with no outside system. The refund page isn't changing.
+- **Facts:** Checks requirement CHK-05 on the refund page in a browser (R-26). Runs against the test environment with no outside system. The refund page isn't changing. Would run every release.
 - **Criteria:** C1 yes; C2 yes; C3 yes; C4 yes; C5 2; C6 low
 - **Decision:** automate
 - **Rule step:** D4
@@ -91,7 +91,7 @@ rule stops there.
 
 ### I-10
 - **Idea:** A gift card worth more than the order covers the whole order and keeps the leftover balance.
-- **Facts:** Checks requirement CHK-04 through the server: place an order with the card, then read the card's balance back (R-06, R-07). Runs against the test environment with no outside system. The gift card rules aren't changing.
+- **Facts:** Checks requirement CHK-04 through the server: place an order with the card, then read the card's balance back (R-06, R-07). Runs against the test environment with no outside system. The gift card rules aren't changing. Would run every release.
 - **Criteria:** C1 yes; C2 yes; C3 yes; C4 yes; C5 3; C6 low
 - **Decision:** automate
 - **Rule step:** D4
@@ -107,7 +107,7 @@ rule stops there.
 
 ### I-12
 - **Idea:** The server refuses a 9th seat in one order, even when asked directly without the seat map.
-- **Facts:** Checks requirement CHK-01 on the server (R-27). Runs against the test environment with no outside system. The limit isn't changing.
+- **Facts:** Checks requirement CHK-01 on the server (R-27). Runs against the test environment with no outside system. The limit isn't changing. Would run every release.
 - **Criteria:** C1 yes; C2 yes; C3 yes; C4 yes; C5 2; C6 low
 - **Decision:** automate
 - **Rule step:** D4
@@ -133,7 +133,7 @@ rule stops there.
 
 ### I-15
 - **Idea:** After a declined payment, the payment page shows the decline message and lets the buyer try again.
-- **Facts:** Checks requirement CHK-10 on the payment page with a stand-in payment service that declines the first attempt (R-18). The decline message and the card form aren't part of the redesign in I-14 and aren't changing.
+- **Facts:** Checks requirement CHK-10 on the payment page with a stand-in payment service that declines the first attempt (R-18). The decline message and the card form aren't part of the redesign in I-14 and aren't changing. Would run every release.
 - **Criteria:** C1 yes; C2 yes; C3 yes; C4 yes; C5 2; C6 low
 - **Decision:** automate
 - **Rule step:** D4

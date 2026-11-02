@@ -17,13 +17,13 @@ only the criteria and each idea's facts; if a fact seems missing, decide as best
 so. Risk numbers such as R-15 refer to a test strategy you don't need to read. Please work on your
 own, without seeing my decisions.
 
-Send back one line per idea, for example "I-01: automate (D4)", and tell me how you'd like to be
+Send back one line per idea, in the form "idea: decision (rule step)", and tell me how you'd like to be
 credited in my write-up, which is in a public repository: by your first name, or as "a colleague".
 
 ## The criteria
 
 ### C1 Needed
-- **Question:** Does the idea check something a current requirement asks for, and is it not already checked by another test idea?
+- **Question:** Does the idea check something a current requirement asks for, and is it not already checked by another test idea? When two ideas check the same thing, the one that checks it more directly (for example on the server rather than through a page) is kept, and the other is already checked.
 - **Answers:** yes, no
 
 ### C2 Objective
@@ -31,7 +31,7 @@ credited in my write-up, which is in a public repository: by your first name, or
 - **Answers:** yes, no
 
 ### C3 Stable
-- **Question:** Will the feature and its screens stay the same for the next three months? A screen being redesigned, or a rule still being decided, is not stable.
+- **Question:** Will the behavior and the parts of the screen this idea checks stay the same for the next three months? A part being redesigned, or a rule still being decided, is not stable; other parts of the same screen may still be stable.
 - **Answers:** yes, no
 
 ### C4 Regression
@@ -78,15 +78,15 @@ Go down the list; the first step that applies gives the decision.
 
 ### I-01
 - **Idea:** The service fee is $2.50 per ticket for every seat count from 1 to 8.
-- **Facts:** Checks requirement CHK-09 through the function that works out the fee (R-15). Runs against the test environment with no outside system. The fee rule isn't changing.
+- **Facts:** Checks requirement CHK-09 through the function that works out the fee (R-15). Runs against the test environment with no outside system. The fee rule isn't changing. Would run every release.
 
 ### I-02
 - **Idea:** Two buyers try to hold the same seat at the same moment, and only one of them gets it.
-- **Facts:** Checks requirement CHK-12 by sending both requests to the server at once, many times over (R-20). Runs against the test environment with no outside system. The seat-hold rule isn't changing.
+- **Facts:** Checks requirement CHK-12 by sending both requests to the server at once, many times over (R-20). Runs against the test environment with no outside system. The seat-hold rule isn't changing. Would run every release.
 
 ### I-04
 - **Idea:** After the venue doors open, the refund page shows the message that refunds have closed.
-- **Facts:** Checks requirement CHK-05 on the refund page in a browser (R-26). Runs against the test environment with no outside system. The refund page isn't changing.
+- **Facts:** Checks requirement CHK-05 on the refund page in a browser (R-26). Runs against the test environment with no outside system. The refund page isn't changing. Would run every release.
 
 ### I-05
 - **Idea:** The checkout page feels trustworthy to someone buying from Tixly for the first time.
@@ -106,7 +106,7 @@ Go down the list; the first step that applies gives the decision.
 
 ### I-12
 - **Idea:** The server refuses a 9th seat in one order, even when asked directly without the seat map.
-- **Facts:** Checks requirement CHK-01 on the server (R-27). Runs against the test environment with no outside system. The limit isn't changing.
+- **Facts:** Checks requirement CHK-01 on the server (R-27). Runs against the test environment with no outside system. The limit isn't changing. Would run every release.
 
 ### I-13
 - **Idea:** On Tixly's first public on-sale day, a person buys one ticket from start to finish.

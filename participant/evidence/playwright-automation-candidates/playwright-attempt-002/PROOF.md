@@ -101,9 +101,10 @@ but no money is lost and no seat goes to the wrong buyer, and my rule automates 
 when the value is 3.
 
 What would change my mind: a test inbox service that receives mail through the real email service
-and is cheap and reliable to read automatically. Then the cost would be low, and my own rule would
-say automate (step D4). The decision would change because a fact changed, not because I changed
-the rule.
+and is cheap and reliable to read automatically. Under my criteria as written, that still counts
+as high cost, because it uses a real outside service, so automating it would mean changing C6 to
+count such a service as low cost. That would be a deliberate change to the criteria, applied to
+every idea, not just this one.
 
 ## What was tested or validated
 
@@ -111,8 +112,8 @@ the rule.
 - **Strict type check:** the script was type-checked with TypeScript 6.0.3 in strict mode, in a
   temporary folder outside this repository, as in the layered test strategy quest; it passed
   first time.
-- **Tests of the check itself (kept locally, not handed in):** 58 altered copies of the files, each
-  expected to fail in one named way (or to pass), with 0 unexpected results; and 43 deliberately
+- **Tests of the check itself (kept locally, not handed in):** 66 altered copies of the files, each
+  expected to fail in one named way (or to pass), with 0 unexpected results; and 48 deliberately
   broken copies of the script, each with one rule switched off, all of which those tests caught.
 - **Copilot review:** [ROUNDS]
 
