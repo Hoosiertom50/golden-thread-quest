@@ -898,3 +898,9 @@ the reviewer will retry, and is retried every ten minutes; a successful review c
 
 **Supersedes:** the escalation paths in ADR-046/047 and their amendments, and the participant appeal
 label. The approval sample stays off (`PILOT_AI_SAMPLE_EVERY` unset).
+
+**Amendment, 2026-11-02 (ADR-048):** Pull requests that are not pilot hand-ins (fixes, features, docs)
+are reviewed by the agent too. `tools/pr_review.py` runs after the hand-in sweep on the same ten-minute
+timer, posts one GitHub review per head commit (APPROVE, or REQUEST_CHANGES with a plain-language summary
+and inline comments), and reviews again after each push. The installed runner on Forge defaulted the
+approval sample to one in five (`PILOT_AI_SAMPLE_EVERY`); it now defaults to off.

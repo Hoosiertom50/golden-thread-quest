@@ -260,6 +260,16 @@ def main(argv: list[str]) -> int:
                     ok = False
                 if not ok:
                     failed.append(number)
+            if not args.pr:  # every other open pull request gets an agent review too (ADR-048)
+                swept = _run(
+                    _python(base, "tools/pr_review.py", "sweep", "--repo", args.repo),
+                    cwd=base,
+                    env=_env("PILOT_AI_MODEL"),
+                    timeout=3000,
+                )
+                _show(swept)
+                if swept.returncode != 0:
+                    failed.append(0)
             if failed:
                 print(f"did not complete: {failed}")
                 _alert_once(state, failed)
