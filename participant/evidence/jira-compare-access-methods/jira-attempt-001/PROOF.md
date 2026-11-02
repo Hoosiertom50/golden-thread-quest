@@ -64,7 +64,21 @@ adds service-account support, I would compare it again.
 
 **Which method would I choose if the agent could only be trusted a little?**
 
-[TOM'S REFLECTION]
+If the agent could only be trusted a little, the most important protection for me is that a
+person approves every change before it happens, so nothing is approved automatically and a
+mistake is caught before it reaches Jira. I would combine that with keeping its reach small (one
+project, only what it needs) and having one switch that turns it off without breaking anyone
+else's access.
+
+I would also start it read-only: no writes at all until its drafts show it understands what I ask.
+Only then would it create stories, still through the approval step. The method stays the same,
+the REST API with a service account: it can start with a token that can only read, and later have
+it replaced by one that can also create stories, without involving anyone else's account. A
+token's scopes can't be changed after it is created (source 8 in the comparison), so widening its
+access means a new token.
+
+The method I would trust least is the CLI, because it would have to run on a person's own token,
+with all of that person's permissions.
 
 ## What was tested or validated
 
@@ -97,8 +111,10 @@ Not attempted: a fifth method, and how each method behaves during a Jira outage.
   progress (for example the CLI's service-account support, and Atlassian's MCP pages, which
   disagree on audit-log plans).
 - **Some points are unconfirmed,** each marked "not verified" in the comparison: how Jira's history
-  displays an action made through an app, the CLI's local logs and rate-limit category, whether
-  Jira's own limits also apply to the MCP server, and the connector's own logs.
+  displays an action made through an app or a service account, the CLI's local logs and rate-limit
+  category, what the CLI's logout revokes, whether Jira's own limits also apply to the MCP server,
+  and the connector's own logs. The decision doesn't rely on the history display: the
+  confirmation step records who approved each write.
 - **The managed connector compared is one product.** Other hosted connectors (for example
   automation services) may behave differently; comparing one was the stretch goal not attempted.
 - **The decision is for an invented project.** In a real organization, the service account, its

@@ -29,9 +29,11 @@ preview-and-confirm step.**
 
 ## Reason
 
-- **Whose name is on the action:** every story the agent creates shows the service account, so
-  anyone can see the agent made it, and the confirmation step records that I approved it. Nothing
-  is credited to me, or to a colleague, that a person didn't write.
+- **Whose name is on the action:** the agent acts as its own account, not as me or a colleague,
+  so its changes are meant to be credited to that account. How Jira's history displays this
+  is not verified in the comparison, so I don't rely on the display alone: the confirmation step
+  records, in each story, who approved it and when, and the agent keeps its own record of every
+  confirmed write.
 - **Switching it off breaks nothing else:** revoking the service account's one token stops the
   agent and affects no one's own access [1][2]. That is the scenario's problem solved: no
   personal token to revoke.
@@ -50,11 +52,14 @@ own record of each confirmed write.
 
 - **If the organization can't have another service account** (the free allowance is 5 [2]), I
   would use the managed connector with every write tool set to need approval [14], and accept that
-  the stories show my name, stating in each one that the agent drafted it.
-- **If the agent became read-only,** the managed connector signed in as me would be enough: with no
-  writes, whose name is on a change no longer matters, and there is no code to maintain.
-- **If Atlassian's MCP server could be limited to one project, with its own approval step for
-  writes,** I would compare it again with this choice, since Atlassian would then run it for me.
+  its changes are credited to me [12][14], stating in each story that the agent drafted it.
+- **If the agent were to stay read-only for good** (not just at first), the managed connector
+  signed in as me would be enough: with no writes, whose name is on a change no longer matters,
+  and there is no code to maintain.
+- **If the AI tool I use could show my full preview and require my typed confirmation before each
+  write,** I would compare the MCP server with a service-account key again, since Atlassian runs
+  the server and I would maintain less. A service account limited to the Tixly project would keep
+  it to one project in the same way [11].
 - **If the token or the account were ever shared with another job,** I would split them, so each
   job can be switched off on its own.
 
@@ -64,7 +69,9 @@ own record of each confirmed write.
   tokens [4], so the agent would have to run on a person's token with all of that person's
   permissions. That is exactly the mistake in the quest's scenario.
 - **The managed connector signed in as me,** for now: the easiest to set up, but the agent's
-  stories would look like mine. It stays the fallback above.
-- **The MCP server with a service-account key:** it gives the agent its own name too, but it needs an
-  admin to switch on token sign-in, and the approval step would be the AI tool's setting rather
-  than mine.
+  changes would be credited to me [12][14]. It stays the fallback above.
+- **The MCP server with a service-account key:** it gives the agent its own account too, but it
+  needs an admin to switch on token sign-in [10], and putting my own preview-and-confirm step in
+  front of its write tools would mean building a program of my own anyway. That is my judgment,
+  not a limit of MCP: with that program to build either way, calling the REST API directly is the
+  simpler choice.
