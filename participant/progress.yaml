@@ -68,11 +68,12 @@ attempts:
   quest_id: playwright-risk-strategy
   quest_version: 1
   content_hash: sha256:2852c5eb432ca5be45d16b30522d653b23d5d60f5ef765ff705dbfec8ef51996
-  state: submitted
+  state: verified
   started_at: '2026-10-30T12:18:06Z'
-  updated_at: '2026-10-30T16:56:38Z'
+  updated_at: '2026-11-02T16:29:45Z'
   evidence_path: participant/evidence/playwright-risk-strategy/playwright-attempt-001
   submission_id: submission-20261030165638-016a55
+  review_id: review-20261102162945-b64579
 - attempt_id: jira-attempt-001
   quest_id: jira-compare-access-methods
   quest_version: 1
@@ -82,4 +83,4 @@ attempts:
   updated_at: '2026-11-02T16:27:35Z'
   evidence_path: participant/evidence/jira-compare-access-methods/jira-attempt-001
   submission_id: submission-20261102162735-9f75fd
-updated_at: '2026-11-02T16:27:35Z'
+updated_at: '2026-11-02T16:29:45Z'
