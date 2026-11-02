@@ -33,6 +33,7 @@
 // Exit status: 0 passed, 1 failed, 2 a required file couldn't be read or the arguments were wrong.
 
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const VERSION = "1.0.0";
 const DEFAULT_CRITERIA = "participant/context/playwright/automation-criteria.md";
@@ -48,6 +49,8 @@ const MIN_SECOND = 6;
 // The quest's bar: the second person reaches the same decision for at least three of every four.
 const MIN_MATCH_SHARE = 3 / 4;
 const MIN_REASON_WORDS = 8;
+// The most answer combinations the cost-only check will work through (six criteria give 96).
+const MAX_COMBINATIONS = 100000;
 // The criterion that measures how easy a test is to automate. No deciding step may rest on it alone.
 const EASE_CRITERION = "Cost";
 
@@ -466,7 +469,7 @@ function readBrief(path: string): Brief {
     }
     if (line.trim() === "" || line.startsWith("#") || /^\s*-\s/.test(line)) {
       endParagraph();
-      if (/^\s*-\s/.test(line) && pairs.test(line)) {
+      if ((line.startsWith("#") || /^\s*-\s/.test(line)) && pairs.test(line)) {
         problem(`${path} line ${index + 1}: the brief must not show a decision next to an idea number`);
       }
     } else {
@@ -497,7 +500,7 @@ interface Second {
   decisions: Map<string, string>;
 }
 
-function readSecond(path: string, briefName: string): Second {
+function readSecond(path: string, briefPath: string): Second {
   const lines = readLines(path, "second person's decisions");
   const found = sections(path, lines, ["About", "Decisions"], ["Decisions"]);
   const about = found.get("About");
@@ -514,9 +517,11 @@ function readSecond(path: string, briefName: string): Second {
   }
   const decided = info.get("Decided on") ?? "";
   const given = info.get("Given") ?? "";
-  const givenOk = /^[\w./-]+$/.test(given) && given.split("/").pop() === briefName;
+  // Both paths are taken from the folder the check runs in (the repository root), so the same file
+  // written two ways still matches, and a different file with the same name doesn't.
+  const givenOk = given !== "" && resolve(given) === resolve(briefPath);
   if (given !== "" && !givenOk) {
-    problem(`${path}: "Given" should be exactly one path, that of the brief the second person was given (${briefName}), and nothing else`);
+    problem(`${path}: "Given" should be exactly one path, that of the brief being checked (${briefPath}), and nothing else`);
   }
   if (decided !== "" && !/^\d{2}-\d{2}-\d{4}$/.test(decided)) problem(`${path}: "Decided on" should be a date as MM-DD-YYYY`);
   const decisions = new Map<string, string>();
@@ -577,7 +582,7 @@ function main(argv: string[]): number {
   let second: Second | null = null;
   let secondMissing: string | null = null;
   try {
-    second = readSecond(paths.second, paths.brief.split("/").pop() ?? paths.brief);
+    second = readSecond(paths.second, paths.brief);
   } catch (error) {
     if (!(error instanceof Unreadable)) throw error;
     secondMissing = error.message;
@@ -657,30 +662,34 @@ function main(argv: string[]): number {
   // (automate, manual or drop) must have a condition on a criterion other than cost that actually
   // narrows it, not one that allows every answer; and the ease criterion must exist.
   const ease = criteria.find((c) => c.name === EASE_CRITERION);
-  // The answers still possible when a step is reached: a step with a single condition that didn't
-  // apply rules its answers out for every later step. A condition narrows a step only if it limits
-  // the answers still possible, so a condition an earlier step already made certain doesn't count.
-  const possible = new Map(criteria.map((c) => [c.id, [...c.answers]]));
+  // Every combination of answers, and for each step the combinations that reach it (no earlier step
+  // applies). A condition narrows a step only if it is false for some combination that reaches the
+  // step, so a condition the earlier steps already made certain, alone or together, doesn't count.
+  const holds = (clause: Clause, combo: Map<string, string>): boolean =>
+    clause.values.includes(combo.get(clause.criterion) ?? "");
+  let reaching: Map<string, string>[] = [new Map()];
+  for (const criterion of criteria) {
+    reaching = reaching.flatMap((combo) => criterion.answers.map((answer) => new Map([...combo, [criterion.id, answer]])));
+    if (reaching.length > MAX_COMBINATIONS) break;
+  }
   const easeOnly: Step[] = [];
-  for (const step of steps) {
-    if (step.clauses === null) continue;
-    const narrows = (clause: Clause): boolean => {
-      const left = possible.get(clause.criterion) ?? [];
-      return !left.every((answer) => clause.values.includes(answer));
-    };
-    if (step.clauses.length > 0 && !step.clauses.some((clause) => clause.criterion !== ease?.id && narrows(clause))) {
-      easeOnly.push(step);
-    }
-    const only = step.clauses.length === 1 ? step.clauses[0] : undefined;
-    if (only) {
-      possible.set(only.criterion, (possible.get(only.criterion) ?? []).filter((answer) => !only.values.includes(answer)));
+  if (reaching.length <= MAX_COMBINATIONS) {
+    for (const step of steps) {
+      if (step.clauses === null) continue;
+      const clauses = step.clauses;
+      const narrows = (clause: Clause): boolean => reaching.some((combo) => !holds(clause, combo));
+      if (clauses.length > 0 && !clauses.some((clause) => clause.criterion !== ease?.id && narrows(clause))) {
+        easeOnly.push(step);
+      }
+      reaching = reaching.filter((combo) => !clauses.every((clause) => holds(clause, combo)));
     }
   }
   check(
-    ease !== undefined && easeOnly.length === 0,
+    ease !== undefined && reaching.length <= MAX_COMBINATIONS && easeOnly.length === 0,
     `no rule step decides on ${EASE_CRITERION.toLowerCase()} (how easy it is to automate) alone`,
     [
       ...(ease === undefined ? [`no criterion is named "${EASE_CRITERION}"`] : []),
+      ...(reaching.length > MAX_COMBINATIONS ? [`too many answer combinations to check (over ${MAX_COMBINATIONS})`] : []),
       ...easeOnly.map((step) => `${step.id} decides ${step.then} with no narrowing condition other than ${ease?.id ?? "cost"}`),
     ],
   );
