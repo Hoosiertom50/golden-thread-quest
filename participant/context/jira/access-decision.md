@@ -66,8 +66,8 @@ own record of each confirmed write.
 ## Rejected
 
 - **The Atlassian CLI,** most firmly: a public suggestion reports it doesn't accept service-account
-  tokens [4], so the agent would have to run on a person's token with all of that person's
-  permissions. That is exactly the mistake in the quest's scenario.
+  tokens [4], so the agent would have to sign in as a person: with a token, with all of that
+  person's permissions [6]. That is exactly the mistake in the quest's scenario.
 - **The managed connector signed in as me,** for now: the easiest to set up, but the agent's
   changes would be credited to me [12][14]. It stays the fallback above.
 - **The MCP server with a service-account key:** it gives the agent its own account too, but it

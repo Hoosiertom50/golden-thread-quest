@@ -54,9 +54,11 @@ follow any numbered source to the vendor's page; each fact was checked against i
 
 **The Atlassian CLI** (criteria 2, 3 and 7). It is Atlassian's own tool, but an open public
 suggestion reports it doesn't accept service-account tokens, so an agent using it has to sign in
-as a person. The agent's actions are then credited to that person, it can do everything that
-person can do, and switching it off means revoking that person's token, which breaks anything
-else that uses it. That is exactly the mistake in the quest's scenario. Its other problems (manual
+as a person, with that person's credential. With a token, the agent can do everything that person
+can do; with a browser sign-in, its reach isn't documented. Its changes would be made in that
+person's name (how Jira's history shows them is not verified), and a dedicated token can be revoked
+without breaking other tools, but only if nobody reuses it. That is the quest's scenario: an agent
+working with a person's credential instead of its own. Its other problems (manual
 upgrades, each version supported for only 6 months) are smaller next to that one. If Atlassian
 adds service-account support, I would compare it again.
 
@@ -112,9 +114,9 @@ Not attempted: a fifth method, and how each method behaves during a Jira outage.
   disagree on audit-log plans).
 - **Some points are unconfirmed,** each marked "not verified" in the comparison: how Jira's history
   displays an action made through an app or a service account, the CLI's local logs and rate-limit
-  category, what the CLI's logout revokes, whether Jira's own limits also apply to the MCP server,
-  and the connector's own logs. The decision doesn't rely on the history display: the
-  confirmation step records who approved each write.
+  category, what a CLI browser sign-in can reach and what its logout revokes, whether Jira's own
+  limits also apply to the MCP server, and the connector's own logs. The decision doesn't rely on
+  the history display: the confirmation step records who approved each write.
 - **The managed connector compared is one product.** Other hosted connectors (for example
   automation services) may behave differently; comparing one was the stretch goal not attempted.
 - **The decision is for an invented project.** In a real organization, the service account, its
