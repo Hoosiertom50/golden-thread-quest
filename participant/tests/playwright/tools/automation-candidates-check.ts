@@ -448,38 +448,28 @@ function sectionText(found: Map<string, Section>, names: string[]): string {
 
 function readBrief(path: string): Brief {
   const lines = readLines(path, "brief");
-  // An idea number together with a decision or a criterion answer ("C2 no"), in one line or one
-  // paragraph (for example an example reply, even wrapped over two lines), gives an answer away.
-  // Formatting characters are removed first, so "d*r*op" reads as "drop".
+  // An idea number together with a decision or a criterion answer ("C2 no") in one line gives an
+  // answer away. Formatting characters are removed first, so "d*r*op" reads as "drop".
   const answer = String.raw`(?:automate|manual|drop|C\d+:? (?:yes|no|low|high|[1-3]))`;
-  const pairRule = new RegExp(String.raw`\bI-\d{2}\b[\s\S]*\b${answer}\b|\b${answer}\b[\s\S]*\bI-\d{2}\b`, "i");
-  const pairs = { test: (text: string): boolean => pairRule.test(text.replace(/[*_`~]/g, "")) };
+  const pairRule = new RegExp(String.raw`\bI-\d{2}\b.*\b${answer}\b|\b${answer}\b.*\bI-\d{2}\b`, "i");
+  const plain = (line: string): string => line.replace(/[*_`~]/g, "");
   let inEntry = false;
-  let paragraph: { start: number; text: string } | null = null;
-  const endParagraph = (): void => {
-    if (paragraph && pairs.test(paragraph.text)) {
-      problem(`${path} line ${paragraph.start}: the brief must not show an answer (a decision or a criterion answer) next to an idea number`);
-    }
-    paragraph = null;
-  };
   lines.forEach((line, index) => {
-    if (ANSWER_FIELDS.test(line)) problem(`${path} line ${index + 1}: the brief must not give my answers ("${line}")`);
+    const at = `${path} line ${index + 1}`;
+    if (ANSWER_FIELDS.test(line)) problem(`${at}: the brief must not give my answers ("${line}")`);
     if (line.startsWith("## ")) inEntry = false;
     if (line.startsWith("### ")) inEntry = true;
-    // Outside an entry the brief is prose: a list line there could carry an answer in any label.
-    if (!inEntry && /^\s*-\s/.test(line)) {
-      problem(`${path} line ${index + 1}: a list line outside an entry ("${line}")`);
+    if (pairRule.test(plain(line))) {
+      problem(`${at}: the brief must not show an answer (a decision or a criterion answer) next to an idea number`);
     }
-    if (line.trim() === "" || line.startsWith("#") || /^\s*-\s/.test(line)) {
-      endParagraph();
-      if ((line.startsWith("#") || /^\s*-\s/.test(line)) && pairs.test(line)) {
-        problem(`${path} line ${index + 1}: the brief must not show an answer (a decision or a criterion answer) next to an idea number`);
-      }
-    } else {
-      paragraph = paragraph ? { start: paragraph.start, text: `${paragraph.text} ${line}` } : { start: index + 1, text: line };
+    if (!inEntry && !line.startsWith("#")) {
+      // Outside the entries the brief is prose. A list line there could carry an answer under any
+      // label, and an idea number there could be paired with a decision anywhere else in the prose,
+      // so neither is allowed: idea numbers belong only in the idea entries.
+      if (/^\s*-\s/.test(line)) problem(`${at}: a list line outside an entry ("${line}")`);
+      if (/\bI-\d{2}\b/.test(plain(line))) problem(`${at}: the brief's prose must not name an idea ("${line}")`);
     }
   });
-  endParagraph();
   const found = sections(path, lines, BRIEF_SECTIONS, ["The criteria", "The decision rule", "The test ideas"]);
   const ideas = new Map<string, { idea: string; facts: string }>();
   const section = found.get("The test ideas");
