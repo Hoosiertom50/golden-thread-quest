@@ -61,9 +61,10 @@ participant by a new comment, which GitHub emails.
 Most pilot hand-ins are reviewed before you see them (ADR-046, `docs/guides/AI-REVIEWER-SETUP.md`).
 It records its decisions as "Claude (automated reviewer)". It judges every hand-in itself
 (external-write quests, images and participant code included, from the text evidence). You see only
-the pull requests labelled `gtq:needs-human`: a model failure, a hand-in with no submission record,
-or a quest with no acceptance criteria, plus any a participant asked you to look at with
-`gtq:ask-human`. The journal and the participant's comment say why.
+nothing by default: no hand-in waits for a person (ADR-048). `gtq:needs-human` only marks a run
+that could not finish (a model failure, no submission record, no acceptance criteria); the
+reviewer retries it every ten minutes and clears the label when it decides. `gtq:ask-human` is
+ignored. The journal says why a run could not finish.
 Review them exactly as below. To overrule one of its decisions, record your own; it supersedes the
 earlier one, which is archived beside it.
 

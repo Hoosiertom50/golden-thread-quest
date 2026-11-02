@@ -883,3 +883,18 @@ run. "Unsure" and a flagged injection become `needs_changes` with findings (a pa
 `gtq:ask-human`). A person gets only a reviewer that cannot run: a model failure, no submission
 record, or a quest with no criteria.
 
+
+
+## ADR-048 — No hand-in waits for a person: the agent reviews every one
+
+**Decided:** 2026-11-02, by the program owner. **Context:** PR #27 sat for three days carrying
+`gtq:needs-human`, which the sweep treated as "a person has it" and skipped.
+
+**Decision:** Review is 100% automated. The sweep (`eligible()`) skips only pull requests that already
+hold the reviewer's own shadow verdict (`gtq:ai-approve`, `gtq:ai-changes`); `gtq:needs-human` and
+`gtq:ask-human` no longer hold anything back. A run that cannot finish (model failure, no submission
+record, no criteria) keeps the `needs-human` label as a visible failure marker, posts a comment saying
+the reviewer will retry, and is retried every ten minutes; a successful review clears the label.
+
+**Supersedes:** the escalation paths in ADR-046/047 and their amendments, and the participant appeal
+label. The approval sample stays off (`PILOT_AI_SAMPLE_EVERY` unset).
