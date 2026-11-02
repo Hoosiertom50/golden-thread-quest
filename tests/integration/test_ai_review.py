@@ -205,7 +205,7 @@ def test_needs_changes_carries_the_models_findings_and_drops_an_invented_criteri
 def test_needs_changes_with_no_findings_still_tells_the_participant_what_stopped_it() -> None:
     plan = ai.gate(_bundle(), _verdict("needs_changes", findings=[]), sample_every=0)
     assert plan.action == ai.NEEDS_CHANGES
-    assert plan.findings and "gtq:ask-human" in plan.findings[0]["required_change"]
+    assert plan.findings and "submit again" in plan.findings[0]["required_change"]
 
 
 def test_unsure_is_a_decision_with_findings_not_a_handoff() -> None:
@@ -395,17 +395,19 @@ def test_a_malformed_model_answer_goes_to_a_person(participant: Path) -> None:
     assert plan.action == ai.ESCALATE
 
 
-def test_an_appeal_or_the_off_switch_skips_the_review(participant: Path) -> None:
+def test_the_off_switch_skips_the_review_but_a_person_label_does_not(participant: Path) -> None:
     submitted(participant)
     call, seen = _caller(_grounded_verdict)
-    asked = ai.review_hand_in(
-        ROOT, participant, _files(participant), labels=[ai.LABEL_ASK_HUMAN], caller=call
-    )
     off = ai.review_hand_in(
         ROOT, participant, _files(participant), labels=[], mode="off", caller=call
     )
-    assert asked.action == off.action == ai.SKIP
+    assert off.action == ai.SKIP
     assert seen == []
+    asked = ai.review_hand_in(
+        ROOT, participant, _files(participant), labels=[ai.LABEL_ASK_HUMAN], caller=call
+    )
+    assert asked.action != ai.SKIP
+    assert seen
 
 
 def test_a_hand_in_that_is_not_ready_is_left_for_the_participant_to_fix(participant: Path) -> None:
@@ -795,7 +797,7 @@ def test_a_closed_or_non_pilot_pull_request_is_left_alone(
     assert pushed == [] and not github.did("--add-label")
 
 
-def test_the_sweep_skips_pull_requests_already_reviewed_or_appealed() -> None:
+def test_the_sweep_reviews_everything_a_person_label_would_have_held_back() -> None:
     prs = [
         {"number": 1, "headRefName": "pilot/a", "labels": []},
         {"number": 2, "headRefName": "pilot/b", "labels": [{"name": ai.LABEL_AI_APPROVE}]},
@@ -803,7 +805,7 @@ def test_the_sweep_skips_pull_requests_already_reviewed_or_appealed() -> None:
         {"number": 4, "headRefName": "pilot/d", "labels": [{"name": ai.LABEL_NEEDS_HUMAN}]},
         {"number": 5, "headRefName": "feature/x", "labels": []},
     ]
-    assert ai.eligible(prs) == [1]
+    assert ai.eligible(prs) == [1, 3, 4]
 
 
 def test_a_race_lost_to_another_push_is_skipped_not_escalated(

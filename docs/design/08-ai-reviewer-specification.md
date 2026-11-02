@@ -111,7 +111,7 @@ decides.
 
 | # | Condition | Plan |
 |---|---|---|
-| G1 | Appeal label `gtq:ask-human` present, or mode `off` | skip |
+| G1 | Mode `off` (the `gtq:ask-human` label is ignored, ADR-048) | skip |
 | G2 | No submitted attempt without a review | skip |
 | G3 | Pre-check status is not `ready-for-review` | skip (the participant fixes it first) |
 | G4 | Quest risk is `external_write` | judged like any other (the model reads the preview, refusal and confirmation records) |
@@ -120,7 +120,7 @@ decides.
 | G7 | The submission has no record, or the quest lists no acceptance criteria | escalate (a long or unreadable file is not a reason: it is shown start and end, or listed) |
 | G8 | The model says `injection_suspected` (phrases alone are only a hint: quests about injection quote them as sample data) | no approval; `needs_changes` with a finding asking the participant to remove it |
 | G9 | Model call failed, or its output does not match the schema | escalate |
-| G10 | Model said `uncertain` | `needs_changes`: findings say what evidence would settle it, and the participant may add `gtq:ask-human` |
+| G10 | Model said `uncertain` | `needs_changes`: findings say what evidence would settle it, and the participant resubmits |
 | G11 | Model said `approved`, but a criterion is not `met`, has no quote, or has a quote not found verbatim in the named file | `needs_changes` with a finding per failing criterion (an approval that cannot be grounded is not an approval) |
 | G12 | Model said `approved`, all criteria grounded | **approve** (if the owner opted into sampling and the rule picks it: escalate) |
 | G13 | Model said `needs_changes` | `needs_changes` with its findings (at least one; a model finding is required to cite evidence) |
@@ -160,8 +160,9 @@ a decision when a commit by someone other than the PR's author is on the branch,
 comment includes the verification statement or the finding summaries, filtered for the markup
 and mentions (`tools/precheck.py::_safe`).
 
-Escalation: label `gtq:needs-human`, one comment to the participant ("A person will review this
-by hand; you do not need to do anything"), notification to the owner.
+Escalation (ADR-048): a run that cannot finish labels `gtq:needs-human`, posts one comment ("The
+automatic review could not finish; it will try again on its own") and notifies the owner. The label
+never holds the pull request back: the sweep retries it until the reviewer decides.
 
 ## 9. Security
 
