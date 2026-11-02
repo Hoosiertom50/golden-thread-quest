@@ -78,9 +78,10 @@ attempts:
   quest_id: jira-compare-access-methods
   quest_version: 1
   content_hash: sha256:f0c582788dbe8b29c9597bb351797862ac5daafa64726852f49cbb59eaffaeeb
-  state: submitted
+  state: verified
   started_at: '2026-11-02T14:37:50Z'
-  updated_at: '2026-11-02T16:27:35Z'
+  updated_at: '2026-11-02T16:40:36Z'
   evidence_path: participant/evidence/jira-compare-access-methods/jira-attempt-001
   submission_id: submission-20261102162735-9f75fd
-updated_at: '2026-11-02T16:29:45Z'
+  review_id: review-20261102164036-6cd83e
+updated_at: '2026-11-02T16:40:36Z'
