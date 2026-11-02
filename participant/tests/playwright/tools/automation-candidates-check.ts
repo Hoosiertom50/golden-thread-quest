@@ -462,12 +462,13 @@ function readBrief(path: string): Brief {
     if (pairRule.test(plain(line))) {
       problem(`${at}: the brief must not show an answer (a decision or a criterion answer) next to an idea number`);
     }
-    if (!inEntry && !line.startsWith("#")) {
-      // Outside the entries the brief is prose. A list line there could carry an answer under any
-      // label, and an idea number there could be paired with a decision anywhere else in the prose,
-      // so neither is allowed: idea numbers belong only in the idea entries.
+    if (!inEntry && !line.startsWith("### ")) {
+      // Outside the entries the brief is prose and headings (its title and section names). A list
+      // line there could carry an answer under any label, and an idea number there could be paired
+      // with a decision anywhere else, so neither is allowed: idea numbers belong only in the idea
+      // entries and their "### " headings.
       if (/^\s*-\s/.test(line)) problem(`${at}: a list line outside an entry ("${line}")`);
-      if (/\bI-\d{2}\b/.test(plain(line))) problem(`${at}: the brief's prose must not name an idea ("${line}")`);
+      if (/\bI-\d{2}\b/.test(plain(line))) problem(`${at}: the brief's prose and headings must not name an idea ("${line}")`);
     }
   });
   const found = sections(path, lines, BRIEF_SECTIONS, ["The criteria", "The decision rule", "The test ideas"]);
