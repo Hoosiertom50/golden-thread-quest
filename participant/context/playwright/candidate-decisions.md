@@ -30,8 +30,8 @@ rule stops there.
 - **Reason:** A seat sold to two buyers is the worst outcome in the strategy, a person can't time two requests closely enough to check it by hand, and it must be rechecked on every release.
 
 ### I-03
-- **Idea:** A seat hold is released exactly 10 minutes after it starts.
-- **Facts:** Checks requirement CHK-03 with a pretend clock, at 9:59, 10:00 and 10:01 (R-04). Runs against the test environment with no outside system. The 10-minute rule isn't changing. Would run every release.
+- **Idea:** A seat hold with no payment in progress is released exactly 10 minutes after it starts.
+- **Facts:** Checks requirement CHK-03 with a pretend clock, at 9:59, 10:00 and 10:01 (R-04); a hold whose payment is still being processed doesn't expire, which I-08 covers. Runs against the test environment with no outside system. The 10-minute rule isn't changing. Would run every release.
 - **Criteria:** C1 yes; C2 yes; C3 yes; C4 yes; C5 3; C6 low
 - **Decision:** automate
 - **Rule step:** D4

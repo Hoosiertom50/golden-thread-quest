@@ -445,13 +445,35 @@ function sectionText(found: Map<string, Section>, names: string[]): string {
 
 function readBrief(path: string): Brief {
   const lines = readLines(path, "brief");
+  // An idea number together with a decision, in one line or one paragraph (for example an example
+  // reply, even wrapped over two lines), gives a decision away.
+  const pairs = /\bI-\d{2}\b[\s\S]*\b(?:automate|manual|drop)\b|\b(?:automate|manual|drop)\b[\s\S]*\bI-\d{2}\b/i;
+  let inEntry = false;
+  let paragraph: { start: number; text: string } | null = null;
+  const endParagraph = (): void => {
+    if (paragraph && pairs.test(paragraph.text)) {
+      problem(`${path} line ${paragraph.start}: the brief must not show a decision next to an idea number`);
+    }
+    paragraph = null;
+  };
   lines.forEach((line, index) => {
     if (ANSWER_FIELDS.test(line)) problem(`${path} line ${index + 1}: the brief must not give my answers ("${line}")`);
-    // An idea number next to a decision, anywhere (for example in an example reply), gives one away.
-    if (/\bI-\d{2}\b.*\b(?:automate|manual|drop)\b|\b(?:automate|manual|drop)\b.*\bI-\d{2}\b/i.test(line)) {
-      problem(`${path} line ${index + 1}: the brief must not show a decision next to an idea number`);
+    if (line.startsWith("## ")) inEntry = false;
+    if (line.startsWith("### ")) inEntry = true;
+    // Outside an entry the brief is prose: a list line there could carry an answer in any label.
+    if (!inEntry && /^\s*-\s/.test(line)) {
+      problem(`${path} line ${index + 1}: a list line outside an entry ("${line}")`);
+    }
+    if (line.trim() === "" || line.startsWith("#") || /^\s*-\s/.test(line)) {
+      endParagraph();
+      if (/^\s*-\s/.test(line) && pairs.test(line)) {
+        problem(`${path} line ${index + 1}: the brief must not show a decision next to an idea number`);
+      }
+    } else {
+      paragraph = paragraph ? { start: paragraph.start, text: `${paragraph.text} ${line}` } : { start: index + 1, text: line };
     }
   });
+  endParagraph();
   const found = sections(path, lines, BRIEF_SECTIONS, ["The criteria", "The decision rule", "The test ideas"]);
   const ideas = new Map<string, { idea: string; facts: string }>();
   const section = found.get("The test ideas");
@@ -469,6 +491,7 @@ function readBrief(path: string): Brief {
 
 interface Second {
   who: string;
+  givenOk: boolean;
   date: string;
   given: string;
   decisions: Map<string, string>;
@@ -491,8 +514,9 @@ function readSecond(path: string, briefName: string): Second {
   }
   const decided = info.get("Decided on") ?? "";
   const given = info.get("Given") ?? "";
-  if (given !== "" && given.split("/").pop() !== briefName) {
-    problem(`${path}: "Given" should be the path of the brief the second person was given (${briefName}), and nothing else`);
+  const givenOk = /^[\w./-]+$/.test(given) && given.split("/").pop() === briefName;
+  if (given !== "" && !givenOk) {
+    problem(`${path}: "Given" should be exactly one path, that of the brief the second person was given (${briefName}), and nothing else`);
   }
   if (decided !== "" && !/^\d{2}-\d{2}-\d{4}$/.test(decided)) problem(`${path}: "Decided on" should be a date as MM-DD-YYYY`);
   const decisions = new Map<string, string>();
@@ -508,7 +532,7 @@ function readSecond(path: string, briefName: string): Second {
       decisions.set(entry.id, decision);
     }
   }
-  return { who: info.get("Second person") ?? "", date: decided, given: info.get("Given") ?? "", decisions };
+  return { who: info.get("Second person") ?? "", givenOk, date: decided, given: info.get("Given") ?? "", decisions };
 }
 
 // ---- The checks ----
@@ -633,16 +657,25 @@ function main(argv: string[]): number {
   // (automate, manual or drop) must have a condition on a criterion other than cost that actually
   // narrows it, not one that allows every answer; and the ease criterion must exist.
   const ease = criteria.find((c) => c.name === EASE_CRITERION);
-  const narrows = (clause: Clause): boolean => {
-    const criterion = criteria.find((c) => c.id === clause.criterion);
-    return criterion !== undefined && !criterion.answers.every((answer) => clause.values.includes(answer));
-  };
-  const easeOnly = steps.filter(
-    (step) =>
-      step.clauses !== null &&
-      step.clauses.length > 0 &&
-      !step.clauses.some((clause) => clause.criterion !== ease?.id && narrows(clause)),
-  );
+  // The answers still possible when a step is reached: a step with a single condition that didn't
+  // apply rules its answers out for every later step. A condition narrows a step only if it limits
+  // the answers still possible, so a condition an earlier step already made certain doesn't count.
+  const possible = new Map(criteria.map((c) => [c.id, [...c.answers]]));
+  const easeOnly: Step[] = [];
+  for (const step of steps) {
+    if (step.clauses === null) continue;
+    const narrows = (clause: Clause): boolean => {
+      const left = possible.get(clause.criterion) ?? [];
+      return !left.every((answer) => clause.values.includes(answer));
+    };
+    if (step.clauses.length > 0 && !step.clauses.some((clause) => clause.criterion !== ease?.id && narrows(clause))) {
+      easeOnly.push(step);
+    }
+    const only = step.clauses.length === 1 ? step.clauses[0] : undefined;
+    if (only) {
+      possible.set(only.criterion, (possible.get(only.criterion) ?? []).filter((answer) => !only.values.includes(answer)));
+    }
+  }
   check(
     ease !== undefined && easeOnly.length === 0,
     `no rule step decides on ${EASE_CRITERION.toLowerCase()} (how easy it is to automate) alone`,
@@ -681,6 +714,8 @@ function main(argv: string[]): number {
   if (!second) {
     secondProblems.push(`not recorded yet (${secondMissing ?? "no file"})`);
   } else {
+    // The comparison only counts if the second person decided from the brief, and nothing else.
+    if (!second.givenOk) secondProblems.push(`not decided from the brief alone (given: ${second.given || "not stated"})`);
     const known = new Map(ideas.map((idea) => [idea.id, idea]));
     for (const [id, decision] of second.decisions) {
       const mine = known.get(id);
