@@ -668,9 +668,16 @@ function main(argv: string[]): number {
   }
   const easeOnly: Step[] = [];
   const alwaysApplies: Step[] = [];
+  // Steps that decide no combination at all: earlier steps already catch everything they match.
+  const unused: Step[] = [];
   if (reaching.length <= MAX_COMBINATIONS) {
     for (const step of steps) {
-      if (step.clauses === null) continue;
+      if (step.clauses === null) {
+        if (reaching.length === 0) unused.push(step);
+        continue;
+      }
+      const decided = reaching.filter((combo) => (step.clauses ?? []).every((clause) => holds(clause, combo)));
+      if (decided.length === 0) unused.push(step);
       const clauses = step.clauses;
       // The step decides on cost alone if, wherever its cost conditions let it apply, its other
       // conditions always hold too: then only cost ever decides whether it applies.
@@ -700,11 +707,16 @@ function main(argv: string[]): number {
     ],
   );
 
-  // A step that applies to every idea reaching it, before the last step, leaves later steps unused.
+  // Every step decides at least one combination of answers. A step that applies to every idea
+  // reaching it leaves the steps after it unused; a step whose combinations earlier steps already
+  // catch is unused itself.
   check(
-    alwaysApplies.length === 0,
-    "every rule step before the last can be passed over, so no later step is left unused",
-    alwaysApplies.map((step) => `${step.id} applies to every idea that reaches it, so the steps after it can never apply`),
+    alwaysApplies.length === 0 && unused.length === 0,
+    "every rule step decides at least one combination of answers, so none is left unused",
+    [
+      ...alwaysApplies.map((step) => `${step.id} applies to every idea that reaches it, so the steps after it can never apply`),
+      ...unused.map((step) => `${step.id} decides no combination of answers: the steps before it already catch everything it matches`),
+    ],
   );
 
   // Criterion 6, part 1: the second person decided from the same criteria and facts as I did, and
