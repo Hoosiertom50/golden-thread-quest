@@ -4,21 +4,35 @@ What the second person is given: the automation criteria and the rule, copied wo
 `participant/context/playwright/automation-criteria.md`, and 10 of the 15 test ideas, each with
 exactly the idea and facts from `participant/context/playwright/candidate-decisions.md`. My answers,
 decisions and reasons are not included. Prepared by Tom Carter, 11-02-2026, with Claude (Claude
-Code). Tixly is an invented ticket app; nothing here describes a real product.
+Code); instructions revised 11-04-2026 after the first second person's attempt, which used
+`second-person-brief-v1.md`. Only the instructions changed: the criteria, rule and facts are the
+same. Tixly is an invented ticket app; nothing here describes a real product.
 
 ## How to take part
 
-Thank you for helping. This takes about ten minutes, and there are no wrong answers: the point is
-to see whether someone else reaches the same decisions from the same criteria.
+Thank you for helping. This takes about fifteen minutes, and there are no wrong answers: the point
+is to see whether someone else reaches the same decisions from the same criteria and facts.
 
-For each of the 10 test ideas below, answer the criteria questions in order, then follow the
-rule from the top: the first step that applies gives the decision, automate, manual or drop. Use
-only the criteria and each idea's facts; if a fact seems missing, decide as best you can and say
-so. Risk numbers such as R-15 refer to a test strategy you don't need to read. Please work on your
-own, without seeing my decisions.
+What the three decisions mean. Automate means a test program checks it, automatically, every time
+the tests run. Manual means a person checks it by hand. Drop means it isn't tested at all, because
+it isn't needed or another idea already checks it.
 
-Send back one line per idea, in the form "idea: decision (rule step)", and tell me how you'd like to be
-credited in my write-up, which is in a public repository: by your first name, or as "a colleague".
+A few words used below, in plain terms. The regression suite is the set of checks run again before
+every release, to make sure nothing that used to work has broken. The test environment is a
+practice copy of the app used only for testing. A stand-in is a pretend version of an outside
+system, such as a payment service, that a test controls. An outside system is a service someone
+else runs, such as a real payment service, a real email inbox or a real phone.
+
+How to decide each idea. Read the idea and its facts. Answer the criteria questions in order, from
+C1. Then go down the decision rule yourself, from D1: the first step whose conditions match your
+answers gives the decision, and you can stop there. Treat each idea's facts as true, even where
+they are assumptions made for this exercise, such as a part of a page being redesigned: the point
+is to see whether we reach the same decisions from the same facts, so please don't replace them
+with your own view. If a fact seems missing, decide as best you can and say so. Risk numbers such
+as R-15 refer to a test strategy you don't need to read.
+
+Please work on your own, without seeing my decisions and without an AI assistant; if you do use
+one, please tell me. Send back one line per idea, in the form "idea: decision (rule step)".
 
 ## The criteria
 
