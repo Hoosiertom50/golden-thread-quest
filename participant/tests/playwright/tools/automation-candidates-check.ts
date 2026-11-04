@@ -468,7 +468,7 @@ function readBrief(path: string): Brief {
       // with a decision anywhere else, so neither is allowed: idea numbers belong only in the idea
       // entries and their "### " headings.
       if (/^\s*-\s/.test(line)) problem(`${at}: a list line outside an entry ("${line}")`);
-      if (/\bI-\d{2}\b/.test(plain(line))) problem(`${at}: the brief's prose and headings must not name an idea ("${line}")`);
+      if (/\bI-\d{2}\b/i.test(plain(line))) problem(`${at}: the brief's prose and headings must not name an idea ("${line}")`);
     }
   });
   const found = sections(path, lines, BRIEF_SECTIONS, ["The criteria", "The decision rule", "The test ideas"]);
@@ -667,6 +667,7 @@ function main(argv: string[]): number {
     if (reaching.length > MAX_COMBINATIONS) break;
   }
   const easeOnly: Step[] = [];
+  const alwaysApplies: Step[] = [];
   if (reaching.length <= MAX_COMBINATIONS) {
     for (const step of steps) {
       if (step.clauses === null) continue;
@@ -676,8 +677,15 @@ function main(argv: string[]): number {
       const cost = clauses.filter((clause) => clause.criterion === ease?.id);
       const other = clauses.filter((clause) => clause.criterion !== ease?.id);
       const costAllows = reaching.filter((combo) => cost.every((clause) => holds(clause, combo)));
-      if (clauses.length > 0 && costAllows.every((combo) => other.every((clause) => holds(clause, combo)))) {
+      // A step no combination can reach decides nothing, so it is neither cost-only nor always applying.
+      const othersAlwaysHold =
+        costAllows.length > 0 && costAllows.every((combo) => other.every((clause) => holds(clause, combo)));
+      if (cost.length > 0 && othersAlwaysHold) {
         easeOnly.push(step);
+      } else if (cost.length === 0 && othersAlwaysHold && step !== steps[steps.length - 1]) {
+        // Not a cost question, but a step that applies to every idea reaching it leaves the steps
+        // after it with nothing to decide, which is a mistake in the rule.
+        alwaysApplies.push(step);
       }
       reaching = reaching.filter((combo) => !clauses.every((clause) => holds(clause, combo)));
     }
@@ -690,6 +698,13 @@ function main(argv: string[]): number {
       ...(reaching.length > MAX_COMBINATIONS ? [`too many answer combinations to check (over ${MAX_COMBINATIONS})`] : []),
       ...easeOnly.map((step) => `${step.id} decides ${step.then} with no narrowing condition other than ${ease?.id ?? "cost"}`),
     ],
+  );
+
+  // A step that applies to every idea reaching it, before the last step, leaves later steps unused.
+  check(
+    alwaysApplies.length === 0,
+    "every rule step before the last can be passed over, so no later step is left unused",
+    alwaysApplies.map((step) => `${step.id} applies to every idea that reaches it, so the steps after it can never apply`),
   );
 
   // Criterion 6, part 1: the second person decided from the same criteria and facts as I did, and

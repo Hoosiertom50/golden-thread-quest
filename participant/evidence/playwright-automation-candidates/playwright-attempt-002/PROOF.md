@@ -112,8 +112,8 @@ every idea, not just this one.
 - **Strict type check:** the script was type-checked with TypeScript 6.0.3 in strict mode, in a
   temporary folder outside this repository, as in the layered test strategy quest; it passed
   first time.
-- **Tests of the check itself (kept locally, not handed in):** 87 altered copies of the files, each
-  expected to fail in one named way (or to pass), with 0 unexpected results; and 56 deliberately
+- **Tests of the check itself (kept locally, not handed in):** 92 altered copies of the files, each
+  expected to fail in one named way (or to pass), with 0 unexpected results; and 61 deliberately
   broken copies of the script, each with one rule switched off, all of which those tests caught.
 - **Copilot review:** [ROUNDS]
 
