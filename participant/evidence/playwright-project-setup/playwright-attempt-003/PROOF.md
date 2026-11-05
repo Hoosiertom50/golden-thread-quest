@@ -188,6 +188,13 @@ second operating system.
 - **The credential scan can over-report for links.** Git commits a link as the text of where it
   points, and the check scans that text. The scanner also reads the file a link points to, which
   isn't committed, so a credential there is reported even though it wouldn't be committed.
+- **The check confirms the project's own files aren't ignored, not that they exist.** If
+  `package-lock.json` or another of them were deleted, the check would still pass; the README's
+  install step would stop with an error instead. Found in the last review round and left as it is,
+  since it can't let a credential or a public site through.
+- **A finding's label can look odd on macOS.** When the temporary folder is reached through a link
+  (for example with `TMPDIR=/tmp`), a finding in a staged copy is labelled "/privatestaged copy of"
+  instead of "staged copy of". The check still fails and still names the file and line.
 
 ## Sensitive values
 
