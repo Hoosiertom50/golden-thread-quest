@@ -1129,7 +1129,24 @@ def _evidence_context(
         ),
         "git_summary": git_summary_for(world, evidence_path),
         "reviewer_findings": _reviewer_findings(entry),
+        "review_history": _participant_review_history(world, entry),
     }
+
+
+def _participant_review_history(world: LoadedWorld, entry: QuestProgress) -> tuple[Any, ...]:
+    """Every reviewer decision on this attempt, newest first, for the participant's own page.
+
+    The evidence page showed a reviewer's words only for a request for changes, and showed
+    an approval as a date. The verification statement an approval carries is the reviewer's
+    account of what they checked, so a participant had to open the reviewer's page to read
+    their own feedback. The records are the same ones that page reads.
+    """
+    from quest_app.review import review_history
+
+    if entry.attempt is None:
+        return ()
+    records = review_history(world.config, entry.attempt)
+    return tuple(_decision_view(item) for item in reversed(records))
 
 
 def _validator_display_name(world: LoadedWorld, validator_id: str) -> str:
