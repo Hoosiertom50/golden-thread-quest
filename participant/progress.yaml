@@ -94,4 +94,13 @@ attempts:
   evidence_path: participant/evidence/playwright-automation-candidates/playwright-attempt-002
   submission_id: submission-20261105152208-467163
   review_id: review-20261105153342-c785f4
-updated_at: '2026-11-05T15:33:42Z'
+- attempt_id: playwright-attempt-003
+  quest_id: playwright-project-setup
+  quest_version: 1
+  content_hash: sha256:8c291b6df4a3cc56c115077ddb1a8f8014ac9637dcca056d46aa24d1a70821fc
+  state: submitted
+  started_at: '2026-11-05T15:42:02Z'
+  updated_at: '2026-11-05T22:04:02Z'
+  evidence_path: participant/evidence/playwright-project-setup/playwright-attempt-003
+  submission_id: submission-20261105220402-a7b862
+updated_at: '2026-11-05T22:04:02Z'
