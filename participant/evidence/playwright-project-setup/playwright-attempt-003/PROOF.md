@@ -73,9 +73,9 @@ repository's Python environment (`.venv`) for the secret scanner, and changes no
    limitations; `logs/ignore-check.txt`).
 5. **Reports, traces and downloads are ignored by Git:** `logs/ignore-check.txt` asks Git about
    every kind of file a run produces (results, traces, failure screenshots, downloads, the HTML
-   report, merged-report files and the build cache) and both environment files, and names the rule
-   that ignores each one; and it confirms no such file is among the files Git would commit, even one
-   added on purpose before an ignore rule existed.
+   report, merged-report files and the build cache) and five kinds of environment file name, and
+   names the rule that ignores each one; and it confirms no such file is among the files Git would
+   commit, even one added on purpose before an ignore rule existed.
 6. **Dependency versions are pinned:** `package.json` names Playwright Test as exactly `1.63.0`,
    and `package-lock.json` fixes every installed package; the README uses `npm ci`, which installs
    exactly what the lockfile says, with `--engine-strict` so an older Node.js is refused.
@@ -143,10 +143,10 @@ it for them.
 - **The check script on the real repository:** PASSED, as recorded in `logs/ignore-check.txt`.
 - **Strict type check:** the check script, the configuration and the test were type-checked with
   TypeScript 6.0.3 in strict mode, in a temporary folder outside this repository.
-- **Tests of the check itself (kept locally, not handed in):** 50 throwaway Git repositories, each
+- **Tests of the check itself (kept locally, not handed in):** 54 throwaway Git repositories, each
   holding a copy of the project with one thing broken (for example an environment file forced
   into Git, a made-up token in a notes file, the lockfile ignored, or browsers stored inside the
-  repository), each giving the expected result; and 31 deliberately broken copies of the script,
+  repository), each giving the expected result; and 32 deliberately broken copies of the script,
   all of which those tests caught. They found one real bug: on macOS a folder can have two names
   (`/var` is a link to `/private/var`), so a browser folder inside the repository could look as if
   it were outside. The script now compares real locations.

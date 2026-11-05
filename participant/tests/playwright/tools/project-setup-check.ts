@@ -46,6 +46,9 @@ const MUST_BE_IGNORED: { path: string; what: string }[] = [
   { path: "playwright/.cache/component.js", what: "Playwright's build cache" },
   { path: ".env", what: "an environment file" },
   { path: ".env.local", what: "a local environment file" },
+  { path: ".env-local", what: "an environment file named with a dash" },
+  { path: ".env_production", what: "an environment file named with an underscore" },
+  { path: "production.env", what: "an environment file ending in .env" },
 ];
 
 // The project's own files, which must be committed.

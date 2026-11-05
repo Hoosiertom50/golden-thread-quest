@@ -87,13 +87,16 @@ TIXLY_DEMO_PORT=5174 npm test
 The demo app needs no login, so no credentials are used. If a later test needs one, read it from an
 environment variable in the test (for example `process.env.TIXLY_TEST_PASSWORD`) and set it in your
 terminal before running. Never write a password, token or session cookie into a test, this folder
-or a log. Any `.env` file in this folder is ignored by Git, so it can't be committed by accident.
+or a log. Environment files in this folder (`.env`, and names such as `.env.local`, `.env-local`,
+`.env_production` or `production.env`) are ignored by Git, so they can't be committed by accident;
+only `.env.example` is kept.
 
 ## What is kept out of Git
 
 `node_modules/`, `test-results/` (traces, screenshots and downloads from runs),
-`playwright-report/`, `blob-report/` and `.env` files are listed in `.gitignore`. Running the tests
-creates the first three; none of them is committed.
+`playwright-report/`, `blob-report/` and environment files (`.env`, `.env.*`, `.env-*`, `.env_*`
+and `*.env`, except `.env.example`) are listed in `.gitignore`. Installing creates `node_modules/`
+and running the tests creates `test-results/` and `playwright-report/`; none of them is committed.
 
 ## If the first run fails
 

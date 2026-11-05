@@ -10,4 +10,7 @@ playwright/.cache/
 # Environment files, which could hold credentials. An example file is allowed.
 .env
 .env.*
+.env-*
+.env_*
+*.env
 !.env.example
