@@ -9,8 +9,8 @@
 //   - Playwright's browsers are kept out of Git;
 //   - no environment file, generated output, installed package or downloaded browser is among the
 //     files Git would commit, even one added on purpose;
-//   - no credential is found in any file Git would commit, or in the staged copy of a file that
-//     differs from the copy on disk, using the repository's own secret scanner
+//   - no credential is found in any file Git would commit, or in the staged copy of any tracked
+//     file (which is what a commit takes), using the repository's own secret scanner
 //     (tools/secret_scan.py), the same one the quest app uses.
 //
 // It runs Git and the scanner and only reads; it changes nothing. "Files Git would commit" means
@@ -24,7 +24,7 @@
 // Exit status: 0 passed, 1 failed, 2 Git or the scanner couldn't be run.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,34 +77,30 @@ function run(command: string, args: string[], cwd: string): { status: number; st
   return { status: result.status ?? 1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
 
-// Runs the repository's scanner over the given files, plus a temporary copy of the staged (index)
-// version of every tracked file whose copy on disk differs, is missing, or is hidden from the
-// working folder (marked skip-worktree, as in a sparse checkout), because a commit takes the staged
-// version and the scanner only reads files on disk. The temporary folder is removed before
-// returning; its path is returned so findings in it can be reported as "staged copy of ...". 
+// Runs the repository's scanner over the given files on disk and over the staged copy of every
+// tracked file, because a commit takes the staged copy, which can differ from the file on disk or
+// be hidden from it (a file marked skip-worktree or assume-unchanged, or a sparse checkout). Git
+// writes every staged file into a temporary folder in one step; the folder is removed before
+// returning, and its path is returned so findings in it can be reported as "staged copy of ...".
 function scanWithStagedCopies(
   root: string,
   python: string,
   scanner: string,
   files: string[],
 ): { scan: ReturnType<typeof spawnSync>; staging: string; stagedCopies: string[] } {
-  const differs = new Set(run("git", ["diff", "--name-only", "-z"], root).stdout.split("\0").filter((file) => file !== ""));
-  // "git diff" lists files changed or deleted on disk; "git ls-files -v" marks skip-worktree files
-  // with "S", which "git diff" leaves out.
-  for (const entry of run("git", ["ls-files", "-v", "-z"], root).stdout.split("\0")) {
-    if (entry.startsWith("S ")) differs.add(entry.slice(2));
-  }
   const staging = mkdtempSync(join(tmpdir(), "project-setup-check-"));
-  const stagedCopies: string[] = [];
   try {
-    for (const file of differs) {
-      const staged = spawnSync("git", ["show", `:${file}`], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
-      if (staged.status !== 0) continue; // not in the staging area (for example, deleted there)
-      const copy = join(staging, file);
-      mkdirSync(dirname(copy), { recursive: true });
-      writeFileSync(copy, staged.stdout);
-      stagedCopies.push(copy);
-    }
+    const written = run(
+      "git",
+      ["checkout-index", "--all", "--force", "--ignore-skip-worktree-bits", `--prefix=${staging}${sep}`],
+      root,
+    );
+    if (written.status !== 0) throw new CannotRun(`Git couldn't write the staged files: ${written.stderr.trim()}`);
+    const stagedCopies = run("git", ["ls-files", "--cached", "-z"], root)
+      .stdout.split("\0")
+      .filter((file) => file !== "")
+      .map((file) => join(staging, file))
+      .filter((copy) => existsSync(copy));
     const scan = spawnSync(python, [scanner, ...files, ...stagedCopies], {
       cwd: root,
       encoding: "utf8",
@@ -237,8 +233,8 @@ function main(): number {
     throw new CannotRun("the repository's secret scanner (.venv and tools/secret_scan.py) isn't set up");
   }
   // A commit takes the staged copy of a file, which can differ from the copy on disk (a token staged
-  // and then deleted from the file on disk would still be committed) or be missing from it, so those
-  // staged copies are scanned as well.
+  // and then deleted from the file on disk would still be committed), so every staged copy is
+  // scanned as well.
   const { scan, staging, stagedCopies } = scanWithStagedCopies(root, python, scanner, files);
   if (scan.error) throw new CannotRun(`couldn't run the secret scanner: ${scan.error.message}`);
   const scanLines = `${scan.stdout ?? ""}${scan.stderr ?? ""}`
@@ -256,7 +252,7 @@ function main(): number {
   check(
     clean,
     `no credential found in the files Git would commit (${summary.replace("secret-scan: ", "") || "no summary from the scanner"}` +
-      `${stagedCopies.length > 0 ? `, including ${stagedCopies.length} staged copies that differ from, or are missing from, the files on disk` : ""})`,
+      `${stagedCopies.length > 0 ? `, including the staged copies of all ${stagedCopies.length} tracked files` : ""})`,
     clean ? [] : scanLines.filter((line) => !line.startsWith("secret-scan:")),
   );
 

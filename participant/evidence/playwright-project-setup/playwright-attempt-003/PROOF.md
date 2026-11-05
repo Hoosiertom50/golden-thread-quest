@@ -29,8 +29,8 @@ the README alone:
 - **A TypeScript check** (`tools/project-setup-check.ts`) that confirms Git ignores generated
   output and environment files, keeps the project's own files, keeps downloaded browsers out, finds
   no generated file, installed package or browser among the files Git would commit, and that the
-  repository's own secret scanner finds no credential in them, including in staged copies that
-  differ from the files on disk.
+  repository's own secret scanner finds no credential in them, including in the staged copy of
+  every tracked file, which is what a commit takes.
 
 ## Where the important artifacts are
 
@@ -66,8 +66,8 @@ repository's Python environment (`.venv`) for the secret scanner, and changes no
 4. **Credentials come from the environment and appear nowhere in the repository:** the demo app
    needs none, so none are used; the README says how one would be supplied (an environment
    variable read in the test), `.env` files are ignored, and the repository's secret scanner finds
-   none in any of the files Git would commit, including the staged copy of any file that differs
-   from the copy on disk, since that is what a commit would take (`logs/ignore-check.txt`).
+   none in any of the files Git would commit, including the staged copy of every tracked file,
+   since that is what a commit would take (`logs/ignore-check.txt`).
 5. **Reports, traces and downloads are ignored by Git:** `logs/ignore-check.txt` asks Git about
    every kind of file a run produces (results, traces, failure screenshots, downloads, the HTML
    report, merged-report files and the build cache) and both environment files, and names the rule
@@ -140,10 +140,10 @@ it for them.
 - **The check script on the real repository:** PASSED, as recorded in `logs/ignore-check.txt`.
 - **Strict type check:** the check script, the configuration and the test were type-checked with
   TypeScript 6.0.3 in strict mode, in a temporary folder outside this repository.
-- **Tests of the check itself (kept locally, not handed in):** 31 throwaway Git repositories, each
+- **Tests of the check itself (kept locally, not handed in):** 33 throwaway Git repositories, each
   holding a copy of the project with one thing broken (for example an environment file forced
   into Git, a made-up token in a notes file, the lockfile ignored, or browsers stored inside the
-  repository), each giving the expected result; and 13 deliberately broken copies of the script,
+  repository), each giving the expected result; and 24 deliberately broken copies of the script,
   all of which those tests caught. They found one real bug: on macOS a folder can have two names
   (`/var` is a link to `/private/var`), so a browser folder inside the repository could look as if
   it were outside. The script now compares real locations.
@@ -168,6 +168,9 @@ second operating system.
   it tests one small page, not a real application.
 - **The credential scan depends on the repository's scanner,** which needs the repository's Python
   environment; without it, the check stops and says so rather than passing.
+- **The credential scan follows links.** If a file Git would commit is a link to a file elsewhere,
+  the scanner reads the file it points to. Git commits only the link, so this can report a
+  credential that wouldn't actually be committed, but it can't miss one.
 
 ## Sensitive values
 
