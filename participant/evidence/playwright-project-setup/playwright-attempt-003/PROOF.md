@@ -19,7 +19,9 @@ the README alone:
   from this repository.
 - **One smoke test,** which opens the page in Chromium and checks the event and its prices.
 - **A configuration** that takes the app's address from the environment and refuses any address
-  that isn't this computer, so the tests can't reach a public or production site by mistake.
+  that isn't this computer, and keeps the browser itself on this computer: every request to
+  anywhere else goes to a proxy that doesn't exist, so a redirect, script or image from a public
+  site fails instead of loading.
 - **A README** with the prerequisites and their versions, the setup steps, where the address is
   set, how credentials would be supplied, what is kept out of Git, and what to do when the first
   run fails.
@@ -131,10 +133,14 @@ it for them.
   the demo app already running.
 - **The address guard:** setting `TIXLY_BASE_URL` to a public site stops the run with the README's
   message before any test starts.
+- **The browser stays on this computer:** a local test server that redirects to a public site and
+  loads an image and a script from public addresses (one by name, one by raw IP address) showed,
+  before the fix, the browser following the redirect and loading the site's script; after it, only
+  the local pages loaded and all three outside requests failed.
 - **The check script on the real repository:** PASSED, as recorded in `logs/ignore-check.txt`.
 - **Strict type check:** the check script, the configuration and the test were type-checked with
   TypeScript 6.0.3 in strict mode, in a temporary folder outside this repository.
-- **Tests of the check itself (kept locally, not handed in):** 18 throwaway Git repositories, each
+- **Tests of the check itself (kept locally, not handed in):** 31 throwaway Git repositories, each
   holding a copy of the project with one thing broken (for example an environment file forced
   into Git, a made-up token in a notes file, the lockfile ignored, or browsers stored inside the
   repository), each giving the expected result; and 13 deliberately broken copies of the script,

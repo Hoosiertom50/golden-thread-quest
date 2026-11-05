@@ -57,7 +57,9 @@ From a fresh copy of the repository:
    stops the app again. A passing run ends with `1 passed`.
 
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
-   repository for credentials:
+   repository for credentials. This step also needs the repository's Python environment
+   (`.venv`), which you have once the quest app is set up as the repository's main README
+   describes; without it, the step stops and says so rather than passing:
 
    ```
    npm run check-setup

@@ -54,6 +54,7 @@ const MUST_NOT_BE_IGNORED: string[] = [
   "tests/smoke.spec.ts",
   "demo-app/index.html",
   "demo-app/server.js",
+  "tools/project-setup-check.ts",
   ".gitignore",
   ".env.example",
 ];
@@ -76,16 +77,23 @@ function run(command: string, args: string[], cwd: string): { status: number; st
   return { status: result.status ?? 1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
 
-// Runs the repository's scanner over the given files, plus a temporary copy of every staged file
-// that differs from the copy on disk. The temporary folder is removed before returning; its path is
-// returned so findings in it can be reported as "staged copy of ...".
+// Runs the repository's scanner over the given files, plus a temporary copy of the staged (index)
+// version of every tracked file whose copy on disk differs, is missing, or is hidden from the
+// working folder (marked skip-worktree, as in a sparse checkout), because a commit takes the staged
+// version and the scanner only reads files on disk. The temporary folder is removed before
+// returning; its path is returned so findings in it can be reported as "staged copy of ...". 
 function scanWithStagedCopies(
   root: string,
   python: string,
   scanner: string,
   files: string[],
 ): { scan: ReturnType<typeof spawnSync>; staging: string; stagedCopies: string[] } {
-  const differs = run("git", ["diff", "--name-only", "-z"], root).stdout.split("\0").filter((file) => file !== "");
+  const differs = new Set(run("git", ["diff", "--name-only", "-z"], root).stdout.split("\0").filter((file) => file !== ""));
+  // "git diff" lists files changed or deleted on disk; "git ls-files -v" marks skip-worktree files
+  // with "S", which "git diff" leaves out.
+  for (const entry of run("git", ["ls-files", "-v", "-z"], root).stdout.split("\0")) {
+    if (entry.startsWith("S ")) differs.add(entry.slice(2));
+  }
   const staging = mkdtempSync(join(tmpdir(), "project-setup-check-"));
   const stagedCopies: string[] = [];
   try {
@@ -207,7 +215,14 @@ function main(): number {
     (folder) => `${projectPath}/${folder}/`,
   );
   if (browsersInRepo !== null && browsersInRepo !== "") generated.push(`${browsersInRepo}/`);
-  const committedGenerated = files.filter((file) => generated.some((folder) => file.startsWith(folder)));
+  // Downloaded browsers are also recognised by the folder names Playwright gives them (such as
+  // "chromium-1243" or ".local-browsers"), wherever they are, so a download made earlier with a
+  // different PLAYWRIGHT_BROWSERS_PATH is caught even when that setting isn't set now.
+  const browserFolder =
+    /(^|\/)(chromium|chromium_headless_shell|chromium-tip-of-tree|firefox|firefox-beta|webkit|ffmpeg|winldd)-\d+\/|(^|\/)(\.local-browsers|ms-playwright)\//;
+  const committedGenerated = files.filter(
+    (file) => generated.some((folder) => file.startsWith(folder)) || browserFolder.test(file),
+  );
   check(
     committedGenerated.length === 0,
     "no generated output, installed package or downloaded browser is among the files Git would commit",
@@ -222,8 +237,8 @@ function main(): number {
     throw new CannotRun("the repository's secret scanner (.venv and tools/secret_scan.py) isn't set up");
   }
   // A commit takes the staged copy of a file, which can differ from the copy on disk (a token staged
-  // and then deleted from the file on disk would still be committed), so those staged copies are
-  // scanned as well.
+  // and then deleted from the file on disk would still be committed) or be missing from it, so those
+  // staged copies are scanned as well.
   const { scan, staging, stagedCopies } = scanWithStagedCopies(root, python, scanner, files);
   if (scan.error) throw new CannotRun(`couldn't run the secret scanner: ${scan.error.message}`);
   const scanLines = `${scan.stdout ?? ""}${scan.stderr ?? ""}`
@@ -232,11 +247,16 @@ function main(): number {
     .filter((line) => line !== "")
     .map((line) => line.replace(`${staging}${sep}`, "staged copy of "));
   const summary = scanLines.find((line) => line.startsWith("secret-scan:")) ?? "";
+  // The scanner exits 0 (nothing found) or 1 (findings), always with a summary line. Anything else
+  // means it didn't finish, so nothing was scanned: that is "couldn't check", not a failed check.
+  if (summary === "" || (scan.status !== 0 && scan.status !== 1)) {
+    throw new CannotRun(`the secret scanner didn't finish (exit ${scan.status ?? "none"}): ${scanLines.slice(-3).join(" ")}`);
+  }
   const clean = scan.status === 0 && /, 0 finding\(s\)$/.test(summary);
   check(
     clean,
     `no credential found in the files Git would commit (${summary.replace("secret-scan: ", "") || "no summary from the scanner"}` +
-      `${stagedCopies.length > 0 ? `, including ${stagedCopies.length} staged copies that differ from the files on disk` : ""})`,
+      `${stagedCopies.length > 0 ? `, including ${stagedCopies.length} staged copies that differ from, or are missing from, the files on disk` : ""})`,
     clean ? [] : scanLines.filter((line) => !line.startsWith("secret-scan:")),
   );
 

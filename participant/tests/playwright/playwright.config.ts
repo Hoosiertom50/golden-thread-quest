@@ -23,6 +23,11 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    // Keep the browser on this computer. Checking the starting address isn't enough: a local app
+    // could redirect the browser, or load a script or image, from a public site. Every request
+    // except to this computer is sent to a proxy that doesn't exist (port 9 on this computer), so
+    // it fails instead of reaching the internet; Chromium sends requests to this computer directly.
+    proxy: { server: "http://127.0.0.1:9", bypass: "localhost,127.0.0.1,[::1]" },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   // Start the local demo app for the run, unless TIXLY_BASE_URL points at a copy already running.
