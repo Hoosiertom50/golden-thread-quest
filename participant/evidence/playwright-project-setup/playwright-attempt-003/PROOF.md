@@ -28,7 +28,8 @@ the README alone:
 - **A `.gitignore`** for everything a run produces and for environment files.
 - **A TypeScript check** (`tools/project-setup-check.ts`) that confirms Git ignores generated
   output and environment files, keeps the project's own files, keeps downloaded browsers out, finds
-  no generated file, installed package or browser among the files Git would commit, and that the
+  no environment file, installed package or downloaded browser anywhere in the repository and no
+  output from this project's runs among the files Git would commit, and that the
   repository's own secret scanner finds no credential in them, including in the staged copy of
   every tracked file, which is what a commit takes, and in the text of every link (within the
   scanner's skip rules, listed under Remaining limitations).
@@ -142,10 +143,10 @@ it for them.
 - **The check script on the real repository:** PASSED, as recorded in `logs/ignore-check.txt`.
 - **Strict type check:** the check script, the configuration and the test were type-checked with
   TypeScript 6.0.3 in strict mode, in a temporary folder outside this repository.
-- **Tests of the check itself (kept locally, not handed in):** 40 throwaway Git repositories, each
+- **Tests of the check itself (kept locally, not handed in):** 50 throwaway Git repositories, each
   holding a copy of the project with one thing broken (for example an environment file forced
   into Git, a made-up token in a notes file, the lockfile ignored, or browsers stored inside the
-  repository), each giving the expected result; and 28 deliberately broken copies of the script,
+  repository), each giving the expected result; and 31 deliberately broken copies of the script,
   all of which those tests caught. They found one real bug: on macOS a folder can have two names
   (`/var` is a link to `/private/var`), so a browser folder inside the repository could look as if
   it were outside. The script now compares real locations.

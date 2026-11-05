@@ -7,8 +7,9 @@
 //   - the project's own files (package, lockfile, configuration, tests, demo app, README and the
 //     example environment file) are not ignored, so nothing needed is left out by mistake;
 //   - Playwright's browsers are kept out of Git;
-//   - no environment file, generated output, installed package or downloaded browser is among the
-//     files Git would commit, even one added on purpose;
+//   - no environment file, installed package or downloaded browser anywhere in the repository, and
+//     no output from this project's runs, is among the files Git would commit, even one added on
+//     purpose;
 //   - no credential is found in any file Git would commit, in the staged copy of any tracked file
 //     (which is what a commit takes), or in the text of any link (which is what Git commits for a
 //     link), using the repository's own secret scanner (tools/secret_scan.py). The quest app's
@@ -250,17 +251,23 @@ function main(): number {
   if (listed.status !== 0) throw new CannotRun("Git couldn't list the repository's files");
   const files = listed.stdout.split("\0").filter((file) => file !== "");
 
-  // No environment file would be committed (the example file is allowed).
-  const envFiles = files.filter((file) => /(^|\/)\.env(\.|$)/.test(file) && !file.endsWith(".env.example"));
+  // No environment file would be committed anywhere in the repository (the example file is
+  // allowed). Environment files go by several names: ".env" and ".env.local", ".env-local" or
+  // ".env_production", ".envrc" (read by direnv) and "production.env", in any letter case.
+  const envFile = /(^|\/)(\.env([._-][^/]*)?|\.envrc|[^/]+\.env)$/i;
+  const envFiles = files.filter((file) => envFile.test(file) && !/(^|\/)\.env\.example$/i.test(file));
   check(
     envFiles.length === 0,
     `no environment file is among the ${files.length} files Git would commit`,
     envFiles.map((file) => `${file} would be committed`),
   );
 
-  // Nothing a run produces, no installed package and no downloaded browser is among the files Git
-  // would commit, even if it was added to Git on purpose before an ignore rule existed. (The ignore
-  // checks above only ask about example paths; this looks at what is actually there.)
+  // Nothing this project's runs produce, no installed package and no downloaded browser is among the
+  // files Git would commit, even if it was added to Git on purpose before an ignore rule existed.
+  // (The ignore checks above only ask about example paths; this looks at what is actually there.)
+  // Installed packages are recognised in a node_modules folder anywhere in the repository; the
+  // other output folders only in this project, since names such as "test-results" aren't
+  // Playwright's alone.
   const generated = ["node_modules", "test-results", "playwright-report", "blob-report", "playwright/.cache"].map(
     (folder) => `${projectPath}/${folder}/`,
   );
@@ -270,12 +277,14 @@ function main(): number {
   // different PLAYWRIGHT_BROWSERS_PATH is caught even when that setting isn't set now.
   const browserFolder =
     /(^|\/)(chromium|chromium_headless_shell|chromium-tip-of-tree|firefox|firefox-beta|webkit|ffmpeg|winldd)-\d+\/|(^|\/)(\.local-browsers|ms-playwright)\//;
+  const installedPackage = /(^|\/)node_modules\//i;
   const committedGenerated = files.filter(
-    (file) => generated.some((folder) => file.startsWith(folder)) || browserFolder.test(file),
+    (file) =>
+      generated.some((folder) => file.startsWith(folder)) || installedPackage.test(file) || browserFolder.test(file),
   );
   check(
     committedGenerated.length === 0,
-    "no generated output, installed package or downloaded browser is among the files Git would commit",
+    "no output from this project's runs, installed package or downloaded browser is among the files Git would commit",
     committedGenerated.slice(0, 20).map((file) => `${file} would be committed`),
   );
 
