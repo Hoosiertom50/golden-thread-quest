@@ -98,9 +98,10 @@ attempts:
   quest_id: playwright-project-setup
   quest_version: 1
   content_hash: sha256:8c291b6df4a3cc56c115077ddb1a8f8014ac9637dcca056d46aa24d1a70821fc
-  state: submitted
+  state: verified
   started_at: '2026-11-05T15:42:02Z'
-  updated_at: '2026-11-05T22:04:02Z'
+  updated_at: '2026-11-05T22:11:00Z'
   evidence_path: participant/evidence/playwright-project-setup/playwright-attempt-003
   submission_id: submission-20261105220402-a7b862
-updated_at: '2026-11-05T22:04:02Z'
+  review_id: review-20261105221100-3cb2af
+updated_at: '2026-11-05T22:11:00Z'
