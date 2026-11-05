@@ -1,0 +1,39 @@
+import { defineConfig, devices } from "@playwright/test";
+
+// Where the tests point comes from the environment, never from a test. Left unset, it is the
+// local demo app this project starts for itself. TIXLY_BASE_URL may point at another copy of the
+// app, but only on this computer: the tests must never reach a public or production site.
+const port = Number(process.env.TIXLY_DEMO_PORT ?? 4173);
+const baseURL = process.env.TIXLY_BASE_URL ?? `http://127.0.0.1:${port}`;
+const host = new URL(baseURL).hostname;
+if (!["127.0.0.1", "localhost", "[::1]"].includes(host)) {
+  throw new Error(`TIXLY_BASE_URL must point at this computer (127.0.0.1 or localhost), not ${host}`);
+}
+
+export default defineConfig({
+  testDir: "./tests",
+  // Everything a run produces goes here or into playwright-report; both are ignored by Git.
+  outputDir: "./test-results",
+  forbidOnly: Boolean(process.env.CI),
+  // No retries: a test that only passes on a second try is reported as failing, so a flaky test
+  // is noticed instead of hidden.
+  retries: 0,
+  reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
+  use: {
+    baseURL,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+  },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // Start the local demo app for the run, unless TIXLY_BASE_URL points at a copy already running.
+  ...(process.env.TIXLY_BASE_URL
+    ? {}
+    : {
+        webServer: {
+          command: "node demo-app/server.js",
+          url: baseURL,
+          reuseExistingServer: false,
+          env: { TIXLY_DEMO_PORT: String(port) },
+        },
+      }),
+});
