@@ -84,4 +84,13 @@ attempts:
   evidence_path: participant/evidence/jira-compare-access-methods/jira-attempt-001
   submission_id: submission-20261102162735-9f75fd
   review_id: review-20261102164036-6cd83e
-updated_at: '2026-11-02T16:40:36Z'
+- attempt_id: playwright-attempt-002
+  quest_id: playwright-automation-candidates
+  quest_version: 1
+  content_hash: sha256:1f7cfdf8d6a8cc565b2c2fe7b560c9471b05911a6989eca30db3a1dd2047e30b
+  state: submitted
+  started_at: '2026-11-02T17:19:06Z'
+  updated_at: '2026-11-05T15:22:08Z'
+  evidence_path: participant/evidence/playwright-automation-candidates/playwright-attempt-002
+  submission_id: submission-20261105152208-467163
+updated_at: '2026-11-05T15:22:08Z'

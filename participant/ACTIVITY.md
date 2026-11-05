@@ -55,3 +55,8 @@ Every change this application made to your files, newest last.
 - `2026-11-02T16:27:35Z` Submitted jira-compare-access-methods for review as submission-20261102162735-9f75fd.
 - `2026-11-02T16:29:45Z` Review of playwright-risk-strategy: approved by Claude (automated reviewer).
 - `2026-11-02T16:40:36Z` Review of jira-compare-access-methods: approved by Claude (automated reviewer).
+- `2026-11-02T17:19:06Z` Started playwright-automation-candidates as attempt playwright-attempt-002.
+- `2026-11-05T15:21:35Z` playwright-automation-candidates: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-05T15:21:53Z` playwright-automation-candidates: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-05T15:22:08Z` playwright-automation-candidates: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-05T15:22:08Z` Submitted playwright-automation-candidates for review as submission-20261105152208-467163.
