@@ -56,6 +56,33 @@
     </section>
     {% endif %}
 
+    {# The participant's own feedback history: every decision on this attempt, newest first,
+       with the reviewer's verification statement or findings. #}
+    <section class="panel stack" aria-labelledby="review-history-heading">
+      <h2 id="review-history-heading">Review history</h2>
+      {% if review_history %}
+      <ul class="checklist">
+        {% for decision in review_history %}
+        <li>
+          <div class="card-header">
+            <strong>{{ 'Verified by reviewer' if decision.decision == 'approved' else (decision.decision | replace('_', ' ') | capitalize) }}</strong>
+            <time datetime="{{ decision.reviewed_at }}" data-format>{{ decision.reviewed_at }}</time>
+          </div>
+          <p class="authority">{{ decision.reviewer_display_name }}</p>
+          {% if decision.verification_statement %}<p>{{ decision.verification_statement }}</p>{% endif %}
+          {% for finding in decision.findings %}
+          <p><strong>{{ finding.severity | capitalize }}:</strong> {{ finding.summary }}{% if finding.criterion %} (criterion {{ finding.criterion | replace('ac-', '') }}){% endif %}</p>
+          {% if finding.evidence %}<p class="authority">{{ finding.evidence }}</p>{% endif %}
+          {% if finding.required_change %}<p class="authority">Required change: {{ finding.required_change }}</p>{% endif %}
+          {% endfor %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="authority">No reviewer has decided on this attempt yet. When one does, their decision and comments appear here after you click <strong>Check for my review</strong>.</p>
+      {% endif %}
+    </section>
+
     {% if proof_document %}
     <section class="panel" aria-labelledby="proof-doc-heading">
       <h2 id="proof-doc-heading">PROOF.md</h2>

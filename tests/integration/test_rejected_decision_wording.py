@@ -64,6 +64,40 @@ def _reject(config: AppConfig) -> None:
     )
 
 
+STATEMENT = "I ran the commands from the package on a clean clone and every check passed."
+
+
+def _approve(config: AppConfig) -> None:
+    schemas = SchemaSet(config.schemas_root)
+    store = ProgressStore(config)
+    report = ProblemReport()
+    world = load_world(config, report)
+    assert world is not None, report.to_text()
+    quest = world.content.quests[QUEST]
+    attempt = world.participant.progress.attempt_for(QUEST)
+    place_required_proof(config.participant_root, quest.id)
+    create_submission(
+        config, store, quest=quest, attempt=attempt, participant=world.participant, schemas=schemas
+    )
+    report = ProblemReport()
+    world = load_world(config, report)
+    assert world is not None, report.to_text()
+    quest = world.content.quests[QUEST]
+    attempt = world.participant.progress.attempt_for(QUEST)
+    record_decision(
+        config,
+        store,
+        quest=quest,
+        attempt=attempt,
+        participant=world.participant,
+        decision="approved",
+        reviewer_name="A Reviewer",
+        verification_statement=STATEMENT,
+        findings=[],
+        schemas=schemas,
+    )
+
+
 def _evidence_page_html(config: AppConfig) -> str:
     report = ProblemReport()
     world = load_world(config, report)
@@ -80,3 +114,34 @@ def test_a_rejected_decision_says_it_lands_in_needs_changes(config: AppConfig) -
         "the evidence page does not explain that a rejected decision is the same state "
         "as needs_changes"
     )
+
+
+def test_an_approval_shows_the_reviewers_statement_on_the_evidence_page(
+    config: AppConfig,
+) -> None:
+    _approve(config)
+    html = _evidence_page_html(config)
+    assert "Review history" in html
+    assert "Verified by reviewer" in html
+    assert STATEMENT in html, "the reviewer's verification statement is not on the evidence page"
+
+
+def test_the_history_keeps_every_decision_newest_first(config: AppConfig) -> None:
+    from quest_app.store import no_guard, transition_attempt
+
+    _reject(config)
+    for action in ("resume-quest", "mark-evidence-ready"):
+        transition_attempt(
+            ProgressStore(config),
+            quest_id=QUEST,
+            action=action,
+            schemas=SchemaSet(config.schemas_root),
+            guard=no_guard,
+        )
+    _approve(config)
+    html = _evidence_page_html(config)
+    history = html[html.index("Review history") :]
+    assert history.index("Verified by reviewer") < history.index("Rejected"), (
+        "the newer approval must come before the earlier rejection"
+    )
+    assert FINDING["summary"] in history
