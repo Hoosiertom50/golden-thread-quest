@@ -3,7 +3,13 @@ import { defineConfig, devices } from "@playwright/test";
 // Where the tests point comes from the environment, never from a test. Left unset, it is the
 // local demo app this project starts for itself. TIXLY_BASE_URL may point at another copy of the
 // app, but only on this computer: the tests must never reach a public or production site.
-const port = Number(process.env.TIXLY_DEMO_PORT ?? 4173);
+// The demo app's port must be a whole number from 1 to 65535: an empty value or 0 would start the
+// app on a random port that Playwright then waits for in vain, so those stop the run at once.
+const portSetting = process.env.TIXLY_DEMO_PORT ?? "4173";
+if (!/^[1-9][0-9]{0,4}$/.test(portSetting) || Number(portSetting) > 65535) {
+  throw new Error(`TIXLY_DEMO_PORT must be a whole number from 1 to 65535, not "${portSetting}"`);
+}
+const port = Number(portSetting);
 const baseURL = process.env.TIXLY_BASE_URL ?? `http://127.0.0.1:${port}`;
 const host = new URL(baseURL).hostname;
 if (!["127.0.0.1", "localhost", "[::1]"].includes(host)) {

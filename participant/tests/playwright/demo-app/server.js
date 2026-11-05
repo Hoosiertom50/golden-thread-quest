@@ -5,7 +5,12 @@
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 
-const port = Number(process.env.TIXLY_DEMO_PORT ?? 4173);
+const portSetting = process.env.TIXLY_DEMO_PORT ?? "4173";
+if (!/^[1-9][0-9]{0,4}$/.test(portSetting) || Number(portSetting) > 65535) {
+  console.error(`TIXLY_DEMO_PORT must be a whole number from 1 to 65535, not "${portSetting}"`);
+  process.exit(1);
+}
+const port = Number(portSetting);
 const page = readFileSync(new URL("./index.html", import.meta.url));
 
 createServer((request, response) => {

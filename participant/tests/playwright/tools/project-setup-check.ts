@@ -170,6 +170,22 @@ function scanWithStagedCopies(
   }
 }
 
+// Whether Git ignores a path because of a rule in one of the repository's own .gitignore files,
+// which every copy of the repository has. "--no-index" asks about the path itself, whether or not a
+// file is there. A rule that exists only on this computer (.git/info/exclude, or a personal ignore
+// file set with core.excludesFile) doesn't count, since a teammate's copy wouldn't have it. The plain
+// question decides whether the path is ignored; "-v" then names the deciding rule and its file.
+// ("-v" alone can't decide: it also reports a rule that un-ignores the path, such as "!.env.local".)
+function ignoredByRepository(root: string, path: string): { ignored: boolean; rule: string } {
+  if (run("git", ["check-ignore", "--no-index", "-q", path], root).status !== 0) return { ignored: false, rule: "" };
+  const rule = run("git", ["check-ignore", "--no-index", "-v", path], root).stdout.split("\t")[0] ?? "";
+  const source = /^(.*?):\d+:/.exec(rule)?.[1] ?? "";
+  // A personal ignore file is often named ".gitignore" too (such as ~/.gitignore), so the rule's file
+  // must also be inside the repository: Git names those files by a path relative to the top folder.
+  const fromRepository = basename(source) === ".gitignore" && !isAbsolute(source) && !source.startsWith("..");
+  return { ignored: fromRepository, rule };
+}
+
 function main(): number {
   const project = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const top = run("git", ["rev-parse", "--show-toplevel"], project);
@@ -185,17 +201,16 @@ function main(): number {
   out.push(`project-setup-check ${VERSION}`);
   out.push(`project: ${projectPath}`);
 
-  // Generated output and environment files are ignored. "--no-index" asks about the path itself,
-  // whether or not a file is there; "-v" names the rule that matched.
+  // Generated output and environment files are ignored by the repository's own .gitignore files.
   const ignored: string[] = [];
   const notIgnored: string[] = [];
   for (const { path, what } of MUST_BE_IGNORED) {
     const full = join(projectPath, path);
-    // The plain question decides; "-v" only names the rule. With "-v", Git also reports a rule
-    // that un-ignores the path (such as "!.env.local"), so its answer can't decide.
-    if (run("git", ["check-ignore", "--no-index", "-q", full], root).status === 0) {
-      const rule = run("git", ["check-ignore", "--no-index", "-v", full], root).stdout.split("\t")[0] ?? "";
-      ignored.push(`${what}: ${full} (rule ${rule})`);
+    const answer = ignoredByRepository(root, full);
+    if (answer.ignored) {
+      ignored.push(`${what}: ${full} (rule ${answer.rule})`);
+    } else if (answer.rule !== "") {
+      notIgnored.push(`${what}: ${full} is ignored only on this computer (rule ${answer.rule}), not by a .gitignore file`);
     } else {
       notIgnored.push(`${what}: ${full} is NOT ignored`);
     }
@@ -229,7 +244,7 @@ function main(): number {
     browsersOk = true;
   } else if (browsers === "0") {
     browserPlace = "node_modules, which is ignored";
-    browsersOk = run("git", ["check-ignore", "--no-index", "-q", join(projectPath, "node_modules/x")], root).status === 0;
+    browsersOk = ignoredByRepository(root, join(projectPath, "node_modules/x")).ignored;
   } else {
     const inside = relative(realLocation(root), realLocation(browsers));
     // Only a real step up ("..", or ".." followed by a separator) leaves the repository; the
@@ -241,7 +256,7 @@ function main(): number {
       : inside === ""
         ? "the repository's own top folder"
         : `${inside}, inside the repository`;
-    browsersOk = !isInside || run("git", ["check-ignore", "--no-index", "-q", join(inside, "x")], root).status === 0;
+    browsersOk = !isInside || ignoredByRepository(root, join(inside, "x")).ignored;
   }
   check(
     browsersOk,

@@ -134,6 +134,9 @@ it for them.
 
 - **The smoke test:** passes, in three ways: as set up, on another port, and against a copy of
   the demo app already running.
+- **The port check:** an empty `TIXLY_DEMO_PORT`, `0`, `abc`, `70000`, `4173.5` and `08080` each stop
+  the run within about a second with the README's message; before the check, an empty value or `0`
+  made the run wait 60 seconds and then time out. `65535` and the default both pass.
 - **The address guard:** setting `TIXLY_BASE_URL` to a public site stops the run with the README's
   message before any test starts.
 - **The browser stays on this computer:** a local test server that redirects to a public site and
@@ -143,10 +146,10 @@ it for them.
 - **The check script on the real repository:** PASSED, as recorded in `logs/ignore-check.txt`.
 - **Strict type check:** the check script, the configuration and the test were type-checked with
   TypeScript 6.0.3 in strict mode, in a temporary folder outside this repository.
-- **Tests of the check itself (kept locally, not handed in):** 54 throwaway Git repositories, each
+- **Tests of the check itself (kept locally, not handed in):** 59 throwaway Git repositories, each
   holding a copy of the project with one thing broken (for example an environment file forced
   into Git, a made-up token in a notes file, the lockfile ignored, or browsers stored inside the
-  repository), each giving the expected result; and 32 deliberately broken copies of the script,
+  repository), each giving the expected result; and 36 deliberately broken copies of the script,
   all of which those tests caught. They found one real bug: on macOS a folder can have two names
   (`/var` is a link to `/private/var`), so a browser folder inside the repository could look as if
   it were outside. The script now compares real locations.

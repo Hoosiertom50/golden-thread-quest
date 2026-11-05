@@ -108,6 +108,7 @@ and running the tests creates `test-results/` and `playwright-report/`; none of 
 | `Executable doesn't exist` or `browserType.launch` errors | The browser isn't installed yet: run `npx playwright install chromium`. |
 | `http://127.0.0.1:4173 is already used` | Another program is using the port: run `TIXLY_DEMO_PORT=5174 npm test`. |
 | The run seems to hang before any test starts | A program on the port is accepting connections but not answering. Press Ctrl+C, then run `TIXLY_DEMO_PORT=5174 npm test`. |
+| `TIXLY_DEMO_PORT must be a whole number from 1 to 65535` | `TIXLY_DEMO_PORT` is set but empty, `0` or not a port number. Unset it (`unset TIXLY_DEMO_PORT`) to use 4173, or set a port such as `5174`. |
 | `TIXLY_BASE_URL must point at this computer` | `TIXLY_BASE_URL` is set to another site. Unset it (`unset TIXLY_BASE_URL`) or point it at `http://127.0.0.1:<port>`. |
 | The test fails on a check | Open the report with `npx playwright show-report`; the trace and screenshot of the failure are in `test-results/`. |
 
