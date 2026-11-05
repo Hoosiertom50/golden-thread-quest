@@ -6,10 +6,12 @@
 //     and every environment file is ignored by Git, and names the rule that ignores it;
 //   - the project's own files (package, lockfile, configuration, tests, demo app, README and the
 //     example environment file) are not ignored, so nothing needed is left out by mistake;
-//   - Playwright's browsers are stored outside the repository;
-//   - no environment file is among the files Git would commit;
-//   - no credential is found in any file Git would commit, using the repository's own secret
-//     scanner (tools/secret_scan.py), the same one the quest app uses.
+//   - Playwright's browsers are kept out of Git;
+//   - no environment file, generated output, installed package or downloaded browser is among the
+//     files Git would commit, even one added on purpose;
+//   - no credential is found in any file Git would commit, or in the staged copy of a file that
+//     differs from the copy on disk, using the repository's own secret scanner
+//     (tools/secret_scan.py), the same one the quest app uses.
 //
 // It runs Git and the scanner and only reads; it changes nothing. "Files Git would commit" means
 // every tracked file plus every new file that isn't ignored.
@@ -22,8 +24,9 @@
 // Exit status: 0 passed, 1 failed, 2 Git or the scanner couldn't be run.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const VERSION = "1.0.0";
@@ -73,6 +76,38 @@ function run(command: string, args: string[], cwd: string): { status: number; st
   return { status: result.status ?? 1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
 
+// Runs the repository's scanner over the given files, plus a temporary copy of every staged file
+// that differs from the copy on disk. The temporary folder is removed before returning; its path is
+// returned so findings in it can be reported as "staged copy of ...".
+function scanWithStagedCopies(
+  root: string,
+  python: string,
+  scanner: string,
+  files: string[],
+): { scan: ReturnType<typeof spawnSync>; staging: string; stagedCopies: string[] } {
+  const differs = run("git", ["diff", "--name-only", "-z"], root).stdout.split("\0").filter((file) => file !== "");
+  const staging = mkdtempSync(join(tmpdir(), "project-setup-check-"));
+  const stagedCopies: string[] = [];
+  try {
+    for (const file of differs) {
+      const staged = spawnSync("git", ["show", `:${file}`], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+      if (staged.status !== 0) continue; // not in the staging area (for example, deleted there)
+      const copy = join(staging, file);
+      mkdirSync(dirname(copy), { recursive: true });
+      writeFileSync(copy, staged.stdout);
+      stagedCopies.push(copy);
+    }
+    const scan = spawnSync(python, [scanner, ...files, ...stagedCopies], {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    return { scan, staging, stagedCopies };
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
+}
+
 function main(): number {
   const project = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const top = run("git", ["rev-parse", "--show-toplevel"], project);
@@ -94,9 +129,10 @@ function main(): number {
   const notIgnored: string[] = [];
   for (const { path, what } of MUST_BE_IGNORED) {
     const full = join(projectPath, path);
-    const answer = run("git", ["check-ignore", "--no-index", "-v", full], root);
-    if (answer.status === 0) {
-      const rule = answer.stdout.split("\t")[0] ?? "";
+    // The plain question decides; "-v" only names the rule. With "-v", Git also reports a rule
+    // that un-ignores the path (such as "!.env.local"), so its answer can't decide.
+    if (run("git", ["check-ignore", "--no-index", "-q", full], root).status === 0) {
+      const rule = run("git", ["check-ignore", "--no-index", "-v", full], root).stdout.split("\t")[0] ?? "";
       ignored.push(`${what}: ${full} (rule ${rule})`);
     } else {
       notIgnored.push(`${what}: ${full} is NOT ignored`);
@@ -122,6 +158,8 @@ function main(): number {
   // default), in node_modules when PLAYWRIGHT_BROWSERS_PATH is "0", or in the folder that variable
   // names, which must be outside the repository or ignored by Git.
   const browsers = process.env.PLAYWRIGHT_BROWSERS_PATH;
+  // Where browsers go inside the repository, if they do (relative to it), for the commit check below.
+  let browsersInRepo: string | null = null;
   let browserPlace: string;
   let browsersOk: boolean;
   if (browsers === undefined || browsers === "") {
@@ -132,8 +170,15 @@ function main(): number {
     browsersOk = run("git", ["check-ignore", "--no-index", "-q", join(projectPath, "node_modules/x")], root).status === 0;
   } else {
     const inside = relative(realLocation(root), realLocation(browsers));
-    const isInside = inside !== "" && !inside.startsWith("..") && !isAbsolute(inside);
-    browserPlace = isInside ? `${inside}, inside the repository` : "a folder outside the repository";
+    // Only a real step up ("..", or ".." followed by a separator) leaves the repository; the
+    // repository's own top folder (an empty relative path) and a name like "..cache" are inside.
+    const isInside = !(inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside));
+    if (isInside) browsersInRepo = inside;
+    browserPlace = !isInside
+      ? "a folder outside the repository"
+      : inside === ""
+        ? "the repository's own top folder"
+        : `${inside}, inside the repository`;
     browsersOk = !isInside || run("git", ["check-ignore", "--no-index", "-q", join(inside, "x")], root).status === 0;
   }
   check(
@@ -155,6 +200,20 @@ function main(): number {
     envFiles.map((file) => `${file} would be committed`),
   );
 
+  // Nothing a run produces, no installed package and no downloaded browser is among the files Git
+  // would commit, even if it was added to Git on purpose before an ignore rule existed. (The ignore
+  // checks above only ask about example paths; this looks at what is actually there.)
+  const generated = ["node_modules", "test-results", "playwright-report", "blob-report", "playwright/.cache"].map(
+    (folder) => `${projectPath}/${folder}/`,
+  );
+  if (browsersInRepo !== null && browsersInRepo !== "") generated.push(`${browsersInRepo}/`);
+  const committedGenerated = files.filter((file) => generated.some((folder) => file.startsWith(folder)));
+  check(
+    committedGenerated.length === 0,
+    "no generated output, installed package or downloaded browser is among the files Git would commit",
+    committedGenerated.slice(0, 20).map((file) => `${file} would be committed`),
+  );
+
   // No credential in any file Git would commit, by the repository's own scanner. It prints
   // "path:line:column: [pattern] description" for each finding, never the secret itself.
   const python = join(root, ".venv", "bin", "python");
@@ -162,14 +221,22 @@ function main(): number {
   if (!existsSync(python) || !existsSync(scanner)) {
     throw new CannotRun("the repository's secret scanner (.venv and tools/secret_scan.py) isn't set up");
   }
-  const scan = spawnSync(python, [scanner, ...files], { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  // A commit takes the staged copy of a file, which can differ from the copy on disk (a token staged
+  // and then deleted from the file on disk would still be committed), so those staged copies are
+  // scanned as well.
+  const { scan, staging, stagedCopies } = scanWithStagedCopies(root, python, scanner, files);
   if (scan.error) throw new CannotRun(`couldn't run the secret scanner: ${scan.error.message}`);
-  const scanLines = `${scan.stdout ?? ""}${scan.stderr ?? ""}`.trim().split("\n").filter((line) => line !== "");
+  const scanLines = `${scan.stdout ?? ""}${scan.stderr ?? ""}`
+    .trim()
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => line.replace(`${staging}${sep}`, "staged copy of "));
   const summary = scanLines.find((line) => line.startsWith("secret-scan:")) ?? "";
   const clean = scan.status === 0 && /, 0 finding\(s\)$/.test(summary);
   check(
     clean,
-    `no credential found in the files Git would commit (${summary.replace("secret-scan: ", "") || "no summary from the scanner"})`,
+    `no credential found in the files Git would commit (${summary.replace("secret-scan: ", "") || "no summary from the scanner"}` +
+      `${stagedCopies.length > 0 ? `, including ${stagedCopies.length} staged copies that differ from the files on disk` : ""})`,
     clean ? [] : scanLines.filter((line) => !line.startsWith("secret-scan:")),
   );
 

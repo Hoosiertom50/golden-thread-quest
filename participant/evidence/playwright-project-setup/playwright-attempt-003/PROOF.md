@@ -25,8 +25,10 @@ the README alone:
   run fails.
 - **A `.gitignore`** for everything a run produces and for environment files.
 - **A TypeScript check** (`tools/project-setup-check.ts`) that confirms Git ignores generated
-  output and environment files, keeps the project's own files, keeps downloaded browsers out, and
-  that the repository's own secret scanner finds no credential in anything Git would commit.
+  output and environment files, keeps the project's own files, keeps downloaded browsers out, finds
+  no generated file, installed package or browser among the files Git would commit, and that the
+  repository's own secret scanner finds no credential in them, including in staged copies that
+  differ from the files on disk.
 
 ## Where the important artifacts are
 
@@ -62,11 +64,13 @@ repository's Python environment (`.venv`) for the secret scanner, and changes no
 4. **Credentials come from the environment and appear nowhere in the repository:** the demo app
    needs none, so none are used; the README says how one would be supplied (an environment
    variable read in the test), `.env` files are ignored, and the repository's secret scanner finds
-   none in any of the files Git would commit (`logs/ignore-check.txt`).
+   none in any of the files Git would commit, including the staged copy of any file that differs
+   from the copy on disk, since that is what a commit would take (`logs/ignore-check.txt`).
 5. **Reports, traces and downloads are ignored by Git:** `logs/ignore-check.txt` asks Git about
    every kind of file a run produces (results, traces, failure screenshots, downloads, the HTML
    report, merged-report files and the build cache) and both environment files, and names the rule
-   that ignores each one.
+   that ignores each one; and it confirms no such file is among the files Git would commit, even one
+   added on purpose before an ignore rule existed.
 6. **Dependency versions are pinned:** `package.json` names Playwright Test as exactly `1.63.0`,
    and `package-lock.json` fixes every installed package; the README uses `npm ci`, which installs
    exactly what the lockfile says, with `--engine-strict` so an older Node.js is refused.
@@ -116,10 +120,10 @@ file extension that never mentions Node's version. A teammate would get stuck la
 confusing message, for a reason the README states at the top.
 
 So I acted on it: the README's install step is now `npm ci --engine-strict`, which stops at the
-first step with "Required: node >=22.18.0, Actual: v20.20.2", and the README's first-run table has
-that message and the `which -a node` check for more than one copy. With Node 22 nothing
-changes. What's still left is the install itself: the README can say which version, but not
-install it for them.
+first step with "Required: node ^22.18.0 || >=23.6.0, Actual: v20.20.2", and the README's first-run
+table has that message and the `which -a node` check for more than one copy. With Node 22 nothing
+changes. What's still left is the install itself: the README can say which version, but not install
+it for them.
 
 ## What was tested or validated
 

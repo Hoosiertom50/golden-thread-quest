@@ -13,7 +13,7 @@ beyond Node.
 |---|---|---|
 | macOS | written and run on macOS 27; Linux should work the same way but hasn't been tried; Windows isn't covered | |
 | Git | any recent version (written and run with 2.39.2) | `git --version` |
-| Node.js | 22.18 or later (written and run with 22.23.3) | `node --version` |
+| Node.js | 22.18 or later in the 22 line, or 23.6 or later (written and run with 22.23.3); 23.0 to 23.5 can't run the TypeScript checks | `node --version` |
 | npm | comes with Node.js (written and run with 10.9.9) | `npm --version` |
 | Internet access | for the first install only | |
 
@@ -37,8 +37,8 @@ From a fresh copy of the repository:
    npm ci --engine-strict
    ```
 
-   `--engine-strict` makes npm stop with a clear message if your Node.js is older than 22.18,
-   instead of installing anyway and failing later with a confusing error.
+   `--engine-strict` makes npm stop with a clear message if your Node.js isn't a supported version
+   (see the table above), instead of installing anyway and failing later with a confusing error.
 
 3. Download the Chromium browser Playwright uses (a large download the first time; nothing is
    downloaded if the right version is already there):
@@ -98,7 +98,7 @@ creates the first three; none of them is committed.
 | What you see | What to do |
 |---|---|
 | `npm ci` says the lockfile and `package.json` don't match | Make sure you are in `participant/tests/playwright` and haven't edited `package.json`; then run `npm ci --engine-strict` again. |
-| `npm error code EBADENGINE` with `Required: {"node":">=22.18.0"}` | Your Node.js is too old: install 22.18 or later from nodejs.org, open a new terminal, check `node --version`, then run `npm ci --engine-strict` again. The `--engine-strict` option in step 2 makes npm stop here on purpose, rather than install and fail later with a confusing error. |
+| `npm error code EBADENGINE` with `Required: {"node":"^22.18.0 \|\| >=23.6.0"}` | Your Node.js isn't a supported version: install 22.18 or later in the 22 line, or 23.6 or later, from nodejs.org, open a new terminal, check `node --version`, then run `npm ci --engine-strict` again. The `--engine-strict` option in step 2 makes npm stop here on purpose, rather than install and fail later with a confusing error. |
 | `node: command not found`, or `node --version` shows an older version than you installed | Node isn't installed, or another copy is found first. Run `which -a node` to list every copy; the first one is the one used. Open a new terminal after installing, or put the newer copy first. |
 | `Executable doesn't exist` or `browserType.launch` errors | The browser isn't installed yet: run `npx playwright install chromium`. |
 | `http://127.0.0.1:4173 is already used` | Another program is using the port: run `TIXLY_DEMO_PORT=5174 npm test`. |
