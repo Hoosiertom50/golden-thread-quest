@@ -81,12 +81,13 @@ function run(command: string, args: string[], cwd: string): { status: number; st
 
 // Runs the repository's scanner over the given files on disk and over the staged copy of every
 // tracked file, because a commit takes the staged copy, which can differ from the file on disk or
-// be hidden from it (a file marked skip-worktree or assume-unchanged, or a sparse checkout). Git
-// writes every staged file into a temporary folder in one step. A link is committed as the text of
-// where it points, not as the file it points to, so that text is scanned too: each staged link is
-// replaced by a plain file holding its text, and the text of each link on disk is written to a second
-// temporary folder. Both folders are removed before returning; their paths are returned so findings
-// in them can be reported as "staged copy of ..." and "link text of ...".
+// be hidden from it (a file marked skip-worktree or assume-unchanged, or a sparse checkout). Each
+// staged copy is read exactly as Git stores it, with no conversion: a file that Git writes to disk
+// in another encoding or through a filter is still scanned as it would be committed, and a link is
+// scanned as the text of where it points, which is what Git stores for it. The text of each link on
+// disk is written out as well, since that text is what a new link would commit. The copies go into
+// two temporary folders that are removed before returning; their paths are returned so findings in
+// them can be reported as "staged copy of ..." and "link text of ...".
 function scanWithStagedCopies(
   root: string,
   python: string,
@@ -95,43 +96,65 @@ function scanWithStagedCopies(
 ): { scan: ReturnType<typeof spawnSync>; staging: string; linkTexts: string; stagedCopies: string[] } {
   const staging = mkdtempSync(join(tmpdir(), "project-setup-check-"));
   const linkTexts = mkdtempSync(join(tmpdir(), "project-setup-check-links-"));
-  const isLink = (path: string): boolean => {
-    try {
-      return lstatSync(path).isSymbolicLink();
-    } catch {
-      return false;
-    }
-  };
-  // Writes the text of the link at "link" to a plain file at "copy".
-  const writeLinkText = (link: string, copy: string): void => {
-    const text = readlinkSync(link);
-    rmSync(copy, { force: true });
+  const writeCopy = (copy: string, contents: string | Buffer): void => {
     mkdirSync(dirname(copy), { recursive: true });
-    writeFileSync(copy, text);
+    writeFileSync(copy, contents);
   };
   try {
-    const written = run(
-      "git",
-      ["checkout-index", "--all", "--force", "--ignore-skip-worktree-bits", `--prefix=${staging}${sep}`],
-      root,
-    );
-    if (written.status !== 0) throw new CannotRun(`Git couldn't write the staged files: ${written.stderr.trim()}`);
+    // "git ls-files -s" lists "<mode> <object> <stage>\t<path>" for every staged file. Submodules
+    // (mode 160000) have no contents of their own here and are left out.
+    const entries = run("git", ["ls-files", "--stage", "-z"], root)
+      .stdout.split("\0")
+      .filter((entry) => entry !== "")
+      .map((entry) => {
+        const tab = entry.indexOf("\t");
+        const [mode = "", object = "", stage = "0"] = entry.slice(0, tab).split(" ");
+        return { mode, object, stage, path: entry.slice(tab + 1) };
+      })
+      .filter((entry) => entry.mode !== "160000");
+    // "git cat-file --batch" prints "<object> blob <size>\n<contents>\n" for each object it's given.
+    const batch = spawnSync("git", ["cat-file", "--batch"], {
+      cwd: root,
+      input: entries.map((entry) => `${entry.object}\n`).join(""),
+      maxBuffer: 1024 * 1024 * 1024,
+    });
+    if (batch.error || batch.status !== 0) {
+      throw new CannotRun(`Git couldn't read the staged files: ${batch.error?.message ?? String(batch.stderr).trim()}`);
+    }
     const stagedCopies: string[] = [];
-    for (const file of run("git", ["ls-files", "--cached", "-z"], root).stdout.split("\0")) {
-      if (file === "") continue;
-      const copy = join(staging, file);
-      if (isLink(copy)) writeLinkText(copy, copy);
-      if (existsSync(copy)) stagedCopies.push(copy);
+    let at = 0;
+    for (const entry of entries) {
+      const lineEnd = batch.stdout.indexOf(10, at);
+      const [, type, size] = batch.stdout.subarray(at, lineEnd).toString("utf8").split(" ");
+      if (lineEnd < 0 || type !== "blob" || size === undefined) {
+        throw new CannotRun(`Git couldn't read the staged copy of ${entry.path}`);
+      }
+      const contents = batch.stdout.subarray(lineEnd + 1, lineEnd + 1 + Number(size));
+      at = lineEnd + 1 + Number(size) + 1;
+      // During an unfinished merge Git keeps up to three versions of a file (stages 1 to 3); each
+      // gets its own place so none overwrites another.
+      const copy =
+        entry.stage === "0" ? join(staging, entry.path) : join(staging, `merge-stage-${entry.stage}`, entry.path);
+      writeCopy(copy, contents);
+      stagedCopies.push(copy);
     }
     const linkCopies: string[] = [];
     for (const file of files) {
       const onDisk = join(root, file);
-      if (!isLink(onDisk)) continue;
+      let isLink = false;
+      try {
+        isLink = lstatSync(onDisk).isSymbolicLink();
+      } catch {
+        continue;
+      }
+      if (!isLink) continue;
       const copy = join(linkTexts, file);
-      writeLinkText(onDisk, copy);
+      writeCopy(copy, readlinkSync(onDisk));
       linkCopies.push(copy);
     }
-    const scan = spawnSync(python, [scanner, ...files, ...stagedCopies, ...linkCopies], {
+    // "--" marks the end of the scanner's options, so a file named like an option ("--json") is
+    // scanned as a file instead of changing how the scanner runs.
+    const scan = spawnSync(python, [scanner, "--", ...files, ...stagedCopies, ...linkCopies], {
       cwd: root,
       encoding: "utf8",
       maxBuffer: 16 * 1024 * 1024,
@@ -265,7 +288,8 @@ function main(): number {
   }
   // A commit takes the staged copy of a file, which can differ from the copy on disk (a token staged
   // and then deleted from the file on disk would still be committed), so every staged copy is
-  // scanned as well, and so is the text of every link, which is what Git commits for a link.
+  // scanned as well, exactly as Git stores it, and so is the text of every link, which is what Git
+  // commits for a link.
   const { scan, staging, linkTexts, stagedCopies } = scanWithStagedCopies(root, python, scanner, files);
   if (scan.error) throw new CannotRun(`couldn't run the secret scanner: ${scan.error.message}`);
   const scanLines = `${scan.stdout ?? ""}${scan.stderr ?? ""}`
