@@ -30,7 +30,8 @@ the README alone:
   output and environment files, keeps the project's own files, keeps downloaded browsers out, finds
   no generated file, installed package or browser among the files Git would commit, and that the
   repository's own secret scanner finds no credential in them, including in the staged copy of
-  every tracked file, which is what a commit takes, and in the text of every link.
+  every tracked file, which is what a commit takes, and in the text of every link (within the
+  scanner's skip rules, listed under Remaining limitations).
 
 ## Where the important artifacts are
 
@@ -67,7 +68,8 @@ repository's Python environment (`.venv`) for the secret scanner, and changes no
    needs none, so none are used; the README says how one would be supplied (an environment
    variable read in the test), `.env` files are ignored, and the repository's secret scanner finds
    none in any of the files Git would commit, including the staged copy of every tracked file,
-   since that is what a commit would take (`logs/ignore-check.txt`).
+   since that is what a commit would take, within the scanner's skip rules (see Remaining
+   limitations; `logs/ignore-check.txt`).
 5. **Reports, traces and downloads are ignored by Git:** `logs/ignore-check.txt` asks Git about
    every kind of file a run produces (results, traces, failure screenshots, downloads, the HTML
    report, merged-report files and the build cache) and both environment files, and names the rule
@@ -168,6 +170,13 @@ second operating system.
   it tests one small page, not a real application.
 - **The credential scan depends on the repository's scanner,** which needs the repository's Python
   environment; without it, the check stops and says so rather than passing.
+- **The credential scan follows the scanner's own skip rules.** The repository's scanner leaves out
+  images, PDFs, fonts, audio, video, archives and `.lock` files, anything in a folder named `generated`,
+  `local-data`, `node_modules`, `.git`, `.venv` or `__pycache__`, files over 2 MB, and files that
+  aren't UTF-8 text. My check uses the scanner as it is, so it never disagrees with the quest app's
+  own hand-in scan, but a credential in one of those files would not be found. I tested this with a
+  made-up token in a link named like an archive, a file in a `generated` folder, a `.lock` file and
+  a 2.1 MB text file: the check passed each time.
 - **The credential scan can over-report for links.** Git commits a link as the text of where it
   points, and the check scans that text. The scanner also reads the file a link points to, which
   isn't committed, so a credential there is reported even though it wouldn't be committed.
@@ -176,4 +185,5 @@ second operating system.
 
 No secret, token, password, customer name or private ticket content is in this hand-in. The demo
 app and its data are invented, the tests use no login, and the repository's secret scanner finds
-no credential in anything Git would commit.
+no credential in anything Git would commit, within the skip rules listed under Remaining
+limitations.
