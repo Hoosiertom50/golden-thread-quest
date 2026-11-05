@@ -290,11 +290,13 @@ function main(): number {
     (folder) => `${projectPath}/${folder}/`,
   );
   if (browsersInRepo !== null && browsersInRepo !== "") generated.push(`${browsersInRepo}/`);
-  // Downloaded browsers are also recognised by the folder names Playwright gives them (such as
-  // "chromium-1243" or ".local-browsers"), wherever they are, so a download made earlier with a
-  // different PLAYWRIGHT_BROWSERS_PATH is caught even when that setting isn't set now.
+  // Downloaded browsers are also recognised by the folder names Playwright gives them, wherever they
+  // are, so a download made earlier with a different PLAYWRIGHT_BROWSERS_PATH is caught even when
+  // that setting isn't set now. Playwright names each folder after a browser it has ever offered,
+  // with "_" for "-", then its revision ("chromium-1243", "chromium_headless_shell-1243",
+  // "firefox_beta-1234"); the folder holding them is ".local-browsers" or "ms-playwright".
   const browserFolder =
-    /(^|\/)(chromium|chromium_headless_shell|chromium-tip-of-tree|firefox|firefox-beta|webkit|ffmpeg|winldd)-\d+\/|(^|\/)(\.local-browsers|ms-playwright)\//;
+    /(^|\/)(android|chromium|chromium_headless_shell|chromium_tip_of_tree|chromium_tip_of_tree_headless_shell|firefox|firefox_beta|webkit|ffmpeg|winldd)-\d+\/|(^|\/)(\.local-browsers|ms-playwright)\//;
   const installedPackage = /(^|\/)node_modules\//i;
   const committedGenerated = files.filter(
     (file) =>

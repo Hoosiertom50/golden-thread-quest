@@ -33,7 +33,10 @@ export default defineConfig({
     // could redirect the browser, or load a script or image, from a public site. Every request
     // except to this computer is sent to a proxy that doesn't exist (port 9 on this computer), so
     // it fails instead of reaching the internet; Chromium sends requests to this computer directly.
-    proxy: { server: "http://127.0.0.1:9", bypass: "localhost,127.0.0.1,[::1]" },
+    // "<-loopback>" turns off Chromium's own list of addresses that skip a proxy, which also covers
+    // link-local addresses (169.254.x.x and fe80::), such as the address a cloud machine answers
+    // credential requests on; only the three addresses named here skip it.
+    proxy: { server: "http://127.0.0.1:9", bypass: "<-loopback>,localhost,127.0.0.1,[::1]" },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   // Start the local demo app for the run, unless TIXLY_BASE_URL points at a copy already running.
