@@ -9,8 +9,9 @@
 //   - Playwright's browsers are kept out of Git;
 //   - no environment file, generated output, installed package or downloaded browser is among the
 //     files Git would commit, even one added on purpose;
-//   - no credential is found in any file Git would commit, or in the staged copy of any tracked
-//     file (which is what a commit takes), using the repository's own secret scanner
+//   - no credential is found in any file Git would commit, in the staged copy of any tracked file
+//     (which is what a commit takes), or in the text of any link (which is what Git commits for a
+//     link), using the repository's own secret scanner
 //     (tools/secret_scan.py), the same one the quest app uses.
 //
 // It runs Git and the scanner and only reads; it changes nothing. "Files Git would commit" means
@@ -24,7 +25,7 @@
 // Exit status: 0 passed, 1 failed, 2 Git or the scanner couldn't be run.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readlinkSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,15 +81,33 @@ function run(command: string, args: string[], cwd: string): { status: number; st
 // Runs the repository's scanner over the given files on disk and over the staged copy of every
 // tracked file, because a commit takes the staged copy, which can differ from the file on disk or
 // be hidden from it (a file marked skip-worktree or assume-unchanged, or a sparse checkout). Git
-// writes every staged file into a temporary folder in one step; the folder is removed before
-// returning, and its path is returned so findings in it can be reported as "staged copy of ...".
+// writes every staged file into a temporary folder in one step. A link is committed as the text of
+// where it points, not as the file it points to, so that text is scanned too: each staged link is
+// replaced by a plain file holding its text, and the text of each link on disk is written to a second
+// temporary folder. Both folders are removed before returning; their paths are returned so findings
+// in them can be reported as "staged copy of ..." and "link text of ...".
 function scanWithStagedCopies(
   root: string,
   python: string,
   scanner: string,
   files: string[],
-): { scan: ReturnType<typeof spawnSync>; staging: string; stagedCopies: string[] } {
+): { scan: ReturnType<typeof spawnSync>; staging: string; linkTexts: string; stagedCopies: string[] } {
   const staging = mkdtempSync(join(tmpdir(), "project-setup-check-"));
+  const linkTexts = mkdtempSync(join(tmpdir(), "project-setup-check-links-"));
+  const isLink = (path: string): boolean => {
+    try {
+      return lstatSync(path).isSymbolicLink();
+    } catch {
+      return false;
+    }
+  };
+  // Writes the text of the link at "link" to a plain file at "copy".
+  const writeLinkText = (link: string, copy: string): void => {
+    const text = readlinkSync(link);
+    rmSync(copy, { force: true });
+    mkdirSync(dirname(copy), { recursive: true });
+    writeFileSync(copy, text);
+  };
   try {
     const written = run(
       "git",
@@ -96,19 +115,30 @@ function scanWithStagedCopies(
       root,
     );
     if (written.status !== 0) throw new CannotRun(`Git couldn't write the staged files: ${written.stderr.trim()}`);
-    const stagedCopies = run("git", ["ls-files", "--cached", "-z"], root)
-      .stdout.split("\0")
-      .filter((file) => file !== "")
-      .map((file) => join(staging, file))
-      .filter((copy) => existsSync(copy));
-    const scan = spawnSync(python, [scanner, ...files, ...stagedCopies], {
+    const stagedCopies: string[] = [];
+    for (const file of run("git", ["ls-files", "--cached", "-z"], root).stdout.split("\0")) {
+      if (file === "") continue;
+      const copy = join(staging, file);
+      if (isLink(copy)) writeLinkText(copy, copy);
+      if (existsSync(copy)) stagedCopies.push(copy);
+    }
+    const linkCopies: string[] = [];
+    for (const file of files) {
+      const onDisk = join(root, file);
+      if (!isLink(onDisk)) continue;
+      const copy = join(linkTexts, file);
+      writeLinkText(onDisk, copy);
+      linkCopies.push(copy);
+    }
+    const scan = spawnSync(python, [scanner, ...files, ...stagedCopies, ...linkCopies], {
       cwd: root,
       encoding: "utf8",
       maxBuffer: 16 * 1024 * 1024,
     });
-    return { scan, staging, stagedCopies };
+    return { scan, staging, linkTexts, stagedCopies };
   } finally {
     rmSync(staging, { recursive: true, force: true });
+    rmSync(linkTexts, { recursive: true, force: true });
   }
 }
 
@@ -234,14 +264,14 @@ function main(): number {
   }
   // A commit takes the staged copy of a file, which can differ from the copy on disk (a token staged
   // and then deleted from the file on disk would still be committed), so every staged copy is
-  // scanned as well.
-  const { scan, staging, stagedCopies } = scanWithStagedCopies(root, python, scanner, files);
+  // scanned as well, and so is the text of every link, which is what Git commits for a link.
+  const { scan, staging, linkTexts, stagedCopies } = scanWithStagedCopies(root, python, scanner, files);
   if (scan.error) throw new CannotRun(`couldn't run the secret scanner: ${scan.error.message}`);
   const scanLines = `${scan.stdout ?? ""}${scan.stderr ?? ""}`
     .trim()
     .split("\n")
     .filter((line) => line !== "")
-    .map((line) => line.replace(`${staging}${sep}`, "staged copy of "));
+    .map((line) => line.replace(`${staging}${sep}`, "staged copy of ").replace(`${linkTexts}${sep}`, "link text of "));
   const summary = scanLines.find((line) => line.startsWith("secret-scan:")) ?? "";
   // The scanner exits 0 (nothing found) or 1 (findings), always with a summary line. Anything else
   // means it didn't finish, so nothing was scanned: that is "couldn't check", not a failed check.

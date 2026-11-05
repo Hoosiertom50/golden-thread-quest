@@ -30,7 +30,7 @@ the README alone:
   output and environment files, keeps the project's own files, keeps downloaded browsers out, finds
   no generated file, installed package or browser among the files Git would commit, and that the
   repository's own secret scanner finds no credential in them, including in the staged copy of
-  every tracked file, which is what a commit takes.
+  every tracked file, which is what a commit takes, and in the text of every link.
 
 ## Where the important artifacts are
 
@@ -140,10 +140,10 @@ it for them.
 - **The check script on the real repository:** PASSED, as recorded in `logs/ignore-check.txt`.
 - **Strict type check:** the check script, the configuration and the test were type-checked with
   TypeScript 6.0.3 in strict mode, in a temporary folder outside this repository.
-- **Tests of the check itself (kept locally, not handed in):** 33 throwaway Git repositories, each
+- **Tests of the check itself (kept locally, not handed in):** 36 throwaway Git repositories, each
   holding a copy of the project with one thing broken (for example an environment file forced
   into Git, a made-up token in a notes file, the lockfile ignored, or browsers stored inside the
-  repository), each giving the expected result; and 24 deliberately broken copies of the script,
+  repository), each giving the expected result; and 27 deliberately broken copies of the script,
   all of which those tests caught. They found one real bug: on macOS a folder can have two names
   (`/var` is a link to `/private/var`), so a browser folder inside the repository could look as if
   it were outside. The script now compares real locations.
@@ -168,9 +168,9 @@ second operating system.
   it tests one small page, not a real application.
 - **The credential scan depends on the repository's scanner,** which needs the repository's Python
   environment; without it, the check stops and says so rather than passing.
-- **The credential scan follows links.** If a file Git would commit is a link to a file elsewhere,
-  the scanner reads the file it points to. Git commits only the link, so this can report a
-  credential that wouldn't actually be committed, but it can't miss one.
+- **The credential scan can over-report for links.** Git commits a link as the text of where it
+  points, and the check scans that text. The scanner also reads the file a link points to, which
+  isn't committed, so a credential there is reported even though it wouldn't be committed.
 
 ## Sensitive values
 
