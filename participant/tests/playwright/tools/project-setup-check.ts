@@ -83,6 +83,17 @@ function run(command: string, args: string[], cwd: string): { status: number; st
   return { status: result.status ?? 1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
 
+// Runs a Git command and stops the check ("couldn't run", exit 2) if Git answers with anything other
+// than an expected status, so a failing Git command can never be read as "nothing found". Most
+// commands must succeed (0); "git check-ignore" answers 0 for ignored and 1 for not ignored.
+function git(args: string[], root: string, expected: number[] = [0]): { status: number; stdout: string; stderr: string } {
+  const result = run("git", args, root);
+  if (!expected.includes(result.status)) {
+    throw new CannotRun(`"git ${args.slice(0, 2).join(" ")}" failed (exit ${result.status}): ${result.stderr.trim()}`);
+  }
+  return result;
+}
+
 // Runs the repository's scanner over the given files on disk and over the staged copy of every
 // tracked file, because a commit takes the staged copy, which can differ from the file on disk or
 // be hidden from it (a file marked skip-worktree or assume-unchanged, or a sparse checkout). Each
@@ -107,7 +118,7 @@ function scanWithStagedCopies(
   try {
     // "git ls-files -s" lists "<mode> <object> <stage>\t<path>" for every staged file. Submodules
     // (mode 160000) have no contents of their own here and are left out.
-    const entries = run("git", ["ls-files", "--stage", "-z"], root)
+    const entries = git(["ls-files", "--stage", "-z"], root)
       .stdout.split("\0")
       .filter((entry) => entry !== "")
       .map((entry) => {
@@ -177,8 +188,8 @@ function scanWithStagedCopies(
 // question decides whether the path is ignored; "-v" then names the deciding rule and its file.
 // ("-v" alone can't decide: it also reports a rule that un-ignores the path, such as "!.env.local".)
 function ignoredByRepository(root: string, path: string): { ignored: boolean; rule: string } {
-  if (run("git", ["check-ignore", "--no-index", "-q", path], root).status !== 0) return { ignored: false, rule: "" };
-  const rule = run("git", ["check-ignore", "--no-index", "-v", path], root).stdout.split("\t")[0] ?? "";
+  if (git(["check-ignore", "--no-index", "-q", path], root, [0, 1]).status !== 0) return { ignored: false, rule: "" };
+  const rule = git(["check-ignore", "--no-index", "-v", path], root).stdout.split("\t")[0] ?? "";
   const source = /^(.*?):\d+:/.exec(rule)?.[1] ?? "";
   // A personal ignore file is often named ".gitignore" too (such as ~/.gitignore), so the rule's file
   // must also be inside the repository: Git names those files by a path relative to the top folder.
@@ -223,7 +234,7 @@ function main(): number {
 
   // The project's own files are not ignored.
   const wronglyIgnored = MUST_NOT_BE_IGNORED.filter(
-    (path) => run("git", ["check-ignore", "--no-index", "-q", join(projectPath, path)], root).status === 0,
+    (path) => git(["check-ignore", "--no-index", "-q", join(projectPath, path)], root, [0, 1]).status === 0,
   );
   check(
     wronglyIgnored.length === 0,
@@ -265,8 +276,7 @@ function main(): number {
   );
 
   // The files Git would commit: everything tracked, plus new files that aren't ignored.
-  const listed = run("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], root);
-  if (listed.status !== 0) throw new CannotRun("Git couldn't list the repository's files");
+  const listed = git(["ls-files", "--cached", "--others", "--exclude-standard", "-z"], root);
   const files = listed.stdout.split("\0").filter((file) => file !== "");
 
   // No environment file would be committed anywhere in the repository (the example file is

@@ -149,10 +149,10 @@ it for them.
 - **The check script on the real repository:** PASSED, as recorded in `logs/ignore-check.txt`.
 - **Strict type check:** the check script, the configuration and the test were type-checked with
   TypeScript 6.0.3 in strict mode, in a temporary folder outside this repository.
-- **Tests of the check itself (kept locally, not handed in):** 65 throwaway Git repositories, each
+- **Tests of the check itself (kept locally, not handed in):** 69 throwaway Git repositories, each
   holding a copy of the project with one thing broken (for example an environment file forced
   into Git, a made-up token in a notes file, the lockfile ignored, or browsers stored inside the
-  repository), each giving the expected result; and 38 deliberately broken copies of the script,
+  repository), each giving the expected result; and 39 deliberately broken copies of the script,
   all of which those tests caught. They found one real bug: on macOS a folder can have two names
   (`/var` is a link to `/private/var`), so a browser folder inside the repository could look as if
   it were outside. The script now compares real locations.
