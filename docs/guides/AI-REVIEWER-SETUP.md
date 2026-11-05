@@ -46,9 +46,9 @@ goes to you anyway), `PILOT_AI_SAMPLE_SALT` and `PILOT_AI_MODEL` (default `claud
 
 ## What you will see
 
-- **`gtq:needs-human`**: yours. The reasons are in the journal and the comment the participant
-  got. Review as before; pushing your decision clears the label.
-- **`gtq:ask-human`**: a participant added it to ask for a person. The reviewer skips it.
+- **`gtq:needs-human`**: a run could not finish. It does not hold the hand-in back: the reviewer
+  retries every ten minutes and the label clears when it decides. The reasons are in the journal.
+- **`gtq:ask-human`**: ignored. Every hand-in is reviewed by the agent (ADR-048).
 - `journalctl --user -u gtq-reviewer -n 50` lists, for each pull request, what was decided and why.
 - To review one now: `python3 ~/.local/share/gtq-reviewer/forge_review.py --pr 27`, or `systemctl --user start gtq-reviewer.service` to sweep.
 

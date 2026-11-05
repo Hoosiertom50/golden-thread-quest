@@ -694,7 +694,7 @@ def gate(
                 "summary": "The evidence did not let the reviewer decide.",
                 "evidence": _norm(verdict["verification"])[:400],
                 "required_change": "Add clearer evidence for each acceptance criterion, then "
-                "submit again. You can add the label gtq:ask-human to ask a person.",
+                "submit again.",
             }
         )
     plan.action = NEEDS_CHANGES
@@ -726,8 +726,6 @@ def review_hand_in(
 ) -> Plan:
     if mode == "off":
         return Plan(SKIP, "The automatic reviewer is turned off.")
-    if LABEL_ASK_HUMAN in labels:
-        return Plan(SKIP, "The participant asked for a person to review this.")
 
     result = precheck.check(repo_root, participant_root, files, trust_reviews=False)
     if result.status != precheck.READY:
@@ -990,7 +988,10 @@ def eligible(prs: list[dict[str, Any]]) -> list[int]:
     numbers = []
     for pr in prs:
         names = {label["name"] for label in pr["labels"]}
-        if not pr["headRefName"].startswith("pilot/") or names & {LABEL_ASK_HUMAN, *AI_LABELS}:
+        # Only the reviewer's own shadow verdicts mean "done". A person label never holds a
+        # hand-in back: every hand-in is reviewed by the agent, and a failed run is retried.
+        done = names & {LABEL_AI_APPROVE, LABEL_AI_CHANGES}
+        if not pr["headRefName"].startswith("pilot/") or done:
             continue
         numbers.append(int(pr["number"]))
     return numbers
@@ -1132,14 +1133,14 @@ def command_apply(args: argparse.Namespace) -> int:
         )
         if live and marker not in bodies:
             body = (
-                f"{marker}\n### A person will review this\n\nThis one needs a person to look at "
-                "it by hand. You do not need to do anything; GitHub emails you when they have "
+                f"{marker}\n### The automatic review could not finish\n\nThe reviewer will try "
+                "again on its own. You do not need to do anything; GitHub emails you when it has "
                 "decided.\n"
             )
             _gh("pr", "comment", str(number), "--repo", repo, "--body", body, check=False)
         if LABEL_NEEDS_HUMAN not in present:
-            _notify(f"{head} needs a human review: {reason}")
-        _summary(f"**{head}**: escalated to a person. {reason}")
+            _notify(f"{head}: the automatic review could not finish and will be retried: {reason}")
+        _summary(f"**{head}**: the review could not finish; it will be retried. {reason}")
         return 0
 
     label = LABEL_AI_APPROVE if action == APPROVE else LABEL_AI_CHANGES
