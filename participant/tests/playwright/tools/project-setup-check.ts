@@ -11,8 +11,9 @@
 //     files Git would commit, even one added on purpose;
 //   - no credential is found in any file Git would commit, in the staged copy of any tracked file
 //     (which is what a commit takes), or in the text of any link (which is what Git commits for a
-//     link), using the repository's own secret scanner
-//     (tools/secret_scan.py), the same one the quest app uses.
+//     link), using the repository's own secret scanner (tools/secret_scan.py). The quest app's
+//     hand-in check is a separate scan with its own rules (for example, it ignores the scanner's
+//     "allow" marker), so passing here doesn't guarantee passing that check.
 //
 // It runs Git and the scanner and only reads; it changes nothing. "Files Git would commit" means
 // every tracked file plus every new file that isn't ignored.

@@ -171,12 +171,13 @@ second operating system.
 - **The credential scan depends on the repository's scanner,** which needs the repository's Python
   environment; without it, the check stops and says so rather than passing.
 - **The credential scan follows the scanner's own skip rules.** The repository's scanner leaves out
-  images, PDFs, fonts, audio, video, archives and `.lock` files, anything in a folder named `generated`,
-  `local-data`, `node_modules`, `.git`, `.venv` or `__pycache__`, files over 2 MB, and files that
-  aren't UTF-8 text. My check uses the scanner as it is, so it never disagrees with the quest app's
-  own hand-in scan, but a credential in one of those files would not be found. I tested this with a
-  made-up token in a link named like an archive, a file in a `generated` folder, a `.lock` file and
-  a 2.1 MB text file: the check passed each time.
+  images, PDFs, fonts, audio, video, archives and `.lock` files, anything in a folder named
+  `generated`, `local-data`, `node_modules`, `.git`, `.venv` or `__pycache__`, files over 2 MB, and
+  files that aren't UTF-8 text, and it skips any line marked `# secret-scan: allow`. A credential in
+  one of those files or lines would not be found. I tested this with a made-up token in a link named
+  like an archive, a file in a `generated` folder, a `.lock` file and a 2.1 MB text file: the check
+  passed each time. The quest app's hand-in check is a separate scan with its own rules (for
+  example, it ignores that marker), so passing my check doesn't guarantee passing the hand-in check.
 - **The credential scan can over-report for links.** Git commits a link as the text of where it
   points, and the check scans that text. The scanner also reads the file a link points to, which
   isn't committed, so a credential there is reported even though it wouldn't be committed.
