@@ -201,13 +201,31 @@ class Workspace:
             raw = raw[:limit]
         return raw.decode("utf-8", errors="replace"), truncated
 
-    def iter_files(self, path: str, pattern: str = "*") -> list[Path]:
+    def iter_files(
+        self, path: str, pattern: str = "*", *, skip_dirs: frozenset[str] = frozenset()
+    ) -> list[Path]:
+        """Readable files under `path`. A directory named in `skip_dirs` is not entered.
+
+        Pruned rather than filtered afterwards: a dependency folder such as `node_modules`
+        can hold tens of thousands of files, and walking them only to discard them would cost
+        a containment check each.
+        """
         root = self._contained(Path(path), self.read_roots, "reading")
         if not root.is_dir():
             return []
-        return sorted(
-            item for item in root.rglob(pattern) if item.is_file() and self._is_readable(item)
-        )
+        if not skip_dirs:
+            return sorted(
+                item for item in root.rglob(pattern) if item.is_file() and self._is_readable(item)
+            )
+        found: list[Path] = []
+        for directory, names, files in os.walk(root):
+            names[:] = [name for name in names if name not in skip_dirs]
+            found.extend(
+                item
+                for item in (Path(directory) / name for name in files)
+                if item.match(pattern) and self._is_readable(item)
+            )
+        return sorted(found)
 
     def attempt_files(self, pattern: str = "*") -> list[Path]:
         """Every readable file inside the evidence package of the attempt under validation.
