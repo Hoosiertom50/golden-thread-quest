@@ -3,7 +3,7 @@
 Attempt: `github-attempt-001`
 
 Decisions by Tom Carter; the check, its tests and these notes drafted with Claude (Claude Code),
-11-05-2026. Everything here only reads from GitHub; nothing on GitHub was changed.
+11-05-2026 and 11-06-2026. Everything here only reads from GitHub; nothing on GitHub was changed.
 
 ## What was built
 
@@ -78,8 +78,8 @@ the check couldn't run (for example, gh missing or signed out).
    CLI's debug output and blanks anything shaped like a GitHub token. Nothing is printed until the
    whole output has been scanned with the quest app's own credential patterns; if the scan finds
    anything, the whole output is withheld, and an error message is checked the same way. Both
-   logs end `PASS no credential in this output ... 0 finding(s)`, and the
-   repository's secret scanner finds nothing in either log.
+   logs end `PASS no credential in this output ... 0 finding(s)`, and the repository's secret
+   scanner finds nothing in either log.
 7. **The notes say what the check does not prove and which scope is broader than needed:**
    `verify-notes.md` lists six things it doesn't prove and a table of the four scopes; `repo` is
    the broadest, giving write access to every private repository the account reaches, when the
@@ -92,10 +92,11 @@ check would print `FAIL every expected repository is reachable (LOST ACCESS: <na
 exit code 1 (criteria 3 and 4). If a scope were removed or added, the scope line would fail and name
 it (criterion 2). Asked about a repository it can't reach, the check says `INACCESSIBLE`, never
 "empty" (criterion 4), so the week-long silent sync in the quest's scenario can't happen while the
-check runs before it. I tested this on 11-05-2026 by pointing the check at a copy of the expected
-file with one repository it can't reach and one extra scope: it reported `LOST ACCESS` and
-`removed: admin:org` and ended with exit code 1. What it won't catch: a lost organization
-repository (those are only counted), and anything between runs, since it isn't on a schedule yet.
+check runs before it. I tested this with the final version on 11-06-2026 by pointing the check at a
+copy of the expected file with one repository it can't reach and one extra scope: it reported
+`LOST ACCESS` and `removed: admin:org` and ended with exit code 1. What it won't catch: a lost
+organization repository (those are only counted), and anything between runs, since it isn't on a
+schedule yet.
 
 ## Reflection
 
@@ -112,28 +113,36 @@ remove it again after.
 - **The real check:** both runs on my account passed, as recorded in the two logs.
 - **A lost repository and a changed scope:** reported as FAIL with exit code 1, as described above.
 - **Offline tests (kept locally, not handed in):** 46 runs of the check against a stand-in for the
-  GitHub CLI, so nothing reached GitHub. They cover two pages of repositories, other owners counted
-  but never named, a lost repository, a token-shaped value in GitHub's answer (blanked, even when
-  run together with other text), another
-  kind of credential (withheld and failed), the CLI missing, signed out or refused (each "couldn't
-  run", exit 2), a readable repository given as out of reach (FAIL), names that try to leave the
-  repository path (refused), every request being a GET, the CLI's debug setting switched on, and
-  GitHub answering badly (an unreadable answer, a list that fails part-way, bad credentials or a
-  used-up or secondary rate limit, an "empty" list that isn't a list), an expected-access file with
-  a missing, empty or wrongly typed entry, a credential spread over several lines, a credential
-  given on the command line or in a broken expected-access file, an unknown or empty option, a
-  safe-read repository that has moved to another owner (its new name withheld), and running with
-  the wrong Python. Each now stops with "couldn't
-  run", or withholds the output, instead of passing, failing wrongly, printing a credential or
+  GitHub CLI, so nothing reached GitHub. They cover two pages of repositories; other owners counted
+  but never named; a lost repository; a token-shaped value in GitHub's answer (blanked, even when
+  run together with other text); another kind of credential, including one spread over several
+  lines (the whole output withheld); a credential given on the command line or in a broken
+  expected-access file; the CLI missing, signed out or refused; a readable repository given as out
+  of reach (FAIL); names that try to leave the repository path, and an empty one (refused); every
+  request being a GET; the CLI's debug setting switched on; GitHub answering badly (an unreadable
+  answer, a list that fails part-way, bad credentials, a used-up or secondary rate limit, an
+  "empty" list that isn't a list); an expected-access file with a missing, empty or wrongly typed
+  entry; an unknown option; a safe-read repository that has moved to another owner (its new name
+  withheld); and running with the wrong Python. In each case the check now stops with "couldn't
+  run" (exit 2), fails, or withholds the output, instead of passing, printing a credential or
   crashing.
-- **What the tests and my own read-through found:** six real problems, all fixed before the logs
-  were recorded. Reading the whole script before the first review found the four kinds of bad
-  answer above. The tests found the other two: a credential that wasn't shaped like a GitHub token
-  was printed before the scan caught it (the check said FAIL, but the value was already in the
-  output), so now nothing is printed until the scan has run; and an out-of-reach name of `../user`
-  reached my own profile instead and came back as readable, so now `.` and `..` are refused in
-  every repository name.
-- **Copilot review:** [ROUNDS]
+- **What my own tests and reviews found:** eight real problems, all fixed. On 11-05-2026 the tests
+  found two: a credential that wasn't shaped like a GitHub token was printed before the scan
+  caught it (the check said FAIL, but the value was already in the output), and an out-of-reach
+  name of `../user` reached my own profile instead and came back as readable. Reading the whole
+  script before the first Copilot round found four kinds of bad answer from GitHub that could
+  crash the check or give a wrong result. Reading it again between rounds found two more: one of my
+  fixes would have hidden the script's own helpful error messages, and running it with the Mac's
+  built-in Python crashed instead of saying which Python to use.
+- **Copilot review:** 5 rounds on a practice pull request in my own fork, on 11-06-2026. I
+  reproduced every item before changing anything, and kept going until a round came back with
+  nothing I would fix. Round 1 found 3 High and 1 Medium, round 2 found 2 High, round 3 found 3
+  more in code it hadn't flagged before, and round 4 hinted at 2 gaps in its summary; all were
+  real and all are fixed. Most were about keeping a credential out of the output on unusual paths
+  (a credential spread over several lines, an error message, a command-line mistake, a token run
+  together with other text), and the rest about never reporting success when the check didn't
+  really run (a broken expected-access file, throttling read as "inaccessible", an empty
+  out-of-reach name). Round 5 recommended approval with no open issues.
 
 ## Stretch goals
 

@@ -3,7 +3,8 @@
 The check is `participant/tools/verify-github-connection.py`. It reads the GitHub CLI's existing
 sign-in for the account Hoosiertom50, using read operations only, and compares what it finds with
 `participant/context/github/expected-access.yaml`. These notes cover what it does not prove, which
-scopes are broader than needed, and how a changed permission would be noticed. Written 11-05-2026.
+scopes are broader than needed, and how a changed permission would be noticed. Written 11-05-2026,
+updated 11-06-2026.
 
 ## What the check does not prove
 
@@ -54,8 +55,8 @@ checking the connection I actually use was the point.
   `INACCESSIBLE`, with GitHub's answer; a list it can read but that has nothing in it says
   `REACHABLE, EMPTY`. The quest's scenario, a sync returning nothing for a week, is the second
   answer being mistaken for the first.
-- **Tested.** On 11-05-2026 I pointed the check at a copy of the expected-access file with one
-  repository it can't reach and one extra scope: it reported `LOST ACCESS` and `removed: admin:org`
-  and ended with exit code 1.
+- **Tested.** On 11-06-2026, with the final version, I pointed the check at a copy of the
+  expected-access file with one repository it can't reach and one extra scope: it reported
+  `LOST ACCESS` and `removed: admin:org` and ended with exit code 1.
 - **Not yet on a schedule.** Someone has to run it. Run before each sync, or daily, a failure
   would show up the same day instead of after a week.
