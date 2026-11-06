@@ -45,10 +45,31 @@ RECORD_SUFFIXES = {".json", ".txt", ".log", ".xml", ".md", ".zip"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 
 
+# Folders that hold someone else's code or a tool's output, not the participant's test. The
+# project-setup quest installs Playwright under `participant/tests/playwright/node_modules`,
+# and its own files have "test" in their names, no assertion in the sense checked here and
+# markup selectors, so reading them failed three checks before anything was written.
+NOT_THE_PARTICIPANTS_CODE = frozenset(
+    {
+        "node_modules",
+        "site-packages",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        "dist",
+        "build",
+        "test-results",
+        "playwright-report",
+        "blob-report",
+    }
+)
+
+
 def run(workspace: Workspace, output: ValidatorOutput) -> None:
     tests = [
         path
-        for path in workspace.iter_files("participant/tests")
+        for path in workspace.iter_files("participant/tests", skip_dirs=NOT_THE_PARTICIPANTS_CODE)
         if path.suffix in {".py", ".ts", ".js"} and "test" in path.name.lower()
     ]
     if not tests:

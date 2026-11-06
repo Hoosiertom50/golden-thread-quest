@@ -13,7 +13,7 @@ from pathlib import Path
 from quest_app.safe_io import MAX_EVIDENCE_FILE_BYTES
 from quest_app.validator_runner import ValidatorOutput, Workspace
 from validators.jira_read_assigned import _check_disappearances_reported
-from validators.playwright_quality import BRITTLE_SELECTORS
+from validators.playwright_quality import BRITTLE_SELECTORS, run as run_playwright_quality
 from validators.repository_foundation import _check_ignore_rules, _check_no_secrets_in_evidence
 
 STALE_FIXTURE = json.loads(Path("validators/fixtures/jira/stale-item.json").read_text())
@@ -112,6 +112,48 @@ class TestBrittleSelectors:
             "page.get_by_role('button', name='Save')",
         ):
             assert not BRITTLE_SELECTORS.search(source), source
+
+
+class TestInstalledDependenciesAreNotTheParticipantsTest:
+    """Playwright's own files, installed by the project-setup quest, are not the test."""
+
+    GOOD = "await expect(page.getByRole('button', {name: 'Save'})).toBeVisible();\n"
+    LIBRARY = "page.locator('.x'); page.waitForTimeout(500);\n"  # no assertion, brittle, sleeps
+
+    def _run(self, root: Path, files: dict[str, str]) -> ValidatorOutput:
+        for name, text in files.items():
+            target = root / "participant" / "tests" / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+        output = ValidatorOutput()
+        run_playwright_quality(_workspace(root), output)
+        return output
+
+    def test_only_dependency_files_means_no_test_yet_not_three_failures(
+        self, tmp_path: Path
+    ) -> None:
+        output = self._run(
+            tmp_path, {"playwright/node_modules/@playwright/test/lib/test.js": self.LIBRARY}
+        )
+        assert _outcome(output, "test-exists") == "inconclusive"
+        assert _outcome(output, "test-asserts-something") is None
+
+    def test_the_participants_test_is_judged_alone(self, tmp_path: Path) -> None:
+        output = self._run(
+            tmp_path,
+            {
+                "playwright/node_modules/@playwright/test/lib/test.js": self.LIBRARY,
+                "playwright/tests/save.test.ts": self.GOOD,
+            },
+        )
+        assert _outcome(output, "test-asserts-something") == "pass"
+        assert _outcome(output, "selectors-target-behavior") == "pass"
+        assert _outcome(output, "no-arbitrary-waits") == "pass"
+
+    def test_a_bad_test_outside_dependencies_still_fails(self, tmp_path: Path) -> None:
+        output = self._run(tmp_path, {"playwright/tests/save.test.ts": self.LIBRARY})
+        assert _outcome(output, "test-asserts-something") == "fail"
+        assert _outcome(output, "no-arbitrary-waits") == "fail"
 
 
 class TestDisappearancesAreReported:
