@@ -76,8 +76,9 @@ the check couldn't run (for example, gh missing or signed out).
    issued; an offline test also records the exact commands and confirms each is a GET.
 6. **The credential appears in no output:** the check never asks for the token, turns off the
    CLI's debug output and blanks anything shaped like a GitHub token. Nothing is printed until the
-   whole output has been scanned with the quest app's own credential patterns, and a line the scan
-   flags is withheld. Both logs end `PASS no credential in this output ... 0 finding(s)`, and the
+   whole output has been scanned with the quest app's own credential patterns; if the scan finds
+   anything, the whole output is withheld, and an error message is checked the same way. Both
+   logs end `PASS no credential in this output ... 0 finding(s)`, and the
    repository's secret scanner finds nothing in either log.
 7. **The notes say what the check does not prove and which scope is broader than needed:**
    `verify-notes.md` lists six things it doesn't prove and a table of the four scopes; `repo` is
@@ -110,15 +111,18 @@ remove it again after.
 
 - **The real check:** both runs on my account passed, as recorded in the two logs.
 - **A lost repository and a changed scope:** reported as FAIL with exit code 1, as described above.
-- **Offline tests (kept locally, not handed in):** 25 runs of the check against a stand-in for the
+- **Offline tests (kept locally, not handed in):** 36 runs of the check against a stand-in for the
   GitHub CLI, so nothing reached GitHub. They cover two pages of repositories, other owners counted
   but never named, a lost repository, a token-shaped value in GitHub's answer (blanked), another
   kind of credential (withheld and failed), the CLI missing, signed out or refused (each "couldn't
   run", exit 2), a readable repository given as out of reach (FAIL), names that try to leave the
   repository path (refused), every request being a GET, the CLI's debug setting switched on, and
   GitHub answering badly (an unreadable answer, a list that fails part-way, bad credentials or a
-  used-up rate limit on the out-of-reach read, an "empty" list that isn't a list), each of which
-  now stops with "couldn't run" instead of passing, failing wrongly or crashing.
+  used-up or secondary rate limit, an "empty" list that isn't a list), an expected-access file with
+  a missing, empty or wrongly typed entry, a credential spread over several lines, a credential
+  given on the command line, and running with the wrong Python. Each now stops with "couldn't
+  run", or withholds the output, instead of passing, failing wrongly, printing a credential or
+  crashing.
 - **What the tests and my own read-through found:** six real problems, all fixed before the logs
   were recorded. Reading the whole script before the first review found the four kinds of bad
   answer above. The tests found the other two: a credential that wasn't shaped like a GitHub token

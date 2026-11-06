@@ -18,7 +18,8 @@ Safety:
 - The token is never asked for or printed. The check doesn't run "gh auth token" or "gh auth
   status", turns off gh's debug output, and blanks anything shaped like a GitHub token. Nothing is
   printed until the whole output has been scanned with the quest app's own credential patterns;
-  a line the scan flags is withheld, so a credential can't reach the screen or a log.
+  if the scan finds anything, the whole output is withheld, and an error message is checked the
+  same way, so a credential can't reach the screen or a log.
 - A repository name must be OWNER/REPO, and "." or ".." is refused, so a name can't reach another
   part of the API.
 - Repositories owned by anyone other than the signed-in account are only counted, never named.
@@ -62,32 +63,64 @@ OUTPUT: list[str] = []  # every line printed, for the credential scan at the end
 
 
 class CannotRun(Exception):
-    """The check couldn't run, so nothing was checked (exit 2)."""
+    """The check couldn't run, so nothing was checked (exit 2). fixed=True marks a message made of
+    the script's own words only, with no value from the command line, a file or gh, so it can be
+    printed even when the credential scan isn't available."""
+
+    def __init__(self, message: str, *, fixed: bool = False) -> None:
+        super().__init__(message)
+        self.fixed = fixed
 
 
-def say(line: str = "") -> None:
-    """Holds a line for printing. Nothing is printed until the whole output has been scanned for
-    credentials (see flush), so a credential can't reach the screen or a log first."""
-    OUTPUT.append(TOKEN_SHAPE.sub("[blanked]", line))
+def say(text: str = "") -> None:
+    """Holds text for printing, one held entry per line. Nothing is printed until the whole output
+    has been scanned for credentials (see flush), so a credential can't reach the screen or a log
+    first."""
+    OUTPUT.extend(TOKEN_SHAPE.sub("[blanked]", text).split("\n"))
 
 
-def flush() -> int:
-    """Scans every held line with the quest app's own credential patterns, then prints them, with
-    any line the scan flags withheld. Returns the number of findings."""
+def scanner():
+    """The quest app's own credential scan, or None when it isn't available."""
     sys.path.insert(0, str(ROOT))
     try:
         from quest_app.secret_patterns import scan_text
-    except ImportError as error:
+    except Exception:  # missing, or written for a newer Python than the one running this
+        return None
+    return scan_text
+
+
+def flush() -> int:
+    """Scans every held line with the quest app's own credential patterns, then prints them. If the
+    scan finds anything, none of the held output is printed: a credential can span several lines,
+    so withholding only the flagged line could still let part of it through. Returns the number of
+    findings."""
+    scan_text = scanner()
+    if scan_text is None:
         OUTPUT.clear()
-        raise CannotRun("the quest app's credential patterns aren't available; run this with .venv/bin/python") from error
+        raise CannotRun("the quest app's credential patterns aren't available; run this with .venv/bin/python", fixed=True)
     findings = scan_text("\n".join(OUTPUT))
-    flagged = {finding.line for finding in findings}
-    for number, line in enumerate(OUTPUT, start=1):
-        print("[line withheld: it looks like a credential]" if number in flagged else line)
-    for finding in findings:
-        print(f"      line {finding.line}: [{finding.pattern_id}] {finding.description}")
+    if findings:
+        print(f"[output withheld: {len(OUTPUT)} lines, because the scan found something that looks like a credential]")
+        for finding in findings:
+            print(f"      line {finding.line}: [{finding.pattern_id}] {finding.description}")
+    else:
+        for line in OUTPUT:
+            print(line)
     OUTPUT.clear()
     return len(findings)
+
+
+def safe_message(error: CannotRun) -> str:
+    """An error message as it may be printed: blanked like the output, and withheld entirely if the
+    scan finds a credential in it or can't run, since it can carry a value given on the command
+    line or text from gh. The script's own fixed messages are always printed."""
+    message = TOKEN_SHAPE.sub("[blanked]", str(error))
+    if error.fixed:
+        return message
+    scan_text = scanner()
+    if scan_text is None or scan_text(message):
+        return "details withheld, because they may contain a credential"
+    return message
 
 
 def full_name(name: str) -> bool:
@@ -112,7 +145,7 @@ def gh_get(path: str, *, paginate: bool = False, jq: str | None = None) -> tuple
     try:
         result = subprocess.run(args, capture_output=True, text=True, env=env, timeout=60)
     except FileNotFoundError as error:
-        raise CannotRun("the GitHub CLI (gh) isn't installed") from error
+        raise CannotRun("the GitHub CLI (gh) isn't installed", fixed=True) from error
     except subprocess.TimeoutExpired as error:
         raise CannotRun(f"GitHub didn't answer within 60 seconds ({path})") from error
     # With --include, each page is a status line and headers, a blank line, then the body (or the
@@ -125,7 +158,8 @@ def gh_get(path: str, *, paginate: bool = False, jq: str | None = None) -> tuple
     statuses = [int(page.split(None, 2)[1]) for page in pages]
     # A page that didn't succeed decides the status, so a list that failed part-way is never read
     # as a complete one.
-    status = next((code for code in statuses if code != 200), 200)
+    deciding = next((index for index, code in enumerate(statuses) if code != 200), 0)
+    status = statuses[deciding]
     if status == 200 and result.returncode != 0:
         message = result.stderr.strip().splitlines()[-1:] or ["no message"]
         raise CannotRun(f"gh failed reading {path}: {TOKEN_SHAPE.sub('[blanked]', message[0])}")
@@ -135,8 +169,15 @@ def gh_get(path: str, *, paginate: bool = False, jq: str | None = None) -> tuple
         name, sep, value = line.partition(":")
         if sep:
             headers[name.strip().lower()] = value.strip()
-    if status == 403 and headers.get("x-ratelimit-remaining") == "0":
-        raise CannotRun("GitHub's rate limit is used up; try again later")
+    deciding_head = {}
+    for line in pages[deciding].partition("\n\n")[0].splitlines()[1:]:
+        name, sep, value = line.partition(":")
+        if sep:
+            deciding_head[name.strip().lower()] = value.strip()
+    # GitHub slows clients down with 403 or 429: either the hourly limit is used up, or a shorter
+    # "secondary" limit applies, which comes with Retry-After. Neither says anything about access.
+    if status in (403, 429) and (deciding_head.get("x-ratelimit-remaining") == "0" or "retry-after" in deciding_head):
+        raise CannotRun("GitHub is limiting how fast this connection may ask; try again later", fixed=True)
     body = "".join(page.partition("\n\n")[2] for page in pages)
     return status, headers, body
 
@@ -153,13 +194,22 @@ def load_expected(path: Path) -> dict:
     try:
         import yaml
     except ImportError as error:
-        raise CannotRun("PyYAML isn't installed; run this with the repository's .venv/bin/python") from error
+        raise CannotRun("PyYAML isn't installed; run this with the repository's .venv/bin/python", fixed=True) from error
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as error:
         raise CannotRun(f"couldn't read {path}") from error
     if not isinstance(data, dict):
         raise CannotRun(f"{path} isn't a YAML mapping")
+    login = data.get("login")
+    if not isinstance(login, str) or not re.fullmatch(r"[A-Za-z0-9-]+", login):
+        raise CannotRun(f"login in {path} must be a GitHub account name")
+    scopes = data.get("scopes")
+    if not isinstance(scopes, list) or not all(isinstance(s, str) and s for s in scopes):
+        raise CannotRun(f"scopes in {path} must be a list of scope names")
+    repositories = data.get("repositories")
+    if not isinstance(repositories, list) or not repositories or not all(isinstance(r, str) and full_name(r) for r in repositories):
+        raise CannotRun(f"repositories in {path} must be a list of at least one OWNER/REPO name")
     if not full_name(str(data.get("safe_read", ""))):
         raise CannotRun(f"safe_read in {path} isn't an OWNER/REPO name")
     empty = str(data.get("empty_read", ""))
@@ -312,7 +362,7 @@ def main() -> int:
         except CannotRun:
             pass
         sys.stdout.flush()  # so the held lines come before the error in a combined log
-        print(f"verify-github-connection {VERSION}: couldn't run: {error}", file=sys.stderr)
+        print(f"verify-github-connection {VERSION}: couldn't run: {safe_message(error)}", file=sys.stderr)
         return 2
 
 
