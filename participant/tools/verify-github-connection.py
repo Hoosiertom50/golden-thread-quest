@@ -55,8 +55,10 @@ SCOPE_MEANING = {
     "read:user": ("read the account's profile", False),
 }
 
-# Anything shaped like a GitHub token is blanked before it is printed.
-TOKEN_SHAPE = re.compile(r"\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b")
+# Anything shaped like a GitHub token is blanked before it is printed, wherever it appears, even
+# run together with other text (so no word-boundary rule): blanking a little too much is the safe
+# side. The quest app's scan doesn't recognise every GitHub token shape, so this blanking matters.
+TOKEN_SHAPE = re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}")
 
 REQUESTS: list[str] = []  # every request made, in order
 OUTPUT: list[str] = []  # every line printed, for the credential scan at the end
@@ -155,6 +157,8 @@ def gh_get(path: str, *, paginate: bool = False, jq: str | None = None) -> tuple
     if not pages:
         message = result.stderr.strip().splitlines()[-1:] or ["no answer"]
         raise CannotRun(f"gh couldn't read {path}: {TOKEN_SHAPE.sub('[blanked]', message[0])}")
+    if len(pages) > 1:
+        REQUESTS[-1] += f" ({len(pages)} pages, one GET each)"
     statuses = [int(page.split(None, 2)[1]) for page in pages]
     # A page that didn't succeed decides the status, so a list that failed part-way is never read
     # as a complete one.

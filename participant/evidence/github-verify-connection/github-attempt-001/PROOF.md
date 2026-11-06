@@ -111,9 +111,10 @@ remove it again after.
 
 - **The real check:** both runs on my account passed, as recorded in the two logs.
 - **A lost repository and a changed scope:** reported as FAIL with exit code 1, as described above.
-- **Offline tests (kept locally, not handed in):** 43 runs of the check against a stand-in for the
+- **Offline tests (kept locally, not handed in):** 46 runs of the check against a stand-in for the
   GitHub CLI, so nothing reached GitHub. They cover two pages of repositories, other owners counted
-  but never named, a lost repository, a token-shaped value in GitHub's answer (blanked), another
+  but never named, a lost repository, a token-shaped value in GitHub's answer (blanked, even when
+  run together with other text), another
   kind of credential (withheld and failed), the CLI missing, signed out or refused (each "couldn't
   run", exit 2), a readable repository given as out of reach (FAIL), names that try to leave the
   repository path (refused), every request being a GET, the CLI's debug setting switched on, and
