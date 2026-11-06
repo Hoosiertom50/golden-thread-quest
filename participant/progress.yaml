@@ -114,4 +114,12 @@ attempts:
   evidence_path: participant/evidence/github-verify-connection/github-attempt-001
   submission_id: submission-20261106174542-f330ad
   review_id: review-20261106175050-6c8b0f
-updated_at: '2026-11-06T17:50:50Z'
+- attempt_id: playwright-attempt-004
+  quest_id: playwright-first-independent-test
+  quest_version: 2
+  content_hash: sha256:85ad4380fda005f46a4ec4101717fca1f14f3dff2754a4d90fcc2accf9695b60
+  state: in_progress
+  started_at: '2026-11-06T18:00:11Z'
+  updated_at: '2026-11-06T18:00:11Z'
+  evidence_path: participant/evidence/playwright-first-independent-test/playwright-attempt-004
+updated_at: '2026-11-06T18:00:11Z'
