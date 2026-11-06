@@ -156,6 +156,62 @@ class TestInstalledDependenciesAreNotTheParticipantsTest:
         assert _outcome(output, "no-arbitrary-waits") == "fail"
 
 
+class TestSelectorsLivingInAPageModel:
+    """The quest asks for selectors in a page model, which need not have 'test' in its name."""
+
+    TEST = "await expect(examplePage.saveButton).toBeVisible();\n"
+    MODEL = "this.saveButton = page.getByRole('button', {name: 'Save'});\n"
+
+    def _run(self, root: Path, files: dict[str, str]) -> ValidatorOutput:
+        for name, text in files.items():
+            target = root / "participant" / "tests" / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+        output = ValidatorOutput()
+        run_playwright_quality(_workspace(root), output)
+        return output
+
+    def test_a_role_query_in_the_page_model_counts(self, tmp_path: Path) -> None:
+        output = self._run(
+            tmp_path,
+            {
+                "playwright/first-independent-test.spec.ts": self.TEST,
+                "playwright/pages/example-page.ts": self.MODEL,
+            },
+        )
+        assert _outcome(output, "selectors-target-behavior") == "pass"
+
+    def test_a_brittle_selector_in_the_page_model_fails(self, tmp_path: Path) -> None:
+        output = self._run(
+            tmp_path,
+            {
+                "playwright/first-independent-test.spec.ts": self.TEST,
+                "playwright/pages/example-page.ts": "this.b = page.locator('.btn-primary');\n",
+            },
+        )
+        assert _outcome(output, "selectors-target-behavior") == "fail"
+
+    def test_a_sleep_in_the_page_model_fails(self, tmp_path: Path) -> None:
+        output = self._run(
+            tmp_path,
+            {
+                "playwright/first-independent-test.spec.ts": self.TEST,
+                "playwright/pages/example-page.ts": "await page.waitForTimeout(500);\n",
+            },
+        )
+        assert _outcome(output, "no-arbitrary-waits") == "fail"
+
+    def test_a_page_model_is_not_required_to_assert(self, tmp_path: Path) -> None:
+        output = self._run(
+            tmp_path,
+            {
+                "playwright/first-independent-test.spec.ts": self.TEST,
+                "playwright/pages/example-page.ts": self.MODEL,
+            },
+        )
+        assert _outcome(output, "test-asserts-something") == "pass"
+
+
 class TestDisappearancesAreReported:
     """Criterion 8 is about saying an item went away, not about the record surviving."""
 
