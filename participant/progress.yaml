@@ -104,4 +104,13 @@ attempts:
   evidence_path: participant/evidence/playwright-project-setup/playwright-attempt-003
   submission_id: submission-20261105220402-a7b862
   review_id: review-20261105221100-3cb2af
-updated_at: '2026-11-05T22:11:00Z'
+- attempt_id: github-attempt-001
+  quest_id: github-verify-connection
+  quest_version: 1
+  content_hash: sha256:ff7bce5706db45529918ca582bb73533edc1b0a5722037e5579459366dc18aa2
+  state: submitted
+  started_at: '2026-11-05T22:19:40Z'
+  updated_at: '2026-11-06T17:45:42Z'
+  evidence_path: participant/evidence/github-verify-connection/github-attempt-001
+  submission_id: submission-20261106174542-f330ad
+updated_at: '2026-11-06T17:45:42Z'
