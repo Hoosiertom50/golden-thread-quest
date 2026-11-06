@@ -45,12 +45,34 @@ RECORD_SUFFIXES = {".json", ".txt", ".log", ".xml", ".md", ".zip"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 
 
+# Folders that hold someone else's code or a tool's output, not the participant's test. The
+# project-setup quest installs Playwright under `participant/tests/playwright/node_modules`,
+# and its own files have "test" in their names, no assertion in the sense checked here and
+# markup selectors, so reading them failed three checks before anything was written.
+NOT_THE_PARTICIPANTS_CODE = frozenset(
+    {
+        "node_modules",
+        "site-packages",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        "dist",
+        "build",
+        "test-results",
+        "playwright-report",
+        "blob-report",
+    }
+)
+
+
 def run(workspace: Workspace, output: ValidatorOutput) -> None:
-    tests = [
+    code = [
         path
-        for path in workspace.iter_files("participant/tests")
-        if path.suffix in {".py", ".ts", ".js"} and "test" in path.name.lower()
+        for path in workspace.iter_files("participant/tests", skip_dirs=NOT_THE_PARTICIPANTS_CODE)
+        if path.suffix in {".py", ".ts", ".js"}
     ]
+    tests = [path for path in code if "test" in path.name.lower()]
     if not tests:
         output.add(
             Check(
@@ -63,8 +85,13 @@ def run(workspace: Workspace, output: ValidatorOutput) -> None:
         )
         return
 
-    sources = {path: workspace.read_text(str(path)) for path in tests}
-    _check_assertions(workspace, sources, output)
+    # Assertions belong in the test. Selectors and waits are judged across everything the
+    # participant wrote: the quest asks for selectors to live in a page or component model,
+    # a file that need not have "test" in its name, so reading only test files reported
+    # "no role, label or text query" for a test whose page model used them.
+    test_sources = {path: workspace.read_text(str(path)) for path in tests}
+    sources = {path: workspace.read_text(str(path)) for path in code}
+    _check_assertions(workspace, test_sources, output)
     _check_selectors(workspace, sources, output)
     _check_waits(workspace, sources, output)
     _check_failure_evidence(workspace, output)
