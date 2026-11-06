@@ -53,8 +53,10 @@ From a fresh copy of the repository:
    npm test
    ```
 
-   Playwright starts the demo app on `http://127.0.0.1:4173`, runs the smoke test in Chromium and
-   stops the app again. A passing run ends with `1 passed`.
+   Playwright starts the demo app on `http://127.0.0.1:4173`, runs both tests in Chromium (the
+   smoke test in `tests/` and the ticket-total test, `first-independent-test.spec.ts`) and stops
+   the app again. A passing run ends with `2 passed`. To run only the ticket-total test, use its
+   tag: `npx playwright test --grep @ticket-total`.
 
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
    repository for credentials. This step also needs the repository's Python environment

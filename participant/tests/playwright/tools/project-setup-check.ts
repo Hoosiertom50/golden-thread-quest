@@ -58,6 +58,8 @@ const MUST_NOT_BE_IGNORED: string[] = [
   "playwright.config.ts",
   "README.md",
   "tests/smoke.spec.ts",
+  "first-independent-test.spec.ts",
+  "pages/example-page.ts",
   "demo-app/index.html",
   "demo-app/server.js",
   "tools/project-setup-check.ts",

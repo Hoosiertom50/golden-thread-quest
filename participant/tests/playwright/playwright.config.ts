@@ -17,7 +17,10 @@ if (!["127.0.0.1", "localhost", "[::1]"].includes(host)) {
 }
 
 export default defineConfig({
-  testDir: "./tests",
+  // Tests live in tests/ and, for the first-independent-test quest, at this folder's top level
+  // (first-independent-test.spec.ts). Playwright never looks inside node_modules.
+  testDir: ".",
+  testMatch: ["tests/**/*.spec.ts", "*.spec.ts"],
   // Everything a run produces goes here or into playwright-report; both are ignored by Git.
   outputDir: "./test-results",
   forbidOnly: Boolean(process.env.CI),
