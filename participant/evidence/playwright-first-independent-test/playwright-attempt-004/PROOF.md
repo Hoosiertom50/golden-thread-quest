@@ -27,7 +27,9 @@ undercharged.
   from the project-setup quest still runs.
 - **The project-setup quest's files kept true:** its README now says `npm test` runs both tests
   and ends with `2 passed` (it said `1 passed`), and gives the tag command; its setup check now
-  also confirms the new test and page model are not ignored by Git, and still passes.
+  also confirms the new test and page model are not ignored by Git, and still passes. The quest
+  app notes that these three files have changed since the project-setup quest was approved; these
+  are the changes.
 
 My decisions:
 
@@ -36,8 +38,10 @@ My decisions:
   rule with an exact answer to check.
 - **Make the deliberate failure a believable bug in the app, not a broken test:** the fee charged
   once per order instead of once per ticket. The test itself was never changed to fail.
-- **Keep the selectors in the page model,** as criterion 3 asks, even though it makes the quest's
-  quality checker show a warning (see "What was tested or validated").
+- **Report the quality checker's problems instead of working around them.** Before I'd written the
+  test, the checker failed on Playwright's own installed files, and once the selectors were in the
+  page model it warned that it found no role queries. I reported both; both were fixed upstream
+  the same day, and the recorded run below is from the fixed checker.
 
 ## Where the important artifacts are
 
@@ -156,7 +160,12 @@ the test.
   `1 passed`; the setup check didn't cover the new files; and the page's starting total was typed
   in rather than worked out from the price and fee (checked afterwards: with the fee changed to
   $3.00, the starting total follows, $28.00).
-- **The quest's quality checker (`validate-playwright-quality`):** [CHECKER]
+- **The quest's quality checker (`validate-playwright-quality`, version 2):** passed all four checks
+  on 11-06-2026 at 1:21 PM: every test file asserts something; queries are by role, label or text
+  (in the test and the page model); no arbitrary wait; and the evidence includes a record of the
+  test failing (the failure log, trace and screenshot). The saved result is in `validation/`. The
+  checker was fixed after I reported two problems with it (it read Playwright's installed files,
+  and didn't count queries in a page model); this run used the fixed version.
 - **Copilot review:** [ROUNDS]
 
 ## Stretch goals
