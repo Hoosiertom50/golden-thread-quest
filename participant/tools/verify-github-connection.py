@@ -199,6 +199,9 @@ def load_expected(path: Path) -> dict:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as error:
         raise CannotRun(f"couldn't read {path}") from error
+    except (yaml.YAMLError, UnicodeDecodeError) as error:
+        # The parser's own message can quote the file, so it is left out.
+        raise CannotRun(f"{path} isn't valid YAML text") from error
     if not isinstance(data, dict):
         raise CannotRun(f"{path} isn't a YAML mapping")
     login = data.get("login")
@@ -345,15 +348,23 @@ def denied(expected: dict, target: str) -> int:
     return finish(results)
 
 
+class Parser(argparse.ArgumentParser):
+    """Command-line parsing that never prints what was typed: argparse's own error message repeats
+    the arguments, which could include a credential, so a mistake becomes a fixed message."""
+
+    def error(self, message: str):  # type: ignore[override]
+        raise CannotRun("the command line wasn't understood; run with --help to see the options", fixed=True)
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = Parser(description=__doc__.splitlines()[0])
     parser.add_argument("--denied", metavar="OWNER/REPO", help="try to read a repository outside the connection's reach")
     parser.add_argument("--expected", metavar="FILE", type=Path, default=EXPECTED,
                         help="the expected-access file to compare with (default: participant/context/github/expected-access.yaml)")
-    args = parser.parse_args()
     now = dt.datetime.now().astimezone()
     say(f"verify-github-connection {VERSION}, run {now:%m-%d-%Y %I:%M %p}")
     try:
+        args = parser.parse_args()
         expected = load_expected(args.expected)
         return denied(expected, args.denied) if args.denied else verify(expected)
     except CannotRun as error:
@@ -363,6 +374,11 @@ def main() -> int:
             pass
         sys.stdout.flush()  # so the held lines come before the error in a combined log
         print(f"verify-github-connection {VERSION}: couldn't run: {safe_message(error)}", file=sys.stderr)
+        return 2
+    except Exception as error:  # anything unforeseen: no traceback, which could quote a value
+        OUTPUT.clear()
+        print(f"verify-github-connection {VERSION}: couldn't run: an unexpected {type(error).__name__}; details withheld",
+              file=sys.stderr)
         return 2
 
 

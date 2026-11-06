@@ -111,7 +111,7 @@ remove it again after.
 
 - **The real check:** both runs on my account passed, as recorded in the two logs.
 - **A lost repository and a changed scope:** reported as FAIL with exit code 1, as described above.
-- **Offline tests (kept locally, not handed in):** 36 runs of the check against a stand-in for the
+- **Offline tests (kept locally, not handed in):** 40 runs of the check against a stand-in for the
   GitHub CLI, so nothing reached GitHub. They cover two pages of repositories, other owners counted
   but never named, a lost repository, a token-shaped value in GitHub's answer (blanked), another
   kind of credential (withheld and failed), the CLI missing, signed out or refused (each "couldn't
@@ -120,7 +120,8 @@ remove it again after.
   GitHub answering badly (an unreadable answer, a list that fails part-way, bad credentials or a
   used-up or secondary rate limit, an "empty" list that isn't a list), an expected-access file with
   a missing, empty or wrongly typed entry, a credential spread over several lines, a credential
-  given on the command line, and running with the wrong Python. Each now stops with "couldn't
+  given on the command line or in a broken expected-access file, an unknown option, and running
+  with the wrong Python. Each now stops with "couldn't
   run", or withholds the output, instead of passing, failing wrongly, printing a credential or
   crashing.
 - **What the tests and my own read-through found:** six real problems, all fixed before the logs
