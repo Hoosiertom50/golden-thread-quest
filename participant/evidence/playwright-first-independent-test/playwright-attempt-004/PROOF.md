@@ -38,10 +38,11 @@ My decisions:
   rule with an exact answer to check.
 - **Make the deliberate failure a believable bug in the app, not a broken test:** the fee charged
   once per order instead of once per ticket. The test itself was never changed to fail.
-- **Report the quality checker's problems instead of working around them.** Before I'd written the
-  test, the checker failed on Playwright's own installed files, and once the selectors were in the
-  page model it warned that it found no role queries. I reported both; both were fixed upstream
-  the same day, and the recorded run below is from the fixed checker.
+- **Report the quality checker's problems.** Before I'd written the test, the checker failed on
+  Playwright's own installed files, and once the selectors were in the page model it warned that it
+  found no role queries. I reported both, and planned to work around the first for the run if
+  needed; both were fixed upstream the same day, so the recorded run below is from the fixed
+  checker, with no workaround.
 
 ## Where the important artifacts are
 
@@ -128,9 +129,9 @@ can go straight to the fix.
 9. **Failure evidence includes trace, screenshot and a concise reproduction summary:**
    `logs/failure-trace.zip`, `screenshots/failure-state.png`, and the two lines at the top of
    `logs/failure-run.txt`.
-10. **Success evidence is captured at the meaningful validation point:** the test saves one
-    screenshot of the event card right after the total is proven right
-    (`screenshots/validated-state.png`, showing $55.00), not on every step.
+10. **Success evidence is captured at the meaningful validation point:** the test takes one
+    screenshot of the event card right after the total is proven right and attaches it to the run
+    (saved here as `screenshots/validated-state.png`, showing $55.00), not on every step.
 11. **Rerunning does not change application data:** choosing a quantity only changes what the page
     shows; the demo server only answers GET requests for the page itself. The suite ran the test
     three times, with other runs going on at the same time, and every run got the same result.
@@ -166,7 +167,11 @@ the test.
   test failing (the failure log, trace and screenshot). The saved result is in `validation/`. The
   checker was fixed after I reported two problems with it (it read Playwright's installed files,
   and didn't count queries in a page model); this run used the fixed version.
-- **Copilot review:** [ROUNDS]
+- **Copilot review:** 2 rounds on a practice pull request in my own fork, on 11-06-2026. I
+  reproduced each item before changing anything. Round 1 found 2 Low items, both about the practice
+  pull request missing what this hand-in has: I had left the trace and screenshots out of it, and
+  the checker result was still a placeholder. Both were fixed. Round 2 recommended approval with no
+  open issues.
 
 ## Stretch goals
 
