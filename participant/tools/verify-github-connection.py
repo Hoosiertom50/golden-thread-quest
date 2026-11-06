@@ -175,8 +175,11 @@ def gh_get(path: str, *, paginate: bool = False, jq: str | None = None) -> tuple
         if sep:
             deciding_head[name.strip().lower()] = value.strip()
     # GitHub slows clients down with 403 or 429: either the hourly limit is used up, or a shorter
-    # "secondary" limit applies, which comes with Retry-After. Neither says anything about access.
-    if status in (403, 429) and (deciding_head.get("x-ratelimit-remaining") == "0" or "retry-after" in deciding_head):
+    # "secondary" limit applies, which usually comes with Retry-After and always says "rate limit"
+    # in its message. Neither says anything about access.
+    deciding_body = pages[deciding].partition("\n\n")[2].lower()
+    if status in (403, 429) and (deciding_head.get("x-ratelimit-remaining") == "0" or "retry-after" in deciding_head
+                                 or "rate limit" in deciding_body):
         raise CannotRun("GitHub is limiting how fast this connection may ask; try again later", fixed=True)
     body = "".join(page.partition("\n\n")[2] for page in pages)
     return status, headers, body
@@ -305,6 +308,13 @@ def verify(expected: dict) -> int:
         repo = parse_json(body, f"repos/{target}")
         if not isinstance(repo, dict):
             raise CannotRun(f"GitHub's answer to repos/{target} wasn't a repository")
+        owner = (repo.get("owner") or {}).get("login") if isinstance(repo.get("owner"), dict) else None
+        if owner != login:
+            # GitHub follows a moved repository to its new place; if that now belongs to someone
+            # else, its name stays withheld like every other owner's.
+            say(f"Safe read: repos/{target} answered 200, but for a repository owned by another account (name withheld)")
+            results.append((False, f"the safe read of {target} succeeded (it now belongs to another account)"))
+            return finish(results)
         rights = repo.get("permissions", {})
         granted = ", ".join(k for k in ("admin", "maintain", "push", "triage", "pull") if rights.get(k))
         say(f"Safe read: repos/{target} answered 200")
@@ -366,7 +376,7 @@ def main() -> int:
     try:
         args = parser.parse_args()
         expected = load_expected(args.expected)
-        return denied(expected, args.denied) if args.denied else verify(expected)
+        return denied(expected, args.denied) if args.denied is not None else verify(expected)
     except CannotRun as error:
         try:
             flush()  # what was found before the problem, scanned like everything else
