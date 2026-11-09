@@ -1,6 +1,8 @@
-// A tiny local web server for the Tixly demo page. It serves one read-only page on this computer
-// only (127.0.0.1), so the tests never reach a real site. Playwright starts and stops it for each
-// run; the port comes from TIXLY_DEMO_PORT (default 4173).
+// A tiny local web server for the Tixly demo pages. It serves two read-only pages on this computer
+// only (127.0.0.1), so the tests never reach a real site: the events page (/) and the order review
+// page (/review, which reads the event and quantity from its address). Only GET requests are
+// answered. Playwright starts and stops it for each run; the port comes from TIXLY_DEMO_PORT
+// (default 4173).
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -11,10 +13,20 @@ if (!/^[1-9][0-9]{0,4}$/.test(portSetting) || Number(portSetting) > 65535) {
   process.exit(1);
 }
 const port = Number(portSetting);
-const page = readFileSync(new URL("./index.html", import.meta.url));
+const eventsPage = readFileSync(new URL("./index.html", import.meta.url));
+const reviewPage = readFileSync(new URL("./review.html", import.meta.url));
+
+// Which page an address asks for, or null. The events page is matched exactly, as before; the
+// review page may carry a query string (?event=...&quantity=...), which the page itself reads.
+function pageFor(url) {
+  if (url === "/" || url === "/index.html") return eventsPage;
+  if (url.split("?")[0] === "/review") return reviewPage;
+  return null;
+}
 
 createServer((request, response) => {
-  if (request.method !== "GET" || (request.url !== "/" && request.url !== "/index.html")) {
+  const page = pageFor(request.url ?? "");
+  if (request.method !== "GET" || page === null) {
     response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
     response.end("Not found");
     return;
