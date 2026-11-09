@@ -17,17 +17,22 @@
         <p>Riverside Hall, 04-18-2027, 7:30 PM</p>
         <p>Tickets from $25.00</p>
         <p>Service fee: $2.50 per ticket</p>
-        <!-- Choosing a quantity only works out the price on this page; nothing is saved or sent. -->
-        <label for="spring-concert-quantity">Number of tickets</label>
-        <select id="spring-concert-quantity">
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-          <option>6</option>
-        </select>
-        <p role="status" aria-label="Order total"></p>
+        <!-- Choosing a quantity only works out the price on this page. "Continue to review" opens the
+             review page with the event and quantity in its address; nothing is saved. -->
+        <form action="/review" method="get">
+          <input type="hidden" name="event" value="spring-concert">
+          <label for="spring-concert-quantity">Number of tickets</label>
+          <select id="spring-concert-quantity" name="quantity">
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+            <option>6</option>
+          </select>
+          <p role="status" aria-label="Order total"></p>
+          <button type="submit">Continue to review</button>
+        </form>
       </article>
     </main>
     <script>
