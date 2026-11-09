@@ -38,8 +38,10 @@
     <script>
       // The order total is the ticket price plus the service fee, for every ticket. Amounts are
       // whole cents, so no rounding error can creep into the total. It is worked out when the page
-      // opens and again whenever the quantity changes, so it always follows the card's own price
-      // and fee (data-ticket-cents, data-fee-cents) rather than a number typed into the page.
+      // opens, again whenever the quantity changes, and again whenever the page is shown (after the
+      // browser's Back button the quantity chosen before is put back without a change event), so
+      // it always follows the card's own price and fee (data-ticket-cents, data-fee-cents) and the
+      // quantity on screen rather than a number typed into the page.
       for (const card of document.querySelectorAll("article[data-ticket-cents]")) {
         const ticketCents = Number(card.dataset.ticketCents);
         const feeCents = Number(card.dataset.feeCents);
@@ -50,6 +52,7 @@
           total.textContent = `Total: $${(cents / 100).toFixed(2)}`;
         };
         quantity.addEventListener("change", showTotal);
+        window.addEventListener("pageshow", showTotal);
         showTotal();
       }
     </script>

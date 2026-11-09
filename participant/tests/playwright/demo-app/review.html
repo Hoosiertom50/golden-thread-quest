@@ -28,7 +28,10 @@
         "spring-concert": { name: "Spring Concert", ticketCents: 2500, feeCents: 250 },
       };
       const params = new URLSearchParams(location.search);
-      const event = EVENTS[params.get("event")];
+      // Only the events listed above: a name like "constructor" or "toString" is part of every
+      // JavaScript object, so it would otherwise be taken for an event.
+      const eventId = params.get("event") ?? "";
+      const event = Object.hasOwn(EVENTS, eventId) ? EVENTS[eventId] : undefined;
       const quantityText = params.get("quantity") ?? "";
       const quantity = /^[1-6]$/.test(quantityText) ? Number(quantityText) : null;
       const problem = document.getElementById("order-problem");

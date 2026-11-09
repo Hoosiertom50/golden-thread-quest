@@ -16,11 +16,12 @@ const port = Number(portSetting);
 const eventsPage = readFileSync(new URL("./index.html", import.meta.url));
 const reviewPage = readFileSync(new URL("./review.html", import.meta.url));
 
-// Which page an address asks for, or null. The events page is matched exactly, as before; the
-// review page may carry a query string (?event=...&quantity=...), which the page itself reads.
+// Which page an address asks for, or null. Only the path counts: a query string
+// (?event=...&quantity=... on the review page, or anything a link adds) is left for the page.
 function pageFor(url) {
-  if (url === "/" || url === "/index.html") return eventsPage;
-  if (url.split("?")[0] === "/review") return reviewPage;
+  const path = url.split("?")[0];
+  if (path === "/" || path === "/index.html") return eventsPage;
+  if (path === "/review") return reviewPage;
   return null;
 }
 
