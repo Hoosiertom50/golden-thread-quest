@@ -53,10 +53,10 @@ From a fresh copy of the repository:
    npm test
    ```
 
-   Playwright starts the demo app on `http://127.0.0.1:4173`, runs all 7 tests in Chromium (the
-   smoke test in `tests/`, the ticket-total test, `first-independent-test.spec.ts`, and the 5
+   Playwright starts the demo app on `http://127.0.0.1:4173`, runs all 8 tests in Chromium (the
+   smoke test in `tests/`, the ticket-total test, `first-independent-test.spec.ts`, and the 6
    order-review tests, `model-usage.spec.ts`) and stops the app again. A passing run ends with
-   `7 passed`. The tests find everything on a page through the page models in `pages/`, never
+   `8 passed`. The tests find everything on a page through the page models in `pages/`, never
    with a selector of their own. To run only some tests, use their tag: `npx playwright test --grep @ticket-total`
    or `npx playwright test --grep @order-review`.
 

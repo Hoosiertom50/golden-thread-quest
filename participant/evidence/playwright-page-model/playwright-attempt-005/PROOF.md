@@ -8,7 +8,7 @@ demo app with made-up data; nothing is saved or sent anywhere.
 
 ## What was built
 
-A second screen for the local Tixly demo app, page models for both screens, and five tests that
+A second screen for the local Tixly demo app, page models for both screens, and six tests that
 use only the models. The project-setup quest's smoke test now uses the models too.
 
 - **The order review screen** (`demo-app/review.html`, new). The events page's ticket picker is now
@@ -26,15 +26,19 @@ use only the models. The project-setup quest's smoke test now uses the models to
   `chooseTicketsAndReview`, `backToEvents`, `goBackInBrowser`, `openFromLink`, `siteName`,
   `ticketPrice`, `serviceFee`, `ticketQuantity`, `eventName`, `ticketCount`, `orderTotal`,
   `problem`. There are no assertions in the file.
-- **The tests** (`model-usage.spec.ts`, new): five tests, written only against the models.
+- **The tests** (`model-usage.spec.ts`, new): six tests, written only against the models.
   1. A buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00.
   2. A buyer who goes back from the review to choose 4 tickets instead sees the new total of
      $110.00.
-  3. A review link asking for 9 tickets explains the 1 to 6 limit instead of showing a total.
+  3. A review link asking for 0, a fraction, too many or no whole number of tickets explains the
+     1 to 6 limit instead of showing a total (it tries 0, -1, 2.5, 9, nothing and "two"; at the
+     change record it tried 9 only).
   4. A review link naming an event that isn't on sale says so instead of showing a total (added
      after the change record; see "My own review" below).
   5. A buyer who uses the browser's Back button from the review still sees 3 tickets and $82.50
      (added after the change record; see "An independent review" below).
+  6. Review links for 1 and for 6 tickets, the smallest and largest orders, show totals of $27.50
+     and $165.00 (added after Copilot's second round; see below).
 - **The smoke test** (`tests/smoke.spec.ts`, from the project-setup quest) now finds the site name,
   ticket price and service fee through `EventsScreen` instead of its own selectors, so criterion 1
   holds for every test file in the project. It checks the same things, now with exact text.
@@ -106,7 +110,7 @@ All paths are under `participant/`.
 | What | Path |
 |---|---|
 | The page models (two screens) | `tests/playwright/pages/models.ts` |
-| The five tests | `tests/playwright/model-usage.spec.ts` |
+| The six tests | `tests/playwright/model-usage.spec.ts` |
 | The smoke test (now on the models) | `tests/playwright/tests/smoke.spec.ts` |
 | The order review screen (new) | `tests/playwright/demo-app/review.html` |
 | The events page (form and button) | `tests/playwright/demo-app/index.html` |
@@ -123,7 +127,7 @@ With the project set up as its README says (`npm ci --engine-strict`, then
 npx playwright test
 ```
 
-All 7 tests pass (the 5 here, plus the project-setup and first-independent-test quests' tests).
+All 8 tests pass (the 6 here, plus the project-setup and first-independent-test quests' tests).
 To repeat the change record: rename the button in `demo-app/index.html` (for example back to
 "Review order"), run the command again and see the three tests that press it fail on
 `pages/models.ts` line 57; change only that line's button name to match, and they pass.
@@ -138,8 +142,9 @@ To repeat the change record: rename the button in `demo-app/index.html` (for exa
 2. **The model covers at least two screens:** `EventsScreen` (the events page) and
    `OrderReviewScreen` (the order review page).
 3. **Assertions about business behavior stay in the tests:** every `expect` (the event, the ticket
-   count, the $55.00, $110.00 and $82.50 totals, the 1 to 6 and "isn't on sale" messages, the empty
-   summary when there's a problem) is in the test files. Searching `pages/models.ts` for `expect`
+   count, the $55.00, $110.00, $82.50, $27.50 and $165.00 totals, the 1 to 6 and "isn't on sale"
+   messages, the empty summary when there's a problem, the visible price and fee) is in the test
+   files. Searching `pages/models.ts` for `expect`
    finds nothing.
 4. **A locator change is fixed by editing only the model:** `logs/change-record.txt` shows the suite
    passing (5 of 5), then the button renamed in the app and committed on its own, then 2 tests
@@ -156,15 +161,16 @@ To repeat the change record: rename the button in `demo-app/index.html` (for exa
    `orderTotal` and `problem`; test 4 reuses `openFromLink` for two addresses in a loop. Test 5 and
    the smoke test were written after the models, using methods added for them (`goBackInBrowser`,
    `ticketQuantity`, `siteName`, `ticketPrice`, `serviceFee`) next to the ones already there, with
-   no steps copied.
+   no steps copied. Test 6 reuses `openFromLink`, `ticketCount` and `orderTotal` for two orders in
+   a loop.
 
 ## What was tested or validated
 
 - **The change record** (`logs/change-record.txt`, 11-09-2026, 10:08 AM to 10:09 AM): before 5
   passed; after the interface change 2 failed and 3 passed; after the model fix 5 passed; only
-  `pages/models.ts` changed. The suite had 5 tests then (tests 4 and 5 came later). Only 2 of the 3
-  new tests failed because the third opens the review screen from a link and never presses the
-  button; the two earlier quests' tests don't press it either.
+  `pages/models.ts` changed. The suite had 5 tests then (tests 4, 5 and 6 came later). Only 2 of
+  the 3 new tests failed because the third opens the review screen from a link and never presses
+  the button; the two earlier quests' tests don't press it either.
 - **The tests catch the bugs they are for:** on 11-06-2026 I made the review screen charge the fee
   once per order: tests 1 and 2 failed, receiving $52.50 and $102.50. I removed the 1 to 6 limit:
   test 3 failed. The review screen was put back byte for byte each time.
@@ -179,8 +185,8 @@ To repeat the change record: rename the button in `demo-app/index.html` (for exa
     The review screen now only accepts events it lists; the same links now show the message.
     Test 4 was added to guard it: with the old lookup put back it failed (no message appeared),
     and with the fix it passes. The page was put back byte for byte after that trial.
-  - The project README still said a run ends with `2 passed`; it now says `6 passed` and names the
-    new tests and their tag.
+  - The project README still said a run ends with `2 passed`; it now gives the current count and
+    names the new tests and their tag.
   - The project-setup check didn't cover the 3 new files; it now checks 15 project files instead
     of 12, and passes.
   - The test-data notes at the top of `model-usage.spec.ts` didn't list the 9-ticket case; they now
@@ -206,6 +212,19 @@ To repeat the change record: rename the button in `demo-app/index.html` (for exa
     in one browser at a time), and the summary rows are now found by their exact row heading.
   - Every trial file was put back byte for byte. Afterwards the whole suite passed 35 of 35 (each
     test 5 times, 4 browsers at once) and the project-setup check passed (15 of 15).
+- **Copilot, round 2** (the same practice pull request, 11-09-2026, asked for a line-by-line
+  review) found 2 things, both reproduced before fixing: with either break below put in, all 7
+  tests still passed.
+  - **The smoke test no longer checked that the price and fee lines are visible** (Medium): moving
+    it onto the models had swapped its visibility checks for exact-text checks, which also pass on
+    a hidden line. It now checks both. With either line hidden, the smoke test fails.
+  - **No test checked the edges of the 1 to 6 limit** (Medium): changing it to 0 to 6, or 1 to 5,
+    left every test passing. Test 3 now also tries 0, -1, 2.5, nothing and "two", and test 6
+    checks that 1 and 6 tickets are accepted with the right totals. With the limit changed either
+    way, a test fails.
+  - All earlier break-it trials were run again afterwards and still fail the tests they should;
+    every file was put back byte for byte. Then the whole suite passed 40 of 40 (each of the 8
+    tests 5 times, 4 browsers at once), and the project-setup check passed.
 
 ## Stretch goals
 

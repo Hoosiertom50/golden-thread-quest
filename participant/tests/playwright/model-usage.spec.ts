@@ -7,7 +7,9 @@ import { EventsScreen, OrderReviewScreen } from "./pages/models.ts";
 // Test data, all from the local demo pages (made-up data, nothing saved or sent):
 //   event: Spring Concert, ticket price $25.00, service fee $2.50 per ticket
 //   2 tickets -> $55.00; 4 tickets -> $110.00 (quantity x (price + fee))
-//   a review link asking for 9 tickets -> "Choose from 1 to 6 tickets." and an empty summary
+//   review links for 1 and 6 tickets, the smallest and largest orders -> $27.50 and $165.00
+//   review links asking for 0, -1, 2.5, 9, nothing or "two" tickets -> "Choose from 1 to 6 tickets."
+//   and an empty summary
 //   a review link naming an event that isn't on sale ("winter-gala", made up, and "constructor",
 //   a name every JavaScript object has, which the review page once took for an event)
 //   -> "That event isn't on sale. Go back to events to choose one." and an empty summary
@@ -50,16 +52,19 @@ test(
 );
 
 test(
-  "a review link asking for 9 tickets explains the 1 to 6 limit instead of showing a total",
+  "a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total",
   { tag: ["@order-review", "@risk-medium", "@read-only", "@fast"] },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
-    await review.openFromLink("spring-concert", "9");
 
-    await expect(review.problem()).toHaveText("Choose from 1 to 6 tickets.");
-    await expect(review.eventName()).toHaveText("");
-    await expect(review.ticketCount()).toHaveText("");
-    await expect(review.orderTotal()).toHaveText("");
+    for (const quantity of ["0", "-1", "2.5", "9", "", "two"]) {
+      await review.openFromLink("spring-concert", quantity);
+
+      await expect(review.problem()).toHaveText("Choose from 1 to 6 tickets.");
+      await expect(review.eventName()).toHaveText("");
+      await expect(review.ticketCount()).toHaveText("");
+      await expect(review.orderTotal()).toHaveText("");
+    }
   },
 );
 
@@ -93,5 +98,21 @@ test(
 
     await expect(eventsAgain.ticketQuantity(EVENT)).toHaveValue("3");
     await expect(eventsAgain.orderTotal(EVENT)).toHaveText("Total: $82.50");
+  },
+);
+
+test(
+  "review links for 1 and for 6 tickets, the smallest and largest orders, show totals of $27.50 and $165.00",
+  { tag: ["@order-review", "@risk-high", "@read-only", "@fast"] },
+  async ({ page }) => {
+    const review = new OrderReviewScreen(page);
+
+    for (const [quantity, total] of [["1", "$27.50"], ["6", "$165.00"]]) {
+      await review.openFromLink("spring-concert", quantity);
+
+      await expect(review.problem()).toBeHidden();
+      await expect(review.ticketCount()).toHaveText(quantity);
+      await expect(review.orderTotal()).toHaveText(total);
+    }
   },
 );

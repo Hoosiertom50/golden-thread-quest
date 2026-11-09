@@ -7,6 +7,8 @@ test("a visitor sees the Spring Concert and its ticket price on the Tixly home p
   const events = new EventsScreen(page);
   await events.open();
   await expect(events.siteName()).toBeVisible();
+  await expect(events.ticketPrice("Spring Concert")).toBeVisible();
   await expect(events.ticketPrice("Spring Concert")).toHaveText("Tickets from $25.00");
+  await expect(events.serviceFee("Spring Concert")).toBeVisible();
   await expect(events.serviceFee("Spring Concert")).toHaveText("Service fee: $2.50 per ticket");
 });
