@@ -138,9 +138,10 @@ attempts:
   quest_id: playwright-stable-locators
   quest_version: 1
   content_hash: sha256:d1d1bb543876ef83dca1b21929cf0842d4e60cded93ee04aec2f3f3abf5a685e
-  state: submitted
+  state: verified
   started_at: '2026-11-10T14:05:43Z'
-  updated_at: '2026-11-10T18:49:46Z'
+  updated_at: '2026-11-10T19:00:12Z'
   evidence_path: participant/evidence/playwright-stable-locators/playwright-attempt-006
   submission_id: submission-20261110184946-5bc2c3
-updated_at: '2026-11-10T18:49:46Z'
+  review_id: review-20261110190012-6b9ed5
+updated_at: '2026-11-10T19:00:12Z'
