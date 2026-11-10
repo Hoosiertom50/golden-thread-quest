@@ -37,7 +37,8 @@ test(
     // 5. Was: LONG DOM PATH ("main > article > form > p").
     //    Now: ROLE + HIDDEN LABEL. Found by its role (a status message) and its hidden label "Order
     //    total", wherever it sits in the page. Nothing on screen says "Order total": a developer
-    //    added that label. Without it, only the visible wording "Total:" would be left to find it by.
+    //    added both the "status" role and that label. Without them, only the visible wording
+    //    "Total:" would be left to find it by.
     const orderTotal = card.getByRole("status", { name: "Order total", exact: true });
 
     // The business check, the same as in brittle.spec.ts: the price and fee are shown and as

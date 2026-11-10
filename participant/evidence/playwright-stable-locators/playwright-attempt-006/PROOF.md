@@ -77,18 +77,18 @@ are only as stable as that agreement.
 
 ## Reflection: which locator can I not make stable without help from developers?
 
-**The order total, and the price and fee lines.** Every locator on this page can be found
-somehow, but without developer help these three can only be found by their wording, which could
-change. The total is findable by a name only because a developer added a hidden label, "Order
-total"; without it, a test could still find it by its visible text, "Total:", but that has the same
-weakness as the price and fee lines. That's why these are the three I'd ask developers to give
-test IDs.
+**The order total, and the price and fee lines.** Every locator on this page can be found somehow,
+but without developer help these three can only be found by their wording, which could change. The
+total is findable by role and name only because a developer added both: a "status" role and a hidden
+label, "Order total". Without them, a test could still find it by its visible text, "Total:", but
+that has the same weakness as the price and fee lines. That's why these are the three I'd ask
+developers to give test IDs.
 
-**Test IDs I would ask developers to add** (stretch goal): on **the price line, the fee line and
-the total.** The price and fee lines depend on wording that could change, and the total's name
-comes from a hidden label (otherwise only its wording), so a test ID the team agrees not to change
-would make all three dependable.
-The card and the dropdown don't need one: their name and label are things users read anyway.
+**Test IDs I would ask developers to add** (stretch goal): on **the price line, the fee line and the
+total.** The price and fee lines depend on wording that could change, and the total's role and name
+were added by a developer (otherwise only its wording is left), so a test ID the team agrees not to
+change would make all three dependable. The card and the dropdown don't need one: their name and
+label are things users read anyway.
 
 ## What surprised me
 
@@ -96,9 +96,11 @@ The card and the dropdown don't need one: their name and label are things users 
 wrong event.** After the redesign, "the 1st card" was Summer Jazz Night, not the Spring Concert.
 Here the price check failed because the new event costs more (expected "Tickets from $25.00",
 received "Tickets from $40.00"), and that message even reads as if the Spring Concert's price had
-changed, which it hadn't. With equal prices, the price check passed on Summer Jazz Night; here the
-test still failed one line later, on the renamed fee line. But if the redesign had only added the
-new card, the whole test could have passed while checking a different concert. The count shows the two ways the brittle locators broke: three found nothing (loud), and two found
+changed, which it hadn't. With equal prices, the price check passed on Summer Jazz Night, so it was
+checking the wrong concert without knowing it. Here the test still failed: on the renamed fee line
+in our redesign, and even with only the new card added, at the total, whose path then matched both
+cards. But that was luck, not design: the price check itself never noticed.
+The count shows the two ways the brittle locators broke: three found nothing (loud), and two found
 the wrong thing (quiet), and the quiet ones are the dangerous ones.
 
 ## Where the important artifacts are
@@ -167,7 +169,7 @@ both.
 
 ## What was tested or validated
 
-- **The run record** (`logs/layout-change.txt`, 11-10-2026, 10:07 AM): before the redesign both
+- **The run record** (`logs/layout-change.txt`, 11-10-2026, 10:21 AM): before the redesign both
   tests passed; on the redesigned copy the brittle test failed and the stable test passed; the
   searches and the count as described under criteria 5 and 6. The script that recorded it also
   checked each of these outcomes, and all were as expected.

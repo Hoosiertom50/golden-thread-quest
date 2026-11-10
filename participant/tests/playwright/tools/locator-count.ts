@@ -78,17 +78,20 @@ try {
     } else if (count > 1) {
       result = `BROKEN: finds ${count} elements`;
     } else {
-      // The right thing: the right kind of element, in the Spring Concert's card. Text is compared
-      // the way it reads on screen: runs of spaces and line breaks count as one space.
+      // The right thing, judged by what a user recognizes, in the Spring Concert's card: the ticket
+      // dropdown is the one labeled "Number of tickets", and the total is the status message that
+      // shows "Total: ..." (not its hidden name, so the check doesn't rely on the developer's label).
+      // Text is compared the way it reads on screen: runs of spaces and line breaks count as one.
       const right = await locator.evaluate((el, target) => {
         const reads = (node: Element | null | undefined) => (node?.textContent ?? "").replace(/\s+/g, " ").trim();
         const inSpringConcert = reads(el.closest("article")?.querySelector("h2")) === "Spring Concert";
         const rightKind =
           target === "card" ? el.tagName === "ARTICLE"
-          : target === "dropdown" ? el.tagName === "SELECT"
+          : target === "dropdown"
+            ? el.tagName === "SELECT" && reads((el as HTMLSelectElement).labels?.[0]) === "Number of tickets"
           : target === "price" ? reads(el) === "Tickets from $25.00"
           : target === "fee" ? reads(el) === "Service fee: $2.50 per ticket"
-          : el.getAttribute("role") === "status";
+          : el.getAttribute("role") === "status" && reads(el).startsWith("Total:");
         return inSpringConcert && rightKind;
       }, entry.target);
       result = right ? "ok: finds the right thing" : "BROKEN: finds the wrong thing";
