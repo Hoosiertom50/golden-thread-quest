@@ -17,25 +17,30 @@ test(
     //    event this is.
     const card = page.locator("main > article:nth-child(1)");
 
-    // 2. GENERATED ID: a name a build tool made up. The next build gives it a different name.
+    // 2. GENERATED ID: a name a build tool made up. No one has promised to keep it; a change to the
+    //    page or the build tools can rename it without warning.
     const quantity = page.locator("#r-7f3k2");
 
     // 3. INDEX IN A LIST: "the 2nd paragraph in the card" (counting from 0). One new line above
     //    it, and this is a different line.
     const ticketPrice = card.locator("p").nth(1);
 
-    // 4. GENERATED CLASS NAME: a styling name a build tool made up. It changes with the build.
+    // 4. GENERATED CLASS NAME: a styling name a build tool made up. No one has promised to keep it;
+    //    a change to the styling or the build tools can rename it without warning.
     const serviceFee = page.locator(".css-q81zk");
 
     // 5. LONG DOM PATH: "main, then a card, then a form, then a paragraph". Wrapping any of these
     //    in a new box breaks the path.
     const orderTotal = page.locator("main > article > form > p");
 
-    // The business check, the same as in stable.spec.ts: the price and fee are as expected, and
-    // 2 tickets cost $55.00.
+    // The business check, the same as in stable.spec.ts: the price and fee are shown and as
+    // expected, and 2 tickets show a total of $55.00.
+    await expect(ticketPrice).toBeVisible();
     await expect(ticketPrice).toHaveText("Tickets from $25.00");
+    await expect(serviceFee).toBeVisible();
     await expect(serviceFee).toHaveText("Service fee: $2.50 per ticket");
     await quantity.selectOption("2");
+    await expect(orderTotal).toBeVisible();
     await expect(orderTotal).toHaveText("Total: $55.00");
   },
 );

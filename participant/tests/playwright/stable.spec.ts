@@ -30,21 +30,24 @@ test(
     const ticketPrice = card.getByText(/^Tickets from /);
 
     // 4. Was: GENERATED CLASS NAME (".css-q81zk").
-    //    Now: VISIBLE TEXT. Users read "Service fee:"; restyling changes the hidden class name, not
-    //    the words. Relies on that wording staying the same.
+    //    Now: VISIBLE TEXT. Users read "Service fee:"; restyling can change the hidden class name,
+    //    not the words. Relies on that wording staying the same.
     const serviceFee = card.getByText(/^Service fee: /);
 
     // 5. Was: LONG DOM PATH ("main > article > form > p").
-    //    Now: ROLE + HIDDEN LABEL. Found by its role (a status message) and its label "Order
-    //    total", wherever it sits in the page. Nothing on screen says "Order total": it is stable
-    //    only because a developer added that hidden label.
+    //    Now: ROLE + HIDDEN LABEL. Found by its role (a status message) and its hidden label "Order
+    //    total", wherever it sits in the page. Nothing on screen says "Order total": a developer
+    //    added that label. Without it, only the visible wording "Total:" would be left to find it by.
     const orderTotal = card.getByRole("status", { name: "Order total", exact: true });
 
-    // The business check, the same as in brittle.spec.ts: the price and fee are as expected, and
-    // 2 tickets cost $55.00.
+    // The business check, the same as in brittle.spec.ts: the price and fee are shown and as
+    // expected, and 2 tickets show a total of $55.00.
+    await expect(ticketPrice).toBeVisible();
     await expect(ticketPrice).toHaveText("Tickets from $25.00");
+    await expect(serviceFee).toBeVisible();
     await expect(serviceFee).toHaveText("Service fee: $2.50 per ticket");
     await quantity.selectOption("2");
+    await expect(orderTotal).toBeVisible();
     await expect(orderTotal).toHaveText("Total: $55.00");
   },
 );

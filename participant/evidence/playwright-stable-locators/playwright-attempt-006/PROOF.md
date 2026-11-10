@@ -37,7 +37,8 @@ redesign that proves the difference.
   differently ($40.00 tickets, $3.00 fee); a "Doors open 6:30 PM" line is added to the Spring
   Concert card; its form is wrapped in a new box; and a "new build" renamed the generated names
   (`r-9wq4d`, `css-2mv8p`). The Spring Concert still costs $25.00 plus $2.50 per ticket, and 2
-  tickets still cost $55.00. The original demo app was not changed by the redesign.
+  tickets still cost $55.00. The copy's review page also lists Summer Jazz Night, so the new event
+  can be reviewed too. The original demo app was not changed by the redesign.
 - **The count tool** (`tools/locator-count.ts`): a test stops at its first failure, so a failing
   run shows only one broken locator. This tries all ten locators on a running page and reports
   which still find the right thing (the Spring Concert's card, dropdown, price, fee or total),
@@ -54,8 +55,8 @@ My decisions:
 - **One realistic redesign plus a count,** instead of five separate small changes: one designer's
   update breaks all five brittle locators, and the count proves every one broke, not only the
   first.
-- **The new event has a different price.** With the same price, the brittle test would have
-  checked the wrong event and still passed.
+- **The new event has a different price,** so the brittle test's first check can't pass by
+  accident on the wrong event (with the same price, that check passes on Summer Jazz Night).
 - **Role, label and visible text only; no test IDs** in the app, so the stable test finds things
   the way a user would. I propose test IDs below instead.
 - **Locators written in the two tests, not in the page models,** so the two files can be compared
@@ -76,25 +77,28 @@ are only as stable as that agreement.
 
 ## Reflection: which locator can I not make stable without help from developers?
 
-**The order total (5).** Nothing on the screen says "Order total". It can be found by name only
-because a developer added a hidden label to it; without that label, a test would have to fall
-back on its position, such as "the paragraph in the form", which is exactly the brittle path the
-redesign broke. I noticed something similar for the card: it gets its name from a hidden link to
-its heading, which a developer also has to add.
+**The order total, and the price and fee lines.** Every locator on this page can be found
+somehow, but without developer help these three can only be found by their wording, which could
+change. The total is findable by a name only because a developer added a hidden label, "Order
+total"; without it, a test could still find it by its visible text, "Total:", but that has the same
+weakness as the price and fee lines. That's why these are the three I'd ask developers to give
+test IDs.
 
 **Test IDs I would ask developers to add** (stretch goal): on **the price line, the fee line and
-the total.** The price and fee lines depend on wording that could change, and the total depends
-on a hidden label, so a test ID the team agrees not to change would make all three dependable.
+the total.** The price and fee lines depend on wording that could change, and the total's name
+comes from a hidden label (otherwise only its wording), so a test ID the team agrees not to change
+would make all three dependable.
 The card and the dropdown don't need one: their name and label are things users read anyway.
 
 ## What surprised me
 
-**The wrong-card result: a brittle test can pass while testing the wrong event.** After the
-redesign, "the 1st card" was Summer Jazz Night, not the Spring Concert. Here it failed only
-because the new event costs more (expected "Tickets from $25.00", received "Tickets from
-$40.00"), and that message even reads as if the Spring Concert's price had changed, which it
-hadn't. With the same price, the test would have passed while checking a different concert. The
-count shows the two ways the brittle locators broke: three found nothing (loud), and two found
+**The wrong-card result: a position-based locator can make a check pass while looking at the
+wrong event.** After the redesign, "the 1st card" was Summer Jazz Night, not the Spring Concert.
+Here the price check failed because the new event costs more (expected "Tickets from $25.00",
+received "Tickets from $40.00"), and that message even reads as if the Spring Concert's price had
+changed, which it hadn't. With equal prices, the price check passed on Summer Jazz Night; here the
+test still failed one line later, on the renamed fee line. But if the redesign had only added the
+new card, the whole test could have passed while checking a different concert. The count shows the two ways the brittle locators broke: three found nothing (loud), and two found
 the wrong thing (quiet), and the quiet ones are the dangerous ones.
 
 ## Where the important artifacts are
@@ -144,9 +148,9 @@ both.
    (the total). No test ID was used (see my decisions).
 3. **Each replacement has a stated reason:** the note beside each locator in `stable.spec.ts` says
    what it was and why the new one survives a redesign.
-4. **The same business assertion in both tests:** the last four lines of both tests are identical:
-   the price "Tickets from $25.00", the fee "Service fee: $2.50 per ticket", choose 2, and the total
-   "Total: $55.00".
+4. **The same business assertion in both tests:** the last seven lines of both tests are
+   identical: the price line is shown and says "Tickets from $25.00", the fee line is shown and says
+   "Service fee: $2.50 per ticket", choose 2, and the total is shown and says "Total: $55.00".
 5. **After a layout change the brittle test fails and the stable one passes:**
    `logs/layout-change.txt`, section 1 (before: 2 passed) and section 3 (after, on the redesigned
    copy: the brittle test failed, the stable test passed). Section 5 adds the count: before 5 of 5
@@ -163,7 +167,7 @@ both.
 
 ## What was tested or validated
 
-- **The run record** (`logs/layout-change.txt`, 11-10-2026, 9:33 AM): before the redesign both
+- **The run record** (`logs/layout-change.txt`, 11-10-2026, 10:07 AM): before the redesign both
   tests passed; on the redesigned copy the brittle test failed and the stable test passed; the
   searches and the count as described under criteria 5 and 6. The script that recorded it also
   checked each of these outcomes, and all were as expected.
@@ -171,8 +175,8 @@ both.
   generated names were added; the brittle and then the stable test passing on today's page (9,
   then 10 tests); after the redesign, brittle failing and stable passing, with expected $25.00 and
   received $40.00; and the count, brittle 0 of 5 and stable 5 of 5.
-- **The whole suite** passes on the real demo app (10 of 10), and the project-setup check passes
-  (21 of 21 project files).
+- **The whole suite** passes on the real demo app (10 of 10, log section 6), and the project-setup
+  check passes (21 of 21 project files, log section 7).
 - **This quest has no automatic checker.** The criteria above were checked against the files and
   the run record.
 
@@ -189,11 +193,9 @@ both.
 - **One redesign.** It breaks all five brittle kinds, but other changes would treat the stable
   test differently: reworded price or fee lines break it (see "Which replacement I trust least"),
   and a developer removing the hidden "Order total" label would too.
-- **The generated names are imitations.** A real build tool would rename them on every build; here
-  they were renamed by hand in the copy.
-- **The redesigned copy's new event can't be reviewed.** Its review page only knows the Spring
-  Concert, so "Continue to review" on Summer Jazz Night says the event isn't on sale. The tests
-  never use it.
+- **The generated names are imitations.** A real build tool may keep a generated name for a while
+  or rename it after any change to the page, its styling or the tools; the risk is that no one has
+  promised to keep it. Here the names were renamed by hand in the copy.
 - **The copy is a second set of files to keep in step.** If the real demo app changes, the copy
   doesn't follow; it shows one moment in time.
 - **One browser (Chromium).**

@@ -1,33 +1,33 @@
 Layout change record: a brittle and a stable version of the same test, before and after a redesign
-Started: 11-10-2026 09:33:34 AM
+Started: 11-10-2026 10:07:02 AM
 Node v22.23.3, Playwright 1.63.0, browser: Chromium
 Application: the local Tixly demo app (made-up data, served on 127.0.0.1 only). The redesign was
 made only in a copy, demo-app-redesigned/; the original demo-app/ is unchanged. No login, token or
 cookie is used. Redaction: personal home-folder paths shown as ~.
 
 --- 1. Before the redesign: both tests on the original demo app (demo-app/)
-Recorded: 11-10-2026 09:33:37 AM
+Recorded: 11-10-2026 10:07:04 AM
 Folder: participant/tests/playwright
 Command: npx playwright test brittle.spec.ts stable.spec.ts
 Exit code: 0
 
 Running 2 tests using 2 workers
 
-  ✓  1 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (308ms)
-  ✓  2 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (308ms)
+  ✓  1 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (150ms)
+  ✓  2 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (148ms)
 
-  2 passed (1.0s)
+  2 passed (718ms)
 
 --- 2. The layout change: the original events page against the redesigned copy
-Recorded: 11-10-2026 09:33:37 AM
+Recorded: 11-10-2026 10:07:04 AM
 Folder: participant/tests/playwright
 Command: diff -u demo-app/index.html demo-app-redesigned/index.html
 Exit code: 1
-(diff exits 1 when the files differ.) The copy's review page is identical to the original; its server is identical except for one comment line saying the copy is started by hand.
+(diff exits 1 when the files differ.) The copy's review page differs from the original only by also listing Summer Jazz Night; its server only by one comment line saying the copy is started by hand.
 
 --- demo-app/index.html
 +++ demo-app-redesigned/index.html
-@@ -7,24 +7,51 @@
+@@ -7,25 +7,52 @@
    </head>
    <body>
      <!-- Tixly is an invented ticket app. This page is a local demo for the tests, with made-up data. -->
@@ -66,9 +66,10 @@ Exit code: 1
          <p>Riverside Hall, 04-18-2027, 7:30 PM</p>
 +        <p>Doors open 6:30 PM</p>
          <p>Tickets from $25.00</p>
--        <!-- "r-7f3k2" and "css-q81zk" imitate names a build tool generates: they change with
-+        <!-- "r-9wq4d" and "css-2mv8p" imitate names a build tool generates: they change with
-              every build, so no test should rely on them (brittle.spec.ts does, on purpose). -->
+-        <!-- "r-7f3k2" and "css-q81zk" imitate names a build tool generates. No one has promised
++        <!-- "r-9wq4d" and "css-2mv8p" imitate names a build tool generates. No one has promised
+              to keep them, and a change to the page, its styling or the build tools can rename them
+              without warning, so no test should rely on them (brittle.spec.ts does, on purpose). -->
 -        <p class="css-q81zk">Service fee: $2.50 per ticket</p>
 +        <p class="css-2mv8p">Service fee: $2.50 per ticket</p>
          <!-- Choosing a quantity only works out the price on this page. "Continue to review" opens the
@@ -83,7 +84,7 @@ Exit code: 1
              <option>1</option>
              <option>2</option>
              <option>3</option>
-@@ -35,6 +62,7 @@
+@@ -36,6 +63,7 @@
            <p role="status" aria-label="Order total"></p>
            <button type="submit">Continue to review</button>
          </form>
@@ -93,14 +94,14 @@ Exit code: 1
      <script>
 
 --- 3. After the redesign: both tests on the redesigned copy (demo-app-redesigned/, port 4199)
-Recorded: 11-10-2026 09:33:43 AM
+Recorded: 11-10-2026 10:07:10 AM
 Folder: participant/tests/playwright
 Command: TIXLY_BASE_URL=http://127.0.0.1:4199 npx playwright test brittle.spec.ts stable.spec.ts
 Exit code: 1
 
 Running 2 tests using 2 workers
 
-  ✓  2 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (176ms)
+  ✓  2 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (157ms)
   ✘  1 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (5.2s)
 
 
@@ -120,14 +121,14 @@ Running 2 tests using 2 workers
            - unexpected value "Tickets from $40.00"
 
 
-      34 |     // The business check, the same as in stable.spec.ts: the price and fee are as expected, and
-      35 |     // 2 tickets cost $55.00.
-    > 36 |     await expect(ticketPrice).toHaveText("Tickets from $25.00");
+      37 |     // expected, and 2 tickets show a total of $55.00.
+      38 |     await expect(ticketPrice).toBeVisible();
+    > 39 |     await expect(ticketPrice).toHaveText("Tickets from $25.00");
          |                               ^
-      37 |     await expect(serviceFee).toHaveText("Service fee: $2.50 per ticket");
-      38 |     await quantity.selectOption("2");
-      39 |     await expect(orderTotal).toHaveText("Total: $55.00");
-        at ~/golden-thread-quest/participant/tests/playwright/brittle.spec.ts:36:31
+      40 |     await expect(serviceFee).toBeVisible();
+      41 |     await expect(serviceFee).toHaveText("Service fee: $2.50 per ticket");
+      42 |     await quantity.selectOption("2");
+        at ~/golden-thread-quest/participant/tests/playwright/brittle.spec.ts:39:31
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     test-results/brittle-a-buyer-choosing-2-dd521--of-55-00-brittle-locators--chromium/test-failed-1.png
@@ -148,7 +149,7 @@ Running 2 tests using 2 workers
   1 passed (5.6s)
 
 --- 4. Searches for generated class names, nth-child and index-based locators
-Recorded: 11-10-2026 09:33:43 AM
+Recorded: 11-10-2026 10:07:10 AM
 Pattern (a regular expression): css-[a-z0-9]{4,}|#r-[a-z0-9]+|nth-child|nth-of-type|\.nth\(|\.first\(\)|\.last\(\)|\[[0-9]+\]|locator\(
 
 4a. The whole of stable.spec.ts: 2 match(es)
@@ -162,13 +163,13 @@ locator each line replaced ("Was: ..."). A comment is not a locator.
 
 4c. The same search on the code of brittle.spec.ts, to show it finds such locators: 5 match(es)
 18:    const card = page.locator("main > article:nth-child(1)");
-21:    const quantity = page.locator("#r-7f3k2");
-25:    const ticketPrice = card.locator("p").nth(1);
-28:    const serviceFee = page.locator(".css-q81zk");
-32:    const orderTotal = page.locator("main > article > form > p");
+22:    const quantity = page.locator("#r-7f3k2");
+26:    const ticketPrice = card.locator("p").nth(1);
+30:    const serviceFee = page.locator(".css-q81zk");
+34:    const orderTotal = page.locator("main > article > form > p");
 
 --- 5a. The count on the original demo app
-Recorded: 11-10-2026 09:33:44 AM
+Recorded: 11-10-2026 10:07:12 AM
 Folder: participant/tests/playwright
 Command: node tools/locator-count.ts http://127.0.0.1:4173
 Exit code: 0
@@ -188,7 +189,7 @@ brittle.spec.ts: 5 of 5 locators still find the right thing
 stable.spec.ts: 5 of 5 locators still find the right thing
 
 --- 5b. The count on the redesigned copy
-Recorded: 11-10-2026 09:33:44 AM
+Recorded: 11-10-2026 10:07:12 AM
 Folder: participant/tests/playwright
 Command: node tools/locator-count.ts http://127.0.0.1:4199
 Exit code: 0
@@ -207,4 +208,53 @@ Page: http://127.0.0.1:4199
 brittle.spec.ts: 0 of 5 locators still find the right thing
 stable.spec.ts: 5 of 5 locators still find the right thing
 
-Finished: 11-10-2026 09:33:44 AM
+--- 6. The whole suite on the original demo app (the redesign touches only the copy)
+Recorded: 11-10-2026 10:07:14 AM
+Folder: participant/tests/playwright
+Command: npx playwright test
+Exit code: 0
+
+Running 10 tests using 5 workers
+
+  ✓   3 [chromium] › tests/smoke.spec.ts:6:1 › a visitor sees the Spring Concert and its ticket price on the Tixly home page (268ms)
+  ✓   1 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (296ms)
+  ✓   4 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (300ms)
+  ✓   5 [chromium] › model-usage.spec.ts:21:1 › a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00 @order-review @risk-high @read-only @fast (357ms)
+  ✓   2 [chromium] › first-independent-test.spec.ts:18:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket @ticket-total @risk-high @read-only @fast (356ms)
+  ✓   6 [chromium] › model-usage.spec.ts:38:1 › a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00 @order-review @risk-high @read-only @fast (276ms)
+  ✓   7 [chromium] › model-usage.spec.ts:54:1 › a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total @order-review @risk-medium @read-only @fast (222ms)
+  ✓   8 [chromium] › model-usage.spec.ts:71:1 › a review link naming an event that isn't on sale says so instead of showing a total @order-review @risk-medium @read-only @fast (119ms)
+  ✓   9 [chromium] › model-usage.spec.ts:88:1 › a buyer who uses the browser's Back button from the review still sees 3 tickets and $82.50 @order-review @risk-high @read-only @fast (182ms)
+  ✓  10 [chromium] › model-usage.spec.ts:104:1 › review links for 1 and for 6 tickets, the smallest and largest orders, show totals of $27.50 and $165.00 @order-review @risk-high @read-only @fast (111ms)
+
+  10 passed (2.0s)
+
+--- 7. The project-setup check (project files kept in Git, nothing generated or secret committed)
+Recorded: 11-10-2026 10:07:33 AM
+Folder: participant/tests/playwright
+Command: node tools/project-setup-check.ts
+Exit code: 0
+
+project-setup-check 1.0.0
+project: participant/tests/playwright
+PASS  generated output and environment files are ignored by Git (12 of 12)
+      installed packages: participant/tests/playwright/node_modules/@playwright/test/package.json (rule participant/tests/playwright/.gitignore:2:node_modules/)
+      a trace: participant/tests/playwright/test-results/smoke-chromium/trace.zip (rule participant/tests/playwright/.gitignore:5:test-results/)
+      a failure screenshot: participant/tests/playwright/test-results/smoke-chromium/test-failed-1.png (rule participant/tests/playwright/.gitignore:5:test-results/)
+      a file downloaded during a test: participant/tests/playwright/test-results/smoke-chromium/downloads/ticket.pdf (rule participant/tests/playwright/.gitignore:5:test-results/)
+      the HTML report: participant/tests/playwright/playwright-report/index.html (rule participant/tests/playwright/.gitignore:6:playwright-report/)
+      a merged-report blob: participant/tests/playwright/blob-report/report.zip (rule participant/tests/playwright/.gitignore:7:blob-report/)
+      Playwright's build cache: participant/tests/playwright/playwright/.cache/component.js (rule participant/tests/playwright/.gitignore:8:playwright/.cache/)
+      an environment file: participant/tests/playwright/.env (rule participant/tests/playwright/.gitignore:15:*.env)
+      a local environment file: participant/tests/playwright/.env.local (rule participant/tests/playwright/.gitignore:12:.env.*)
+      an environment file named with a dash: participant/tests/playwright/.env-local (rule participant/tests/playwright/.gitignore:13:.env-*)
+      an environment file named with an underscore: participant/tests/playwright/.env_production (rule participant/tests/playwright/.gitignore:14:.env_*)
+      an environment file ending in .env: participant/tests/playwright/production.env (rule participant/tests/playwright/.gitignore:15:*.env)
+PASS  the project's own files are not ignored (21 of 21)
+PASS  downloaded browsers are kept out of Git (Playwright's own cache folder, outside the repository)
+PASS  no environment file is among the 645 files Git would commit
+PASS  no output from this project's runs, installed package or downloaded browser is among the files Git would commit
+PASS  no credential found in the files Git would commit (1213 files scanned, 0 finding(s), including the staged copies of all 636 tracked files)
+RESULT: PASSED
+
+Finished: 11-10-2026 10:07:33 AM

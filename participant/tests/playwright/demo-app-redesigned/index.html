@@ -42,8 +42,9 @@
         <p>Riverside Hall, 04-18-2027, 7:30 PM</p>
         <p>Doors open 6:30 PM</p>
         <p>Tickets from $25.00</p>
-        <!-- "r-9wq4d" and "css-2mv8p" imitate names a build tool generates: they change with
-             every build, so no test should rely on them (brittle.spec.ts does, on purpose). -->
+        <!-- "r-9wq4d" and "css-2mv8p" imitate names a build tool generates. No one has promised
+             to keep them, and a change to the page, its styling or the build tools can rename them
+             without warning, so no test should rely on them (brittle.spec.ts does, on purpose). -->
         <p class="css-2mv8p">Service fee: $2.50 per ticket</p>
         <!-- Choosing a quantity only works out the price on this page. "Continue to review" opens the
              review page with the event and quantity in its address; nothing is saved. -->
