@@ -5,8 +5,8 @@
 // ten (the five in brittle.spec.ts and the five in stable.spec.ts) on one page and reports, for
 // each, whether it finds exactly one element and whether that element is the right one: the
 // Spring Concert's card, ticket dropdown, price line, fee line or order total. "Right" is judged by
-// the role and name a screen reader announces and the text shown on screen, so a harmless change
-// to how the page is built isn't counted as a broken locator.
+// the role and name a screen reader announces, the element's own words and whether it is visible,
+// so a harmless change to how the page is built isn't counted as a broken locator.
 //
 // The locators below are copied from the two test files; the script first checks that each one's
 // whole line still appears there exactly, so the count can't silently drift from the tests.
@@ -97,9 +97,11 @@ try {
       //            doesn't rely on the developer's label)
       // Text in this view is already spaced the way it reads on screen.
       // The role and name come from the first line of the accessibility view, such as
-      // - combobox "Number of tickets"; the text is the element's visible text, as shown on screen.
+      // - combobox "Number of tickets"; the text is the element's own words, spaced as on screen
+      // but ignoring styling (such as capitals added by CSS), as the tests' text checks do.
       const announced = (await locator.ariaSnapshot()).split("\n")[0] ?? "";
-      const text = (await locator.innerText()).replace(/\s+/g, " ").trim();
+      const text = ((await locator.textContent()) ?? "").replace(/\s+/g, " ").trim();
+      const visible = await locator.isVisible();
       const rightKind =
         entry.target === "card" ? /^- article "Spring Concert"/.test(announced)
         : entry.target === "dropdown" ? /^- combobox "Number of tickets"/.test(announced)
@@ -111,7 +113,8 @@ try {
       for (const card of springConcertCards) {
         if (await card.evaluate((c, el) => c.contains(el as Node), element)) inSpringConcert = true;
       }
-      const right = rightKind && inSpringConcert;
+      // A buyer has to be able to see it, as the tests require.
+      const right = visible && rightKind && inSpringConcert;
       result = right ? "ok: finds the right thing" : "BROKEN: finds the wrong thing";
     }
     if (result.startsWith("ok")) found[entry.test] = (found[entry.test] ?? 0) + 1;

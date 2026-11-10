@@ -43,9 +43,10 @@ redesign that proves the difference.
   shows only one broken locator. This tries all ten locators on a running page and reports which
   still find the right thing (the Spring Concert's card, dropdown, price, fee or total), which find
   nothing, and which find the wrong thing. "Right" is judged by the role and name a screen reader
-  announces and the text shown on screen, so a harmless change to how the page is built (such as a
-  different heading tag) isn't counted as a broken locator. It first checks that each locator's
-  whole line still appears exactly in its test file, so the count can't drift from the tests.
+  announces, the element's own words and whether it is visible, so a harmless change to how the page
+  is built (such as a different heading tag) isn't counted as a broken locator. It first checks that
+  each locator's whole line still appears exactly in its test file, so the count can't drift from
+  the tests.
 - **The README and setup check** now describe the 10 tests and the comparison, and check the 6
   new project files (21 instead of 15).
 
@@ -171,7 +172,7 @@ both.
 
 ## What was tested or validated
 
-- **The run record** (`logs/layout-change.txt`, 11-10-2026, 10:39 AM): before the redesign both
+- **The run record** (`logs/layout-change.txt`, 11-10-2026, 10:48 AM): before the redesign both
   tests passed; on the redesigned copy the brittle test failed and the stable test passed; the
   searches and the count as described under criteria 5 and 6. The script that recorded it also
   checked each of these outcomes, and all were as expected.
