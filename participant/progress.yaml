@@ -134,4 +134,13 @@ attempts:
   evidence_path: participant/evidence/playwright-page-model/playwright-attempt-005
   submission_id: submission-20261109164259-eabe1e
   review_id: review-20261109193030-62373e
-updated_at: '2026-11-09T19:30:30Z'
+- attempt_id: playwright-attempt-006
+  quest_id: playwright-stable-locators
+  quest_version: 1
+  content_hash: sha256:d1d1bb543876ef83dca1b21929cf0842d4e60cded93ee04aec2f3f3abf5a685e
+  state: submitted
+  started_at: '2026-11-10T14:05:43Z'
+  updated_at: '2026-11-10T18:49:46Z'
+  evidence_path: participant/evidence/playwright-stable-locators/playwright-attempt-006
+  submission_id: submission-20261110184946-5bc2c3
+updated_at: '2026-11-10T18:49:46Z'

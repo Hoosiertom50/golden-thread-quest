@@ -53,12 +53,30 @@ From a fresh copy of the repository:
    npm test
    ```
 
-   Playwright starts the demo app on `http://127.0.0.1:4173`, runs all 8 tests in Chromium (the
-   smoke test in `tests/`, the ticket-total test, `first-independent-test.spec.ts`, and the 6
-   order-review tests, `model-usage.spec.ts`) and stops the app again. A passing run ends with
-   `8 passed`. The tests find everything on a page through the page models in `pages/`, never
-   with a selector of their own. To run only some tests, use their tag: `npx playwright test --grep @ticket-total`
-   or `npx playwright test --grep @order-review`.
+   Playwright starts the demo app on `http://127.0.0.1:4173`, runs all 10 tests in Chromium (the
+   smoke test in `tests/`, the ticket-total test, `first-independent-test.spec.ts`, the 6
+   order-review tests, `model-usage.spec.ts`, and the two locator-comparison tests,
+   `brittle.spec.ts` and `stable.spec.ts`) and stops the app again. A passing run ends with
+   `10 passed`. The tests find everything on a page through the page models in `pages/`, except
+   the two locator-comparison tests, which write their locators out on purpose (see "Brittle and
+   stable locators" below). To run only some tests, use their tag:
+   `npx playwright test --grep @ticket-total`, `--grep @order-review` or `--grep @locator-comparison`.
+
+   **Brittle and stable locators.** `brittle.spec.ts` finds things by how the page is built
+   (positions, generated names, a path); `stable.spec.ts` checks the same thing by what a user
+   sees. Both pass on the demo app. `demo-app-redesigned/` is a copy of the demo app with the same
+   product built differently (a new event above, an extra line, a new box, renamed generated
+   names). To run both tests against it, start the copy on another port and point the tests at it:
+
+   ```
+   TIXLY_DEMO_PORT=4199 node demo-app-redesigned/server.js
+   ```
+
+   then, in a second terminal, `TIXLY_BASE_URL=http://127.0.0.1:4199 npx playwright test --grep @locator-comparison`.
+   The brittle test fails and the stable one passes. Press Ctrl+C in the first terminal to stop the
+   copy. To count how many of each test's locators still find the right thing, run
+   `node tools/locator-count.ts http://127.0.0.1:4199` while the copy is running. To count on the
+   original page, start it by hand with `node demo-app/server.js` and use `http://127.0.0.1:4173`.
 
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
    repository for credentials. This step also needs the repository's Python environment
