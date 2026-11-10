@@ -26,7 +26,8 @@ try {
 } catch {
   // reported below
 }
-if (!["127.0.0.1", "localhost", "[::1]"].includes(host)) {
+// The demo app only listens on 127.0.0.1, so only that address (or localhost) is accepted.
+if (!["127.0.0.1", "localhost"].includes(host)) {
   console.error(`Give the address of a demo app on this computer, such as http://127.0.0.1:4173 (got "${address}")`);
   process.exit(2);
 }
@@ -68,7 +69,13 @@ const browser = await chromium.launch({
 });
 try {
   const page = await browser.newPage();
-  await page.goto(address);
+  try {
+    await page.goto(address);
+  } catch {
+    console.error(`Couldn't open ${address}. Is the demo app running there? (See the README.)`);
+    await browser.close();
+    process.exit(2);
+  }
   const found: Record<string, number> = {};
   // Every card the browser announces as an article named "Spring Concert", found by role alone.
   const springConcertCards: Locator[] = [];
@@ -91,7 +98,7 @@ try {
       // screen reader would announce, not particular tags. The element must sit inside the
       // Spring Concert's card, and announce itself as:
       //   card     an article named "Spring Concert"
-      //   dropdown a combo box named "Number of tickets" (however it is labeled)
+      //   dropdown a drop-down or open list named "Number of tickets" (however it is labeled)
       //   price    the text "Tickets from $25.00"; fee: the text "Service fee: $2.50 per ticket"
       //   total    a status message reading "Total: ..." (its hidden name isn't needed, so the check
       //            doesn't rely on the developer's label)
@@ -104,7 +111,7 @@ try {
       const visible = await locator.isVisible();
       const rightKind =
         entry.target === "card" ? /^- article "Spring Concert"/.test(announced)
-        : entry.target === "dropdown" ? /^- combobox "Number of tickets"/.test(announced)
+        : entry.target === "dropdown" ? /^- (combobox|listbox) "Number of tickets"/.test(announced)
         : entry.target === "price" ? text === "Tickets from $25.00"
         : entry.target === "fee" ? text === "Service fee: $2.50 per ticket"
         : /^- status\b/.test(announced) && text.startsWith("Total: $");

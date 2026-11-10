@@ -1,9 +1,8 @@
 // A tiny local web server for the Tixly demo pages. It serves two read-only pages on this computer
 // only (127.0.0.1), so the tests never reach a real site: the events page (/) and the order review
 // page (/review, which reads the event and quantity from its address). Only GET requests are
-// answered. Playwright starts and stops it for each run; the port comes from TIXLY_DEMO_PORT
-// (default 4173).
-// In demo-app-redesigned/, this copy is started by hand (see the README); Playwright doesn't start it.
+// answered. This copy, in demo-app-redesigned/, is started by hand (see the README), not by
+// Playwright; the port comes from TIXLY_DEMO_PORT (default 4173).
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";

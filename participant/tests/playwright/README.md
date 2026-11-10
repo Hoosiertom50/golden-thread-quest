@@ -73,8 +73,10 @@ From a fresh copy of the repository:
    ```
 
    then, in a second terminal, `TIXLY_BASE_URL=http://127.0.0.1:4199 npx playwright test --grep @locator-comparison`.
-   The brittle test fails and the stable one passes. `node tools/locator-count.ts <address>` counts
-   how many of each test's locators still find the right thing on a running copy (Ctrl+C stops the copy).
+   The brittle test fails and the stable one passes. Press Ctrl+C in the first terminal to stop the
+   copy. To count how many of each test's locators still find the right thing, run
+   `node tools/locator-count.ts http://127.0.0.1:4199` while the copy is running. To count on the
+   original page, start it by hand with `node demo-app/server.js` and use `http://127.0.0.1:4173`.
 
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
    repository for credentials. This step also needs the repository's Python environment

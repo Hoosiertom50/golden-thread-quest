@@ -20,9 +20,10 @@ redesign that proves the difference.
   3. **Index in a list:** the price line is "the 2nd paragraph in the card" (`.nth(1)`).
   4. **Generated class name:** the fee line is `.css-q81zk`.
   5. **Long DOM path:** the total is `main > article > form > p`.
-- **The stable test** (`stable.spec.ts`): the same check, word for word, with each locator
+- **The stable test** (`stable.spec.ts`): the same check lines, word for word, with each locator
   replaced by one based on what a user sees, and a note beside each saying what it was and why
-  the new one is stable:
+  the new one is stable. The stable test's locators also tie each item to the Spring Concert's
+  card, which the brittle ones can't (see "What surprised me"):
   1. The card by its **role and name**, "Spring Concert".
   2. The dropdown by its **label**, "Number of tickets".
   3. The price line by its **visible text**, "Tickets from".
@@ -102,7 +103,9 @@ received "Tickets from $40.00"), and that message even reads as if the Spring Co
 changed, which it hadn't. With equal prices, the price check passed on Summer Jazz Night, so it was
 checking the wrong concert without knowing it. Here the test still failed: on the renamed fee line
 in our redesign, and even with only the new card added, at the total, whose path then matched both
-cards. But that was luck, not design: the price check itself never noticed.
+cards. But that was luck, not design: the price check itself never noticed. It goes further: with
+the Spring Concert renamed, the brittle test still passed. Nothing in it ever looks for the event
+it's named after.
 The count shows the two ways the brittle locators broke: three found nothing (loud), and two found
 the wrong thing (quiet), and the quiet ones are the dangerous ones.
 
@@ -153,8 +156,8 @@ both.
    (the total). No test ID was used (see my decisions).
 3. **Each replacement has a stated reason:** the note beside each locator in `stable.spec.ts` says
    what it was and why the new one survives a redesign.
-4. **The same business assertion in both tests:** the last seven lines of both tests are
-   identical: the price line is shown and says "Tickets from $25.00", the fee line is shown and says
+4. **The same business assertion in both tests:** the last seven lines (the check lines) of both
+   tests are identical: the price line is shown and says "Tickets from $25.00", the fee line is shown and says
    "Service fee: $2.50 per ticket", choose 2, and the total is shown and says "Total: $55.00".
 5. **After a layout change the brittle test fails and the stable one passes:**
    `logs/layout-change.txt`, section 1 (before: 2 passed) and section 3 (after, on the redesigned
@@ -172,7 +175,7 @@ both.
 
 ## What was tested or validated
 
-- **The run record** (`logs/layout-change.txt`, 11-10-2026, 10:48 AM): before the redesign both
+- **The run record** (`logs/layout-change.txt`, 11-10-2026, 11:07 AM): before the redesign both
   tests passed; on the redesigned copy the brittle test failed and the stable test passed; the
   searches and the count as described under criteria 5 and 6. The script that recorded it also
   checked each of these outcomes, and all were as expected.
@@ -201,6 +204,14 @@ both.
 - **The generated names are imitations.** A real build tool may keep a generated name for a while
   or rename it after any change to the page, its styling or the tools; the risk is that no one has
   promised to keep it. Here the names were renamed by hand in the copy.
+- **The count tool's idea of "the right element" has limits.** It recognizes each target by the role
+  and name a screen reader announces, its words, and whether it's visible, as this page builds them.
+  Copilot's later review rounds found several harmless ways to build the page that the tool didn't
+  expect, and all were fixed (a different heading tag, other ways of labeling, a drop-down shown as
+  an open list, capitals added by styling, a hidden line). Other unusual markup may need the tool
+  updated; the tests themselves are the final judge. For the card itself, the tool recognizes the
+  Spring Concert the same way the stable test does, by its name, so it can't catch the stable card
+  locator finding the wrong card; it can only show it finding nothing.
 - **The copy is a second set of files to keep in step.** If the real demo app changes, the copy
   doesn't follow; it shows one moment in time.
 - **One browser (Chromium).**
