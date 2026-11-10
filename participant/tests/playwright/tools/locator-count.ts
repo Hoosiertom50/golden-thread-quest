@@ -5,8 +5,8 @@
 // ten (the five in brittle.spec.ts and the five in stable.spec.ts) on one page and reports, for
 // each, whether it finds exactly one element and whether that element is the right one: the
 // Spring Concert's card, ticket dropdown, price line, fee line or order total. "Right" is judged by
-// the browser's accessibility view (the role, name and text a screen reader announces), so a
-// harmless change to how the page is built isn't counted as a broken locator.
+// the role and name a screen reader announces and the text shown on screen, so a harmless change
+// to how the page is built isn't counted as a broken locator.
 //
 // The locators below are copied from the two test files; the script first checks that each one's
 // whole line still appears there exactly, so the count can't silently drift from the tests.
@@ -96,10 +96,10 @@ try {
       //   total    a status message reading "Total: ..." (its hidden name isn't needed, so the check
       //            doesn't rely on the developer's label)
       // Text in this view is already spaced the way it reads on screen.
-      // The first line reads like: - paragraph: Tickets from $25.00 (role, optional "name", then
-      // its text, which is put in quotes when it contains a colon).
+      // The role and name come from the first line of the accessibility view, such as
+      // - combobox "Number of tickets"; the text is the element's visible text, as shown on screen.
       const announced = (await locator.ariaSnapshot()).split("\n")[0] ?? "";
-      const text = announced.replace(/^- [a-z]+(?: "[^"]*")?:? ?/, "").replace(/^"(.*)"$/, "$1");
+      const text = (await locator.innerText()).replace(/\s+/g, " ").trim();
       const rightKind =
         entry.target === "card" ? /^- article "Spring Concert"/.test(announced)
         : entry.target === "dropdown" ? /^- combobox "Number of tickets"/.test(announced)
