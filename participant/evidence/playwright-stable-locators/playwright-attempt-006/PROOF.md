@@ -39,11 +39,14 @@ redesign that proves the difference.
   (`r-9wq4d`, `css-2mv8p`). The Spring Concert still costs $25.00 plus $2.50 per ticket, and 2
   tickets still cost $55.00. The copy's review page also lists Summer Jazz Night, so the new event
   can be reviewed too. The original demo app was not changed by the redesign.
-- **The count tool** (`tools/locator-count.ts`): a test stops at its first failure, so a failing
-  run shows only one broken locator. This tries all ten locators on a running page and reports
-  which still find the right thing (the Spring Concert's card, dropdown, price, fee or total),
-  which find nothing, and which find the wrong thing. It first checks that each locator still
-  appears word for word in its test file, so the count can't drift from the tests.
+- **The count tool** (`tools/locator-count.ts`): a test stops at its first failure, so a failing run
+  shows only one broken locator. This tries all ten locators on a running page and reports which
+  still find the right thing (the Spring Concert's card, dropdown, price, fee or total), which find
+  nothing, and which find the wrong thing. "Right" is judged by the browser's accessibility view,
+  the role, name and text a screen reader announces, so a harmless change to how the page is built
+  (such as a different heading tag) isn't counted as a broken locator. It first checks that each
+  locator's whole line still appears exactly in its test file, so the count can't drift from the
+  tests.
 - **The README and setup check** now describe the 10 tests and the comparison, and check the 6
   new project files (21 instead of 15).
 
@@ -169,7 +172,7 @@ both.
 
 ## What was tested or validated
 
-- **The run record** (`logs/layout-change.txt`, 11-10-2026, 10:21 AM): before the redesign both
+- **The run record** (`logs/layout-change.txt`, 11-10-2026, 10:31 AM): before the redesign both
   tests passed; on the redesigned copy the brittle test failed and the stable test passed; the
   searches and the count as described under criteria 5 and 6. The script that recorded it also
   checked each of these outcomes, and all were as expected.

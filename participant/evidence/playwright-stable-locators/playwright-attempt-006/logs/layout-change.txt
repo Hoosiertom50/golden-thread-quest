@@ -1,25 +1,25 @@
 Layout change record: a brittle and a stable version of the same test, before and after a redesign
-Started: 11-10-2026 10:21:26 AM
+Started: 11-10-2026 10:31:02 AM
 Node v22.23.3, Playwright 1.63.0, browser: Chromium
 Application: the local Tixly demo app (made-up data, served on 127.0.0.1 only). The redesign was
 made only in a copy, demo-app-redesigned/; the original demo-app/ is unchanged. No login, token or
 cookie is used. Redaction: personal home-folder paths shown as ~.
 
 --- 1. Before the redesign: both tests on the original demo app (demo-app/)
-Recorded: 11-10-2026 10:21:28 AM
+Recorded: 11-10-2026 10:31:04 AM
 Folder: participant/tests/playwright
 Command: npx playwright test brittle.spec.ts stable.spec.ts
 Exit code: 0
 
 Running 2 tests using 2 workers
 
-  ✓  2 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (150ms)
-  ✓  1 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (151ms)
+  ✓  1 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (155ms)
+  ✓  2 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (171ms)
 
-  2 passed (734ms)
+  2 passed (746ms)
 
 --- 2. The layout change: the original events page against the redesigned copy
-Recorded: 11-10-2026 10:21:28 AM
+Recorded: 11-10-2026 10:31:04 AM
 Folder: participant/tests/playwright
 Command: diff -u demo-app/index.html demo-app-redesigned/index.html
 Exit code: 1
@@ -94,14 +94,14 @@ Exit code: 1
      <script>
 
 --- 3. After the redesign: both tests on the redesigned copy (demo-app-redesigned/, port 4199)
-Recorded: 11-10-2026 10:21:34 AM
+Recorded: 11-10-2026 10:31:10 AM
 Folder: participant/tests/playwright
 Command: TIXLY_BASE_URL=http://127.0.0.1:4199 npx playwright test brittle.spec.ts stable.spec.ts
 Exit code: 1
 
 Running 2 tests using 2 workers
 
-  ✓  2 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (164ms)
+  ✓  2 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (156ms)
   ✘  1 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (5.2s)
 
 
@@ -149,7 +149,7 @@ Running 2 tests using 2 workers
   1 passed (5.7s)
 
 --- 4. Searches for generated class names, nth-child and index-based locators
-Recorded: 11-10-2026 10:21:34 AM
+Recorded: 11-10-2026 10:31:10 AM
 Pattern (a regular expression): css-[a-z0-9]{4,}|#r-[a-z0-9]+|nth-child|nth-of-type|\.nth\(|\.first\(\)|\.last\(\)|\[[0-9]+\]|locator\(
 
 4a. The whole of stable.spec.ts: 2 match(es)
@@ -169,7 +169,7 @@ locator each line replaced ("Was: ..."). A comment is not a locator.
 34:    const orderTotal = page.locator("main > article > form > p");
 
 --- 5a. The count on the original demo app
-Recorded: 11-10-2026 10:21:36 AM
+Recorded: 11-10-2026 10:31:12 AM
 Folder: participant/tests/playwright
 Command: node tools/locator-count.ts http://127.0.0.1:4173
 Exit code: 0
@@ -189,7 +189,7 @@ brittle.spec.ts: 5 of 5 locators still find the right thing
 stable.spec.ts: 5 of 5 locators still find the right thing
 
 --- 5b. The count on the redesigned copy
-Recorded: 11-10-2026 10:21:36 AM
+Recorded: 11-10-2026 10:31:12 AM
 Folder: participant/tests/playwright
 Command: node tools/locator-count.ts http://127.0.0.1:4199
 Exit code: 0
@@ -209,28 +209,28 @@ brittle.spec.ts: 0 of 5 locators still find the right thing
 stable.spec.ts: 5 of 5 locators still find the right thing
 
 --- 6. The whole suite on the original demo app (the redesign touches only the copy)
-Recorded: 11-10-2026 10:21:38 AM
+Recorded: 11-10-2026 10:31:14 AM
 Folder: participant/tests/playwright
 Command: npx playwright test
 Exit code: 0
 
 Running 10 tests using 5 workers
 
-  ✓   1 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (266ms)
-  ✓   2 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (281ms)
-  ✓   3 [chromium] › tests/smoke.spec.ts:6:1 › a visitor sees the Spring Concert and its ticket price on the Tixly home page (267ms)
-  ✓   5 [chromium] › model-usage.spec.ts:21:1 › a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00 @order-review @risk-high @read-only @fast (335ms)
-  ✓   4 [chromium] › first-independent-test.spec.ts:18:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket @ticket-total @risk-high @read-only @fast (341ms)
-  ✓   6 [chromium] › model-usage.spec.ts:38:1 › a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00 @order-review @risk-high @read-only @fast (292ms)
-  ✓   7 [chromium] › model-usage.spec.ts:54:1 › a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total @order-review @risk-medium @read-only @fast (215ms)
-  ✓   8 [chromium] › model-usage.spec.ts:71:1 › a review link naming an event that isn't on sale says so instead of showing a total @order-review @risk-medium @read-only @fast (118ms)
-  ✓   9 [chromium] › model-usage.spec.ts:88:1 › a buyer who uses the browser's Back button from the review still sees 3 tickets and $82.50 @order-review @risk-high @read-only @fast (183ms)
+  ✓   1 [chromium] › tests/smoke.spec.ts:6:1 › a visitor sees the Spring Concert and its ticket price on the Tixly home page (278ms)
+  ✓   4 [chromium] › stable.spec.ts:11:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators) @locator-comparison @risk-high @read-only @fast (297ms)
+  ✓   2 [chromium] › brittle.spec.ts:10:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators) @locator-comparison @risk-high @read-only @fast (299ms)
+  ✓   5 [chromium] › model-usage.spec.ts:21:1 › a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00 @order-review @risk-high @read-only @fast (340ms)
+  ✓   3 [chromium] › first-independent-test.spec.ts:18:1 › a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket @ticket-total @risk-high @read-only @fast (358ms)
+  ✓   6 [chromium] › model-usage.spec.ts:38:1 › a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00 @order-review @risk-high @read-only @fast (280ms)
+  ✓   7 [chromium] › model-usage.spec.ts:54:1 › a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total @order-review @risk-medium @read-only @fast (220ms)
+  ✓   8 [chromium] › model-usage.spec.ts:71:1 › a review link naming an event that isn't on sale says so instead of showing a total @order-review @risk-medium @read-only @fast (121ms)
+  ✓   9 [chromium] › model-usage.spec.ts:88:1 › a buyer who uses the browser's Back button from the review still sees 3 tickets and $82.50 @order-review @risk-high @read-only @fast (180ms)
   ✓  10 [chromium] › model-usage.spec.ts:104:1 › review links for 1 and for 6 tickets, the smallest and largest orders, show totals of $27.50 and $165.00 @order-review @risk-high @read-only @fast (117ms)
 
   10 passed (2.0s)
 
 --- 7. The project-setup check (project files kept in Git, nothing generated or secret committed)
-Recorded: 11-10-2026 10:21:57 AM
+Recorded: 11-10-2026 10:31:33 AM
 Folder: participant/tests/playwright
 Command: node tools/project-setup-check.ts
 Exit code: 0
@@ -257,4 +257,4 @@ PASS  no output from this project's runs, installed package or downloaded browse
 PASS  no credential found in the files Git would commit (1213 files scanned, 0 finding(s), including the staged copies of all 636 tracked files)
 RESULT: PASSED
 
-Finished: 11-10-2026 10:21:57 AM
+Finished: 11-10-2026 10:31:33 AM

@@ -4,7 +4,9 @@
 // A test stops at its first failure, so a failing run shows only ONE broken locator. This tries all
 // ten (the five in brittle.spec.ts and the five in stable.spec.ts) on one page and reports, for
 // each, whether it finds exactly one element and whether that element is the right one: the
-// Spring Concert's card, ticket dropdown, price line, fee line or order total.
+// Spring Concert's card, ticket dropdown, price line, fee line or order total. "Right" is judged by
+// the browser's accessibility view (the role, name and text a screen reader announces), so a
+// harmless change to how the page is built isn't counted as a broken locator.
 //
 // The locators below are copied from the two test files; the script first checks that each one's
 // whole line still appears there exactly, so the count can't silently drift from the tests.
@@ -68,6 +70,13 @@ try {
   const page = await browser.newPage();
   await page.goto(address);
   const found: Record<string, number> = {};
+  // Every card the browser announces as an article named "Spring Concert", found by role alone.
+  const springConcertCards: Locator[] = [];
+  for (const article of await page.getByRole("article").all()) {
+    if (/^- article "Spring Concert"/.test((await article.ariaSnapshot()).split("\n")[0] ?? "")) {
+      springConcertCards.push(article);
+    }
+  }
   console.log(`Page: ${address}`);
   for (const entry of entries) {
     const locator = entry.find(page);
@@ -78,22 +87,31 @@ try {
     } else if (count > 1) {
       result = `BROKEN: finds ${count} elements`;
     } else {
-      // The right thing, judged by what a user recognizes, in the Spring Concert's card: the ticket
-      // dropdown is the one labeled "Number of tickets", and the total is the status message that
-      // shows "Total: ..." (not its hidden name, so the check doesn't rely on the developer's label).
-      // Text is compared the way it reads on screen: runs of spaces and line breaks count as one.
-      const right = await locator.evaluate((el, target) => {
-        const reads = (node: Element | null | undefined) => (node?.textContent ?? "").replace(/\s+/g, " ").trim();
-        const inSpringConcert = reads(el.closest("article")?.querySelector("h2")) === "Spring Concert";
-        const rightKind =
-          target === "card" ? el.tagName === "ARTICLE"
-          : target === "dropdown"
-            ? el.tagName === "SELECT" && reads((el as HTMLSelectElement).labels?.[0]) === "Number of tickets"
-          : target === "price" ? reads(el) === "Tickets from $25.00"
-          : target === "fee" ? reads(el) === "Service fee: $2.50 per ticket"
-          : el.getAttribute("role") === "status" && reads(el).startsWith("Total:");
-        return inSpringConcert && rightKind;
-      }, entry.target);
+      // The right thing is judged by the browser's accessibility view: the role, name and text a
+      // screen reader would announce, not particular tags. The element must sit inside the
+      // Spring Concert's card, and announce itself as:
+      //   card     an article named "Spring Concert"
+      //   dropdown a combo box named "Number of tickets" (however it is labeled)
+      //   price    the text "Tickets from $25.00"; fee: the text "Service fee: $2.50 per ticket"
+      //   total    a status message reading "Total: ..." (its hidden name isn't needed, so the check
+      //            doesn't rely on the developer's label)
+      // Text in this view is already spaced the way it reads on screen.
+      // The first line reads like: - paragraph: Tickets from $25.00 (role, optional "name", then
+      // its text, which is put in quotes when it contains a colon).
+      const announced = (await locator.ariaSnapshot()).split("\n")[0] ?? "";
+      const text = announced.replace(/^- [a-z]+(?: "[^"]*")?:? ?/, "").replace(/^"(.*)"$/, "$1");
+      const rightKind =
+        entry.target === "card" ? /^- article "Spring Concert"/.test(announced)
+        : entry.target === "dropdown" ? /^- combobox "Number of tickets"/.test(announced)
+        : entry.target === "price" ? text === "Tickets from $25.00"
+        : entry.target === "fee" ? text === "Service fee: $2.50 per ticket"
+        : /^- status\b/.test(announced) && text.startsWith("Total: $");
+      const element = await locator.elementHandle();
+      let inSpringConcert = false;
+      for (const card of springConcertCards) {
+        if (await card.evaluate((c, el) => c.contains(el as Node), element)) inSpringConcert = true;
+      }
+      const right = rightKind && inSpringConcert;
       result = right ? "ok: finds the right thing" : "BROKEN: finds the wrong thing";
     }
     if (result.startsWith("ok")) found[entry.test] = (found[entry.test] ?? 0) + 1;
