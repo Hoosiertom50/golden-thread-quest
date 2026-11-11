@@ -27,7 +27,7 @@
         <button type="submit">Save order</button>
       </form>
       <p role="status" id="save-message"></p>
-      <p><a href="/">Back to events</a></p>
+            <p><a href="/">Back to events</a> · <a href="/orders">Your orders</a></p>
     </main>
     <script>
       // The same made-up event as the events page, with its price and fee in whole cents. A real
@@ -95,8 +95,10 @@
             link.href = "/orders";
             link.textContent = "See your orders";
             message.append(`Order saved for ${result.name}. `, link);
-            // The form disappears, so keyboard and screen-reader users are taken to the new link.
-            link.focus();
+                        // The form disappears, so keyboard and screen-reader users are taken to the new link,
+            // unless they moved on while waiting (to "Back to events", say): they stay there.
+            const active = document.activeElement;
+            if (!active || active === document.body || form.contains(active)) link.focus();
             form.hidden = true;
           } else {
             message.textContent = result.error;

@@ -85,9 +85,13 @@
         }
         await showOrders();
         ignoreClicksUntil = Date.now() + 600;
-        // The list was rebuilt, so put a keyboard or screen-reader user back where they were: on the
+                // The list was rebuilt, so put a keyboard or screen-reader user back where they were: on the
         // same order if it's still there (the cancel failed), otherwise on the Cancel button that
         // took its place (or the one before, if it was last), or on the "no saved orders" note.
+        // Only if focus was lost with the old list (or is still in it): a buyer who moved on while
+        // waiting (to "Back to events", say) stays there, so Enter does what they expect.
+        const active = document.activeElement;
+        if (active && active !== document.body && !list.contains(active)) return;
         const after = [...list.querySelectorAll("button")];
         const same = after.find((button) => button.dataset.orderId === order.id);
         const next = same ?? after[Math.min(position, after.length - 1)];
