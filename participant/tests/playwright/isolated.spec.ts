@@ -85,8 +85,16 @@ test(
     await expect(keep).toBeVisible();
     expect((await orders.list()).some((order) => order.id === toKeep.id)).toBe(true);
 
-    // Once the moment has passed, Cancel works again: the guard doesn't leave the page dead.
+        // A slower second click at the same spot, with the pointer never moved, doesn't cancel it either.
     await page.clock.runFor(1000);
+    await page.mouse.click(middle.x, middle.y);
+    await page.waitForLoadState("networkidle");
+    expect(cancellations).toHaveLength(1);
+    expect((await orders.list()).some((order) => order.id === toKeep.id)).toBe(true);
+
+    // Once the pointer has moved away and been aimed at the kept order, Cancel works again: the
+    // guard doesn't leave the page dead.
+    await page.mouse.move(middle.x, middle.y + 100);
     await keep.click();
     await expect(page.getByText(`Order for ${toKeep.name} cancelled.`, { exact: true })).toBeVisible();
     await expect.poll(async () => (await orders.list()).some((order) => order.id === toKeep.id)).toBe(false);

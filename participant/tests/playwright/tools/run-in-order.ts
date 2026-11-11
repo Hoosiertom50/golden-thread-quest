@@ -75,8 +75,9 @@ function listTests(): Listed[] {
     encoding: "utf8",
     env,
   });
-  if (listed.status !== 0) {
-    console.error(`Couldn't list the tests:\n${listed.stdout}${listed.stderr}`);
+    if (listed.error || listed.status !== 0) {
+    const why = listed.error ? `couldn't start npx: ${listed.error.message}` : `${listed.stdout ?? ""}${listed.stderr ?? ""}`;
+    console.error(`Couldn't list the tests:\n${why}`);
     process.exit(2);
   }
   const found: Listed[] = [];
@@ -187,11 +188,9 @@ console.log("");
 process.stdout.on("error", () => {});
 process.stderr.on("error", () => {});
 
-const marker = process.env.TIXLY_RUN_MARKER ?? `qa-${randomBytes(4).toString("hex")}`;
-if (!/^qa-[0-9a-f]{8}$/.test(marker)) {
-  console.error(`TIXLY_RUN_MARKER must look like qa-1a2b3c4d, not "${marker}"`);
-  process.exit(2);
-}
+// This run's own marker, always a new one (one left in the shell is not reused): two runs sharing a
+// marker could sweep each other's orders.
+const marker = `qa-${randomBytes(4).toString("hex")}`;
 const reportFile = join(tmpdir(), `run-in-order-${process.pid}.json`);
 const counts = { passed: 0, failed: 0, skipped: 0 };
 let interrupted = false;
@@ -250,7 +249,7 @@ try {
   // The orders that exist before the first test, which the safety net must never touch.
   process.env.TIXLY_BASE_URL = base;
   const { existingOrderIds } = await import("../support/global-setup.ts");
-  preexisting = process.env.TIXLY_PREEXISTING_IDS ?? JSON.stringify(await existingOrderIds());
+    preexisting = JSON.stringify(await existingOrderIds());
   console.log(`Run marker: ${marker}\n`);
 
   for (const [i, test] of ordered.entries()) {

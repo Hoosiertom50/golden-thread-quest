@@ -60,15 +60,27 @@
       // One cancellation at a time: while one is on its way, every Cancel button is disabled, and
       // they come back only once the list has been refreshed, so two quick clicks can't send the
       // same cancellation twice or show an out-of-date list.
-      // After a cancellation the list is rebuilt and the next order's Cancel button moves up under the
+            // After a cancellation the list is rebuilt and the next order's Cancel button moves up under the
       // pointer, so for a moment afterwards pointer clicks on Cancel are ignored: a quick second click
-      // (as in a double-click) can't cancel a different order. Keyboard and screen-reader activations
-      // aren't affected (they don't come from the pointer), and focus still moves as described below.
+      // (as in a double-click) can't cancel a different order. A slower second click doesn't either:
+      // a click at the spot of the last pointer cancellation counts only once the pointer has moved
+      // away from it (more than a few pixels) and come back, so the buyer has aimed at the new order.
+      // Keyboard and screen-reader activations aren't affected (they don't come from the pointer),
+      // and focus still moves as described below.
       let ignoreClicksUntil = 0;
+      let lastPointerSpot = null;
+      const awayFrom = (spot, event) => Math.hypot(event.clientX - spot.x, event.clientY - spot.y) > 4;
+      for (const kind of ["pointermove", "pointerdown"]) {
+        document.addEventListener(kind, (event) => {
+          if (lastPointerSpot && awayFrom(lastPointerSpot, event)) lastPointerSpot = null;
+        });
+      }
 
       async function cancelOrder(order, event) {
         const fromPointer = event.detail > 0;
         if (fromPointer && Date.now() < ignoreClicksUntil) return;
+        if (fromPointer && lastPointerSpot && !awayFrom(lastPointerSpot, event)) return;
+        lastPointerSpot = fromPointer ? { x: event.clientX, y: event.clientY } : null;
         const buttons = [...list.querySelectorAll("button")];
         const position = buttons.findIndex((button) => button.dataset.orderId === order.id);
         for (const button of buttons) button.disabled = true;

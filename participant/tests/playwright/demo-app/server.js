@@ -39,11 +39,16 @@ const ordersFile = new URL("./data/orders.json", import.meta.url);
 // its own id.
 const lockFile = new URL("./data/orders.json.lock", import.meta.url);
 function takeLock() {
-  try {
+    try {
     writeFileSync(lockFile, String(process.pid), { flag: "wx" });
     return;
-  } catch {
-    // Someone has the lock, or had it.
+  } catch (problem) {
+    // EEXIST: someone has the lock, or had it (looked at below). Anything else (a data folder that
+    // can't be written, say) is the real problem, so it is reported as it is.
+    if (problem?.code !== "EEXIST") {
+      console.error(`Couldn't create the lock demo-app/data/orders.json.lock: ${problem?.message ?? problem}`);
+      process.exit(1);
+    }
   }
   const holder = Number(readFileSync(lockFile, "utf8"));
   let running = false;

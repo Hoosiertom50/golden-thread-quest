@@ -5,20 +5,28 @@
 //   2. notes the id of every order that already exists, so the run-end safety net
 //      (global-teardown.ts) never touches one of them, whatever its name says.
 //
-// A marker or a list already set (TIXLY_RUN_MARKER, TIXLY_PREEXISTING_IDS, for example by
-// tools/run-in-order.ts, which runs tests one at a time but as one run) is kept.
+// Each top-level run picks its own marker, even if TIXLY_RUN_MARKER is already set (left in the
+// shell, say): two runs sharing a marker could sweep each other's orders. The one exception is
+// tools/run-in-order.ts, which runs tests one at a time but as one run: it picks the marker and the
+// list itself, passes them to each test it starts together with TIXLY_SAFETY_NET_LATER=1, and runs
+// the safety net itself at the end. Only then are TIXLY_RUN_MARKER and TIXLY_PREEXISTING_IDS kept.
 
 import { randomBytes } from "node:crypto";
 
 export const MARKER_PATTERN = /^qa-[0-9a-f]{8}$/;
 
 export default async function globalSetup(): Promise<void> {
-  const given = process.env.TIXLY_RUN_MARKER;
-  if (given !== undefined && !MARKER_PATTERN.test(given)) {
-    throw new Error(`TIXLY_RUN_MARKER must look like qa-1a2b3c4d, not "${given}"`);
+    if (process.env.TIXLY_SAFETY_NET_LATER === "1") {
+    const given = process.env.TIXLY_RUN_MARKER;
+    if (given === undefined || !MARKER_PATTERN.test(given) || process.env.TIXLY_PREEXISTING_IDS === undefined) {
+      throw new Error(
+        `TIXLY_SAFETY_NET_LATER=1 is for tools/run-in-order.ts, which also sets TIXLY_RUN_MARKER (like qa-1a2b3c4d) and TIXLY_PREEXISTING_IDS; got marker "${given ?? ""}"`,
+      );
+    }
+    return;
   }
-  process.env.TIXLY_RUN_MARKER = given ?? `qa-${randomBytes(4).toString("hex")}`;
-  process.env.TIXLY_PREEXISTING_IDS ??= JSON.stringify(await existingOrderIds());
+  process.env.TIXLY_RUN_MARKER = `qa-${randomBytes(4).toString("hex")}`;
+  process.env.TIXLY_PREEXISTING_IDS = JSON.stringify(await existingOrderIds());
 }
 
 // A request to the demo app, tried once more if the connection drops (the app closes a connection
