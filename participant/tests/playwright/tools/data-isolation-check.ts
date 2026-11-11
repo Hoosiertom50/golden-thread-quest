@@ -1,0 +1,81 @@
+// The data-isolation check, for the data-isolation quest: proves that test runs leave no data behind
+// and never change or remove data that was there before. It reads the saved orders file directly
+// (demo-app/data/orders.json), so it works whether or not the demo app is running.
+//
+//   node tools/data-isolation-check.ts before   takes a fingerprint of every order there now (the
+//                                              "real" orders) and keeps it in the computer's
+//                                              temporary folder (not test-results/, which Playwright
+//                                              empties at the start of every run)
+//   ...run the tests...
+//   node tools/data-isolation-check.ts after    compares with that fingerprint and reports:
+//     1. leftovers: any order that wasn't there before, or any name carrying a test-run marker
+//        ("qa-" and six letters or digits, as the isolated tests use)
+//     2. real orders: each order from before still there, byte for byte the same
+//   and ends with PASS (exit 0) or FAIL (exit 1).
+
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+type Order = { id: string; name: string; event: string; quantity: number };
+
+const ordersFile = new URL("../demo-app/data/orders.json", import.meta.url);
+const fingerprintFile = join(tmpdir(), "tixly-data-isolation-before.json");
+const runMarker = /\bqa-[0-9a-f]{6}-/;
+
+const fingerprint = (order: Order) => createHash("sha256").update(JSON.stringify(order)).digest("hex");
+const readOrders = () => JSON.parse(readFileSync(ordersFile, "utf8")) as Order[];
+const describe = (order: Order) =>
+  `${order.id} "${order.name}" (${order.event}, ${order.quantity} ticket${order.quantity === 1 ? "" : "s"})`;
+
+const step = process.argv[2];
+if (step === "before") {
+  const orders = readOrders();
+  const marked = orders.filter((order) => runMarker.test(order.name));
+  writeFileSync(fingerprintFile, JSON.stringify(orders.map((order) => ({ id: order.id, sha256: fingerprint(order) })), null, 2));
+  console.log(`Before: ${orders.length} order(s) fingerprinted:`);
+  for (const order of orders) console.log(`  ${describe(order)}  sha256 ${fingerprint(order).slice(0, 12)}`);
+  if (marked.length > 0) {
+    console.log(`Warning: ${marked.length} of them already carry a test-run marker (left by an earlier run).`);
+  }
+} else if (step === "after") {
+  if (!existsSync(fingerprintFile)) {
+    console.error('No fingerprint to compare with: run "node tools/data-isolation-check.ts before" first.');
+    process.exit(2);
+  }
+  const before = JSON.parse(readFileSync(fingerprintFile, "utf8")) as { id: string; sha256: string }[];
+  const beforeIds = new Set(before.map((entry) => entry.id));
+  const now = readOrders();
+  const byId = new Map(now.map((order) => [order.id, order]));
+
+  const leftovers = now.filter((order) => !beforeIds.has(order.id) || runMarker.test(order.name));
+  console.log(`1. Leftover test data: ${leftovers.length}`);
+  for (const order of leftovers) console.log(`   LEFTOVER ${describe(order)}`);
+
+  let changed = 0;
+  console.log(`2. Orders from before: ${before.length}`);
+  for (const entry of before) {
+    const order = byId.get(entry.id);
+    if (!order) {
+      changed++;
+      console.log(`   REMOVED  ${entry.id}`);
+    } else if (fingerprint(order) !== entry.sha256) {
+      changed++;
+      console.log(`   CHANGED  ${describe(order)}`);
+    } else {
+      console.log(`   unchanged ${describe(order)}`);
+    }
+  }
+
+  const passed = leftovers.length === 0 && changed === 0;
+  console.log(
+    passed
+      ? `PASS: no test data left, and all ${before.length} order(s) from before are unchanged.`
+      : `FAIL: ${leftovers.length} leftover(s), ${changed} order(s) from before removed or changed.`,
+  );
+  process.exit(passed ? 0 : 1);
+} else {
+  console.error("Usage: node tools/data-isolation-check.ts before|after");
+  process.exit(2);
+}

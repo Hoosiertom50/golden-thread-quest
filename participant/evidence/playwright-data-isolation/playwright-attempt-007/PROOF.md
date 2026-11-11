@@ -1,0 +1,251 @@
+# Proof · playwright-data-isolation
+
+Attempt: `playwright-attempt-007`
+
+Decisions, predictions and the answers below are Tom Carter's; the demo app's saved orders, the
+tests, the helper, the tools, the logs and these notes were drafted with Claude (Claude Code) from
+his answers, 11-10-2026 to 11-11-2026. Everything runs against the local Tixly demo app with made-up
+data; nothing is sent anywhere.
+
+## What was built
+
+Saved orders for the demo app, a deliberately coupled pair of tests, the same stories rewritten so
+each test owns its data, and the tools that prove the difference.
+
+- **Saved orders in the demo app.** The order review page now has a "Your name" box and a "Save
+  order" button; a new "Your orders" page (`demo-app/orders.html`) lists saved orders, each with a
+  "Cancel order for <name>" button. Behind them, the demo server has a small orders service (list,
+  save, cancel) that keeps orders in `demo-app/data/orders.json`, a stand-in for a real database:
+  what is saved stays saved between runs until it is cancelled. The file starts with three made-up
+  "real" orders (Maria Lopez, James Chen, Aisha Patel). Each saved order gets a random id, the file
+  is never left half-written, and the service refuses a blank name, an event not on sale and a
+  quantity outside 1 to 6.
+- **The coupled pair** (`coupled.spec.ts`): test 1 saves an order for "Test User" through the screen
+  and checks it is listed; test 2 cancels "Test User's" order without making one, relying on test 1.
+  Forward, both pass and nothing is left. Reversed, test 2 fails and test 1's order is left behind.
+- **The isolated tests** (`isolated.spec.ts`), the same stories plus one more, each making its own
+  data:
+  1. A buyer saves an order (through the screen) and sees it in Your orders.
+  2. A buyer cancels their own order: it makes the order first, through the orders service, then
+     cancels it through the screen.
+  3. Cancelling one buyer's order leaves another buyer's order in Your orders: it makes two orders,
+     cancels one and checks the other is still listed.
+- **The orders helper** (`support/`): `global-setup.ts` picks a run marker once per run;
+  `orders-fixture.ts` gives each test unique names, notes every order the test creates and cancels
+  exactly those when the test ends, pass or fail; `global-teardown.ts` is the run-end safety net,
+  cancelling anything still carrying that run's marker, and nothing else. The project settings
+  (`playwright.config.ts`) run the setup before and the safety net after every run.
+- **The run-order tool** (`tools/run-in-order.ts`): Playwright always runs a file's tests top to
+  bottom, so this lists the tests, puts them in forward, reversed or random order, and runs them one
+  at a time in that order, as one run with one marker. For a random order it prints the seed;
+  `--seed` repeats that exact order.
+- **The cleanup proofs** (`cleanup-proof.spec.ts`): two tests that fail on purpose after saving an
+  order, to show cleanup still happens. They are skipped in normal runs.
+- **The check** (`tools/data-isolation-check.ts`): `before` fingerprints every order there now;
+  `after` reports any leftover test data (an order that wasn't there before, or a name with a run
+  marker) and whether each order from before is still there, byte for byte the same, then ends with
+  PASS or FAIL. It reads the orders file directly, so it works whether or not the app is running.
+- **The README and setup check** describe the new tests and tools and check the 10 new project files
+  (31 instead of 21), and `.gitignore` covers the orders service's temporary file.
+
+My decisions:
+
+- **Saved orders, kept in a file,** so a leaked order really stays and the check proves something;
+  in memory only, every run would start clean and "no leftovers" would be true automatically.
+- **The coupled pair: one test sets up the other,** the classic "this test assumes that one already
+  ran".
+- **Names: a run marker plus a random code per test.**
+- **Cleanup that always runs, plus a safety net, plus a proof** with a test that fails on purpose.
+- **Three ordinary "real" orders** to prove the tests never touch existing data. I decided against a
+  "trap" order, a real customer named "Test User": it would make the point that a coupled test can
+  damage real data, but only by actually damaging it in the evidence.
+- **The screens for what a test is about; the orders service for setup and cleanup,** so cleanup
+  still works when a screen is broken.
+- **A run-order tool** rather than reordering the test file by hand, so random orders are real and
+  repeatable.
+- **A third isolated test,** so a random order has six possibilities, not two.
+- **The coupled pair and the cleanup proofs are skipped in normal runs** (`TIXLY_COUPLED=1` and
+  `TIXLY_CLEANUP_PROOF=1` turn them on), because the coupled pair can leave a real order behind and
+  the proofs fail on purpose. The normal suite shows 13 passed and 4 skipped.
+- **Three random orders recorded,** not one, so a single random run that happens to repeat forward
+  or reversed can't stand in for "random".
+
+## How names are made unique
+
+Every order an isolated test creates is named like `Test User qa-0d4f2a-7k2m`:
+
+- `qa-0d4f2a` is the **run marker**, picked once per run (`support/global-setup.ts`) and shared by
+  every test in it, in every browser. It is what lets the safety net and the check find all of one
+  run's data, and only that run's.
+- `7k2m` is a **random code for that order**, new each time, so two tests in the same run, even
+  running at the same moment, never share a name.
+
+Two people running the tests at once get different markers, so their orders can't collide either. In
+the logs, each run shows its own marker, and 15 tests running at once in 4 browsers all passed.
+
+## How cleanup behaves when a test fails halfway
+
+There are two layers, and both are shown working on failing tests in `logs/cleanup-check.txt` (part
+1, step 1b):
+
+- **After every test, pass or fail,** the helper cancels exactly the orders the test noted. Proof 1
+  creates its order, notes it, then fails on purpose: the run reports the failure, and its order is
+  gone afterwards.
+- **At the end of the run,** the safety net cancels anything still carrying the run's marker, for an
+  order the test never got to note (a crash at the worst moment). Proof 2 saves its order through
+  the screen, then fails before noting it: the safety net reports "cancelled 1 order(s) left with
+  run marker qa-43dff9". The 1 is proof 2's order alone; proof 1's had already been cancelled by its
+  own cleanup.
+
+The failure is never hidden: both proofs are reported as failed. The check that follows reports
+PASS: nothing left, and the three real orders unchanged.
+
+## Reflection: what data could a test still leak that my cleanup doesn't know about?
+
+Screenshots and traces. When a test fails, Playwright saves a screenshot and a trace of the page,
+and they show the test buyer's name; our cleanup only removes orders, not those files. The same goes
+for anything else the run writes down: our own logs print the test names too. In a real app the list
+would be longer: emails or messages sent for an order, server logs, analytics, or other systems the
+order was passed to. Cleanup can only remove what it knows about, so test data should be harmless
+(made-up names, no real details), and those other places need their own cleanup or a short retention
+period.
+
+## What surprised me
+
+The wrong-order failure. Forwards, the coupled pair looked perfectly healthy: both passed and
+nothing was left behind. Just reversing the order made the second test fail, and the failure showed
+up in the test that cancels, even though the real cause was the missing order from the other test.
+It also left a "Test User" order in the file for the next run to trip over. A suite that only ever
+runs in one order can hide this for a long time.
+
+## Where the important artifacts are
+
+All paths are under `participant/`.
+
+| What | Path |
+|---|---|
+| The coupled pair | `tests/playwright/coupled.spec.ts` |
+| The isolated tests | `tests/playwright/isolated.spec.ts` |
+| The cleanup proofs | `tests/playwright/cleanup-proof.spec.ts` |
+| The orders helper | `tests/playwright/support/` (`orders-fixture.ts`, `global-setup.ts`, `global-teardown.ts`) |
+| The check | `tests/playwright/tools/data-isolation-check.ts` |
+| The run-order tool | `tests/playwright/tools/run-in-order.ts` |
+| Saved orders: service, pages, file | `tests/playwright/demo-app/server.js`, `orders.html`, `review.html`, `data/orders.json` |
+| Settings, README, setup check | `tests/playwright/playwright.config.ts`, `README.md`, `tools/project-setup-check.ts`, `.gitignore` |
+| The shuffle run | `evidence/playwright-data-isolation/playwright-attempt-007/logs/shuffle-run.txt` |
+| The cleanup check | `evidence/playwright-data-isolation/playwright-attempt-007/logs/cleanup-check.txt` |
+
+## How to reproduce the behavior
+
+With the project set up as its README says (`npm ci --engine-strict`, then `npx playwright install
+chromium`), from `participant/tests/playwright`:
+
+```
+node tools/data-isolation-check.ts before
+node tools/run-in-order.ts forward isolated.spec.ts
+node tools/run-in-order.ts reversed isolated.spec.ts
+node tools/run-in-order.ts random isolated.spec.ts
+npx playwright test isolated.spec.ts --fully-parallel --workers=4 --repeat-each=5
+TIXLY_CLEANUP_PROOF=1 npx playwright test cleanup-proof.spec.ts --workers=1
+node tools/data-isolation-check.ts after
+```
+
+Every isolated run passes, the proofs fail on purpose, and the check reports PASS. To see the
+coupled pair fail and the check catch its leftover:
+
+```
+node tools/data-isolation-check.ts before
+TIXLY_COUPLED=1 node tools/run-in-order.ts reversed coupled.spec.ts
+node tools/data-isolation-check.ts after
+```
+
+The second test fails and the check reports FAIL with the "Test User" order listed; cancel it with
+its "Cancel order for Test User" button on the "Your orders" page (`/orders`, with the app started
+by `node demo-app/server.js`), and the check reports PASS again.
+
+## How the work meets the criteria
+
+1. **Each test creates the data it needs:** in `isolated.spec.ts`, test 1 saves its own order
+   through the screen, test 2 makes the order it cancels, and test 3 makes both orders it uses. None
+   reads another test's data. (In `coupled.spec.ts`, test 2 makes nothing and relies on test 1: the
+   opposite, on purpose.)
+2. **Created data has a name that cannot collide with another run:** every order is named with the
+   run marker and a random code for that order (see "How names are made unique"). Each run in
+   `logs/shuffle-run.txt` shows a different marker.
+3. **A test removes only the data it created:** the helper cancels only the ids the test noted, and
+   the safety net only orders with that run's marker. Test 3 checks that cancelling one of its
+   orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
+   unchanged.
+4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
+   forward, reversed and in three random orders (seeds 112758457, 236555568 and 621920163). By
+   chance, the second random order was the reversed order, and the first and third were the same
+   new order (save, then the two-order cancel, then the single cancel).
+5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times with 4
+   browsers at once: 15 passed.
+6. **The coupled version fails under reordering:** `logs/shuffle-run.txt`, the coupled pair passes
+   forward (2 of 2) and fails reversed (1 passed, 1 failed: the cancel test waits for a "Cancel
+   order for Test User" button that isn't there).
+7. **No data present before the run is altered or removed:** `logs/cleanup-check.txt`, every "after"
+   check lists the three real orders as unchanged (each compared by fingerprint), and the orders
+   file ends byte for byte as it began.
+
+## What was tested or validated
+
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 10:24 AM to 10:25 AM): as described under
+  criteria 4 to 6.
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 10:24 AM to 10:25 AM): part 1, around
+  the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
+  FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
+  reports PASS and the orders file is byte for byte what it was.
+- **The check itself was checked:** besides catching the coupled pair's leak, it was run before it
+  was recorded, and that run exposed a mistake of mine: it first kept its fingerprint in
+  `test-results/`, which Playwright empties at the start of every run, so the "after" step had
+  nothing to compare. It now keeps it in the computer's temporary folder.
+- **The orders service** was tried by hand before any test used it: listing, saving, refusing a
+  blank name, an event not on sale, 9 tickets and malformed input, cancelling, and cancelling again
+  (not found).
+- **The earlier tests still pass:** the normal suite shows 13 passed and 4 skipped (the coupled pair
+  and the proofs).
+- **My predictions before each run** were all right, including that reversing the coupled pair would
+  fail the cancel test and leave "Test User" behind, and that a test failing halfway would still be
+  reported as failed while its order was removed.
+- **My own review before Copilot** found two bugs in the saved orders, both reproduced and fixed: a
+  double-click on "Save order" saved the order twice (the button is now disabled while saving, and
+  comes back if the save fails), and a damaged orders file crashed the whole demo app, pages
+  included (the orders service now answers "The saved orders file can't be read", the pages keep
+  working and the file is left as it is).
+- **This quest has no automatic checker.** The criteria above were checked against the files and the
+  two logs.
+
+## Stretch goals
+
+- **Add a check that reports leftover data:** done, `tools/data-isolation-check.ts`.
+- **Run the suite twice in parallel against the same environment:** not attempted. The parallel run
+  above is one run with four browsers at once; two separate runs at the same moment would need one
+  shared copy of the app started by hand, since each run otherwise starts its own on the same port.
+
+## Remaining limitations
+
+- **The orders file is a simple stand-in for a database.** It works because the demo server handles
+  one request at a time; two separate servers writing the same file at once could lose an order.
+- **Screenshots, traces and logs keep test names** after the orders are gone (see the reflection).
+  The test names are made up and hold no real details.
+- **The orders file is in Git, so a leaked order shows up as a change to it** until it is cancelled;
+  the coupled pair is skipped in normal runs for that reason.
+- **Random orders are limited with three tests:** there are only six possible orders, and the three
+  recorded random runs produced one of them that forward and reversed don't cover (twice), plus the
+  reversed order (once). A seed can be given to repeat any order.
+- **Prices are still written in more than one place:** the events, review and orders pages each keep
+  the Spring Concert's price and fee.
+- **One browser (Chromium).**
+- **Files from earlier quests changed again:** `demo-app/server.js` (the orders service),
+  `demo-app/review.html` (saving an order), `playwright.config.ts` (the setup and safety net),
+  `README.md`, `tools/project-setup-check.ts` and `.gitignore`. The quest app notes the README,
+  configuration and setup check as changed since the project-setup quest was approved; these are the
+  changes. All earlier tests still pass.
+
+## Sensitive values
+
+No password, token, customer name or private ticket content is here. The tests use no credential,
+and every name in the demo app and the logs is made up. The logs show personal home-folder paths as
+`~`. Every file in this evidence was scanned with the quest app's credential patterns: 0 findings.

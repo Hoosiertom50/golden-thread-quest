@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tixly: your orders</title>
+  </head>
+  <body>
+    <!-- Tixly is an invented ticket app. This page is a local demo for the tests, with made-up data.
+         It lists the orders saved in data/orders.json and can cancel one. -->
+    <header>
+      <h1>Tixly</h1>
+    </header>
+    <main>
+      <h2>Your orders</h2>
+      <table aria-label="Saved orders">
+        <thead>
+          <tr><th scope="col">Name</th><th scope="col">Event</th><th scope="col">Tickets</th><th scope="col">Total</th><th scope="col"><span hidden>Actions</span></th></tr>
+        </thead>
+        <tbody id="orders"></tbody>
+      </table>
+      <p role="status" id="orders-message"></p>
+      <p><a href="/">Back to events</a></p>
+    </main>
+    <script>
+      // The same made-up event as the other pages, with its price and fee in whole cents.
+      const EVENTS = {
+        "spring-concert": { name: "Spring Concert", ticketCents: 2500, feeCents: 250 },
+      };
+      const list = document.getElementById("orders");
+      const message = document.getElementById("orders-message");
+
+      // One row per saved order: name, event, tickets, total and a Cancel button named after the
+      // buyer ("Cancel order for Maria Lopez"), so a person or a test can tell the buttons apart.
+      async function showOrders() {
+        const orders = await (await fetch("/api/orders")).json();
+        list.replaceChildren();
+        for (const order of orders) {
+          const event = Object.hasOwn(EVENTS, order.event) ? EVENTS[order.event] : null;
+          const row = document.createElement("tr");
+          const cells = [
+            order.name,
+            event ? event.name : order.event,
+            String(order.quantity),
+            event ? `$${((order.quantity * (event.ticketCents + event.feeCents)) / 100).toFixed(2)}` : "",
+          ];
+          for (const text of cells) {
+            const cell = document.createElement("td");
+            cell.textContent = text;
+            row.append(cell);
+          }
+          const actions = document.createElement("td");
+          const cancel = document.createElement("button");
+          cancel.type = "button";
+          cancel.textContent = "Cancel order";
+          cancel.setAttribute("aria-label", `Cancel order for ${order.name}`);
+          cancel.addEventListener("click", async () => {
+            const answer = await fetch(`/api/orders/${encodeURIComponent(order.id)}`, { method: "DELETE" });
+            message.textContent = answer.ok ? `Order for ${order.name} cancelled.` : "That order couldn't be cancelled.";
+            await showOrders();
+          });
+          actions.append(cancel);
+          row.append(actions);
+          list.append(row);
+        }
+        if (orders.length === 0) message.textContent = "You have no saved orders.";
+      }
+      showOrders();
+    </script>
+  </body>
+</html>

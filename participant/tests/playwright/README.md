@@ -53,14 +53,15 @@ From a fresh copy of the repository:
    npm test
    ```
 
-   Playwright starts the demo app on `http://127.0.0.1:4173`, runs all 10 tests in Chromium (the
+   Playwright starts the demo app on `http://127.0.0.1:4173`, runs 13 tests in Chromium (the
    smoke test in `tests/`, the ticket-total test, `first-independent-test.spec.ts`, the 6
-   order-review tests, `model-usage.spec.ts`, and the two locator-comparison tests,
-   `brittle.spec.ts` and `stable.spec.ts`) and stops the app again. A passing run ends with
-   `10 passed`. The tests find everything on a page through the page models in `pages/`, except
-   the two locator-comparison tests, which write their locators out on purpose (see "Brittle and
-   stable locators" below). To run only some tests, use their tag:
-   `npx playwright test --grep @ticket-total`, `--grep @order-review` or `--grep @locator-comparison`.
+   order-review tests, `model-usage.spec.ts`, the two locator-comparison tests, `brittle.spec.ts`
+   and `stable.spec.ts`, and the 3 data-isolation tests, `isolated.spec.ts`) and stops the app
+   again. A passing run ends with `4 skipped` and `13 passed`: the 4 skipped tests only run when
+   asked (see "Saved orders and test data" below). The page tests find everything through the page
+   models in `pages/`, except the locator-comparison and data tests, which write their locators out.
+   To run only some tests, use their tag: `npx playwright test --grep @ticket-total`,
+   `--grep @order-review`, `--grep @locator-comparison` or `--grep @data-isolated`.
 
    **Brittle and stable locators.** `brittle.spec.ts` finds things by how the page is built
    (positions, generated names, a path); `stable.spec.ts` checks the same thing by what a user
@@ -77,6 +78,33 @@ From a fresh copy of the repository:
    copy. To count how many of each test's locators still find the right thing, run
    `node tools/locator-count.ts http://127.0.0.1:4199` while the copy is running. To count on the
    original page, start it by hand with `node demo-app/server.js` and use `http://127.0.0.1:4173`.
+
+   **Saved orders and test data.** The demo app keeps saved orders in `demo-app/data/orders.json`
+   (in Git, with three made-up "real" orders), through a small orders service in
+   `demo-app/server.js`. The tests that save orders clean up after themselves, so after a run the
+   file is exactly as it was and `git status` shows no change to it.
+   - `isolated.spec.ts` (run every time): each test makes its own order, named like
+     `Test User qa-0d4f2a-7k2m` (a run marker from `support/global-setup.ts`, then a code for the
+     order), and `support/orders-fixture.ts` cancels exactly what it made when the test ends, pass
+     or fail. After the run, `support/global-teardown.ts` cancels anything still carrying that
+     run's marker.
+   - `coupled.spec.ts` (skipped unless `TIXLY_COUPLED=1`): a deliberately coupled pair that only
+     passes in one order and can leave a "Test User" order behind.
+   - `cleanup-proof.spec.ts` (skipped unless `TIXLY_CLEANUP_PROOF=1`): two tests that fail on
+     purpose, to show their orders are still cleaned up.
+
+   To run tests one at a time in a chosen order, and to check that nothing was left behind:
+
+   ```
+   node tools/data-isolation-check.ts before
+   node tools/run-in-order.ts reversed isolated.spec.ts
+   node tools/data-isolation-check.ts after
+   ```
+
+   `run-in-order.ts` takes `forward`, `reversed` or `random` (it prints the seed; `--seed <number>`
+   repeats that order). The check ends with PASS when no test data is left and the orders that were
+   there before are unchanged. If a run does leave an order behind, the check lists it; cancel
+   it with its "Cancel order for ..." button on the "Your orders" page (`/orders`).
 
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
    repository for credentials. This step also needs the repository's Python environment

@@ -28,6 +28,10 @@ export default defineConfig({
   // is noticed instead of hidden.
   retries: 0,
   reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
+  // Before the run: pick the run marker that every order a test creates carries in its name. After
+  // the run: cancel anything still carrying that marker (the safety net). See support/.
+  globalSetup: "./support/global-setup.ts",
+  globalTeardown: "./support/global-teardown.ts",
   use: {
     baseURL,
     trace: "retain-on-failure",

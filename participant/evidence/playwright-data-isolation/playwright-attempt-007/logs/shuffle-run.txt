@@ -1,0 +1,163 @@
+Shuffle run: the isolated tests in every order and in parallel; the coupled pair forward and reversed
+Started: 11-11-2026 10:24:33 AM
+Node v22.23.3, Playwright 1.63.0, browser: Chromium
+Application: the local Tixly demo app (made-up data, 127.0.0.1 only); saved orders are kept in
+demo-app/data/orders.json, which starts with three made-up "real" orders. No login, token or
+cookie is used. Redaction: personal home-folder paths shown as ~.
+
+--- Isolated tests, forward order (one at a time)
+Recorded: 11-11-2026 10:24:38 AM
+Folder: participant/tests/playwright
+Command: node tools/run-in-order.ts forward isolated.spec.ts
+Exit code: 0
+
+Order: forward
+  1. a buyer saves an order and sees it in Your orders (isolated)
+  2. a buyer cancels their own order (isolated: makes the order it cancels)
+  3. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+
+Run marker: qa-fbb8b6
+
+1. PASSED  a buyer saves an order and sees it in Your orders (isolated)
+2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
+3. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+
+3 passed, 0 failed, in forward order.
+
+--- Isolated tests, reversed order (one at a time)
+Recorded: 11-11-2026 10:24:43 AM
+Folder: participant/tests/playwright
+Command: node tools/run-in-order.ts reversed isolated.spec.ts
+Exit code: 0
+
+Order: reversed
+  1. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+  2. a buyer cancels their own order (isolated: makes the order it cancels)
+  3. a buyer saves an order and sees it in Your orders (isolated)
+
+Run marker: qa-9c7bbf
+
+1. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
+3. PASSED  a buyer saves an order and sees it in Your orders (isolated)
+
+3 passed, 0 failed, in reversed order.
+
+--- Isolated tests, random order 1 of 3 (one at a time)
+Recorded: 11-11-2026 10:24:48 AM
+Folder: participant/tests/playwright
+Command: node tools/run-in-order.ts random isolated.spec.ts
+Exit code: 0
+
+Order: random (seed 112758457; repeat with --seed 112758457)
+  1. a buyer saves an order and sees it in Your orders (isolated)
+  2. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+  3. a buyer cancels their own order (isolated: makes the order it cancels)
+
+Run marker: qa-907a8d
+
+1. PASSED  a buyer saves an order and sees it in Your orders (isolated)
+2. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+3. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
+
+3 passed, 0 failed, in random order.
+
+--- Isolated tests, random order 2 of 3 (one at a time)
+Recorded: 11-11-2026 10:24:52 AM
+Folder: participant/tests/playwright
+Command: node tools/run-in-order.ts random isolated.spec.ts
+Exit code: 0
+
+Order: random (seed 236555568; repeat with --seed 236555568)
+  1. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+  2. a buyer cancels their own order (isolated: makes the order it cancels)
+  3. a buyer saves an order and sees it in Your orders (isolated)
+
+Run marker: qa-913877
+
+1. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
+3. PASSED  a buyer saves an order and sees it in Your orders (isolated)
+
+3 passed, 0 failed, in random order.
+
+--- Isolated tests, random order 3 of 3 (one at a time)
+Recorded: 11-11-2026 10:24:57 AM
+Folder: participant/tests/playwright
+Command: node tools/run-in-order.ts random isolated.spec.ts
+Exit code: 0
+
+Order: random (seed 621920163; repeat with --seed 621920163)
+  1. a buyer saves an order and sees it in Your orders (isolated)
+  2. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+  3. a buyer cancels their own order (isolated: makes the order it cancels)
+
+Run marker: qa-b8d851
+
+1. PASSED  a buyer saves an order and sees it in Your orders (isolated)
+2. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+3. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
+
+3 passed, 0 failed, in random order.
+
+--- Isolated tests in parallel: each test 5 times, 4 browsers at once
+Recorded: 11-11-2026 10:25:02 AM
+Folder: participant/tests/playwright
+Command: npx playwright test isolated.spec.ts --fully-parallel --workers=4 --repeat-each=5 --reporter=list
+Exit code: 0
+
+Running 15 tests using 4 workers
+  ✓   3 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (398ms)
+  ✓   2 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (398ms)
+  ✓   4 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (445ms)
+  ✓   1 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (455ms)
+  ✓   5 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (397ms)
+  ✓   6 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (394ms)
+  ✓   8 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (390ms)
+  ✓   7 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (445ms)
+  ✓   9 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (399ms)
+  ✓  12 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (397ms)
+  ✓  11 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (397ms)
+  ✓  10 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (472ms)
+  ✓  13 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (340ms)
+  ✓  14 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (341ms)
+  ✓  15 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (399ms)
+  15 passed (3.8s)
+
+--- Coupled pair, forward order (one at a time)
+Recorded: 11-11-2026 10:25:07 AM
+Folder: participant/tests/playwright
+Command: TIXLY_COUPLED=1 node tools/run-in-order.ts forward coupled.spec.ts
+Exit code: 0
+
+Order: forward
+  1. a buyer saves an order for Test User and sees it in Your orders (coupled)
+  2. a buyer cancels Test User's order (coupled: relies on the order the test above saved)
+
+Run marker: qa-7cb1ed
+
+1. PASSED  a buyer saves an order for Test User and sees it in Your orders (coupled)
+2. PASSED  a buyer cancels Test User's order (coupled: relies on the order the test above saved)
+
+2 passed, 0 failed, in forward order.
+
+--- Coupled pair, reversed order (one at a time): expected to fail
+Recorded: 11-11-2026 10:25:40 AM
+Folder: participant/tests/playwright
+Command: TIXLY_COUPLED=1 node tools/run-in-order.ts reversed coupled.spec.ts
+Exit code: 1
+
+Order: reversed
+  1. a buyer cancels Test User's order (coupled: relies on the order the test above saved)
+  2. a buyer saves an order for Test User and sees it in Your orders (coupled)
+
+Run marker: qa-1ca5df
+
+1. FAILED  a buyer cancels Test User's order (coupled: relies on the order the test above saved)
+     Error: locator.click: Test timeout of 30000ms exceeded.
+     - waiting for getByRole('button', { name: 'Cancel order for Test User', exact: true })
+2. PASSED  a buyer saves an order for Test User and sees it in Your orders (coupled)
+
+1 passed, 1 failed, in reversed order.
+
+Finished: 11-11-2026 10:25:40 AM

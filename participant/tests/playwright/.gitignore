@@ -14,3 +14,6 @@ playwright/.cache/
 .env_*
 *.env
 !.env.example
+
+# The demo app's half-written orders file, if it was ever interrupted mid-save.
+demo-app/data/*.tmp
