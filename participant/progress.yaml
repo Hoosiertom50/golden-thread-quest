@@ -148,9 +148,10 @@ attempts:
   quest_id: playwright-data-isolation
   quest_version: 1
   content_hash: sha256:6969c8aed0ecf6d47055241e0dc839f23aa2caf93a6a166edb811ea5dc2a544c
-  state: submitted
+  state: verified
   started_at: '2026-11-11T13:49:01Z'
-  updated_at: '2026-11-11T22:44:07Z'
+  updated_at: '2026-11-11T22:51:20Z'
   evidence_path: participant/evidence/playwright-data-isolation/playwright-attempt-007
   submission_id: submission-20261111224407-7495a0
-updated_at: '2026-11-11T22:44:07Z'
+  review_id: review-20261111225120-60fcc8
+updated_at: '2026-11-11T22:51:20Z'
