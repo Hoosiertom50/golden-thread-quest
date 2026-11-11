@@ -37,9 +37,11 @@ class TestOrders {
     return `Test User ${runMarker()}-${randomBytes(4).toString("hex")}`;
   }
 
-  async create(order: Partial<Omit<SavedOrder, "id">> = {}): Promise<SavedOrder> {
+  // The name is always the generated, run-marked one (it can't be overridden), so even an order whose
+  // save answer is lost can be found by the run-end safety net.
+  async create(order: Partial<Omit<SavedOrder, "id" | "name">> = {}): Promise<SavedOrder> {
     const answer = await this.request.post("/api/orders", {
-      data: { name: this.uniqueName(), event: "spring-concert", quantity: 2, ...order },
+      data: { event: "spring-concert", quantity: 2, ...order, name: this.uniqueName() },
     });
     expect(answer.status(), "the orders service saved the order").toBe(201);
     const saved = (await answer.json()) as SavedOrder;
@@ -58,6 +60,11 @@ class TestOrders {
       }, { message: `exactly one saved order named ${name}` })
       .toBe(1);
     if (id) this.created.push(id);
+  }
+
+  // Every saved order, from the orders service.
+  async list(): Promise<SavedOrder[]> {
+    return (await (await this.request.get("/api/orders")).json()) as SavedOrder[];
   }
 
   async cleanUp(): Promise<void> {

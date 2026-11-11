@@ -54,7 +54,13 @@
       // One cancellation at a time: while one is on its way, every Cancel button is disabled, and
       // they come back only once the list has been refreshed, so two quick clicks can't send the
       // same cancellation twice or show an out-of-date list.
+      // After a cancellation the list is rebuilt and the next order's Cancel button moves up under the
+      // pointer, so for a moment afterwards Cancel clicks are ignored: a quick second click (as in a
+      // double-click) can't cancel a different order. Focus still moves as described below.
+      let ignoreClicksUntil = 0;
+
       async function cancelOrder(order) {
+        if (Date.now() < ignoreClicksUntil) return;
         const buttons = [...list.querySelectorAll("button")];
         const position = buttons.findIndex((button) => button.dataset.orderId === order.id);
         for (const button of buttons) button.disabled = true;
@@ -70,6 +76,7 @@
           message.textContent = `Couldn't confirm the cancellation of the order for ${order.name}; the list below shows what's saved now.`;
         }
         await showOrders();
+        ignoreClicksUntil = Date.now() + 600;
         // The list was rebuilt, so put a keyboard or screen-reader user back where they were: on the
         // same order if it's still there (the cancel failed), otherwise on the Cancel button that
         // took its place (or the one before, if it was last), or on the "no saved orders" note.

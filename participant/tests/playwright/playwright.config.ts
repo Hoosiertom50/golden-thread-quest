@@ -54,6 +54,8 @@ export default defineConfig({
           command: "node demo-app/server.js",
           url: baseURL,
           reuseExistingServer: false,
+          // Stop the app politely, so it removes its lock on the orders file (demo-app/server.js).
+          gracefulShutdown: { signal: "SIGTERM", timeout: 2000 },
           env: { TIXLY_DEMO_PORT: String(port) },
         },
       }),

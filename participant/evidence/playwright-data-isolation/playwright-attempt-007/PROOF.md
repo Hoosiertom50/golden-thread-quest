@@ -22,8 +22,9 @@ each test owns its data, and the tools that prove the difference.
   list of orders) the service says so and never writes over it. The service refuses a blank name, an
   event not on sale, a quantity outside 1 to 6, a save that isn't JSON, and any save or cancel sent
   by another website; it only answers requests addressed to this computer (127.0.0.1 or localhost).
-  The pages save and cancel one at a time (a double-click can't do it twice) and say what went wrong
-  instead of going blank.
+  The pages save and cancel one at a time (a double-click can't save twice, or cancel the next order
+  as it moves up under the pointer) and say what went wrong instead of going blank. A lock lets only
+  one demo app use the orders file at a time.
 - **The coupled pair** (`coupled.spec.ts`): test 1 saves an order for "Test User" through the screen
   and checks it is listed; test 2 cancels "Test User's" order without making one, relying on test 1.
   Forward, both pass and nothing is left. Reversed, test 2 fails and test 1's order is left behind.
@@ -33,7 +34,8 @@ each test owns its data, and the tools that prove the difference.
   2. A buyer cancels their own order: it makes the order first, through the orders service, then
      cancels it through the screen.
   3. Cancelling one buyer's order leaves another buyer's order in Your orders: it makes two orders,
-     cancels one and checks the other is still listed.
+     cancels one, clicks the same spot again straight away (as a quick double-click would), and
+     checks the other is still listed and still saved.
 - **The orders helper** (`support/`): `global-setup.ts` picks a run marker once per run and notes
   the id of every order that already exists; `orders-fixture.ts` gives each test unique names, notes
   every order the test creates and cancels exactly those when the test ends, pass or fail;
@@ -107,7 +109,7 @@ There are two layers, and both are shown working on failing tests in `logs/clean
 - **At the end of the run,** the safety net cancels anything still carrying the run's marker, for an
   order the test never got to note (a crash at the worst moment). Proof 2 saves its order through
   the screen, then fails before noting it: the safety net reports "cancelled 1 order(s) left with
-  run marker qa-cec4f74d". The 1 is proof 2's order alone; proof 1's had already been cancelled by
+  run marker qa-c1e3fa68". The 1 is proof 2's order alone; proof 1's had already been cancelled by
   its own cleanup.
 
 The safety net never touches an order that existed before the run, even one whose name happened to
@@ -201,7 +203,7 @@ by `node demo-app/server.js`), and the check reports PASS again.
    orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
    unchanged.
 4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
-   forward, reversed and in three random orders (seeds 835036888, 498291152 and 131031291). Of the
+   forward, reversed and in three random orders (seeds 989430016, 357864744 and 218431176). Of the
    random orders, 3 were new (neither forward nor reversed), 2 different.
 5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times, up to 4 at a
    time in separate browsers (4 workers): 15 runs, all passed.
@@ -214,10 +216,10 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 ## What was tested or validated
 
-- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 1:26 PM to 1:27 PM): as described under
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 1:44 PM to 1:46 PM): as described under
   criteria 1 and 4 to 6, including the runs against a copy of the app with no saved orders, whose
   orders file was empty again afterwards.
-- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 1:26 PM to 1:27 PM): part 1, around
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 1:44 PM to 1:46 PM): part 1, around
   the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
   FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
   reports PASS and the orders file is byte for byte what it was.
@@ -253,8 +255,9 @@ by `node demo-app/server.js`), and the check reports PASS again.
 ## Remaining limitations
 
 - **The orders file is a simple stand-in for a database.** It works because each request reads,
-  changes and writes the whole file in one uninterrupted step; two separate servers writing the same
-  file at once can still lose each other's changes, so the project runs one server per orders file.
+  changes and writes the whole file in one uninterrupted step; two servers writing the same file
+  could lose each other's changes, so the server takes a lock on the file and a second one refuses
+  to start (a lock left by a server that was killed is taken over).
 - **A hard kill skips the safety net.** Ctrl+C, a closed terminal or unreadable output still lead to
   the cleanup, but killing the run outright (or a power cut) does not; an order left that way
   carries a marker no later run sweeps, so only the check (or the "Your orders" page) shows it.

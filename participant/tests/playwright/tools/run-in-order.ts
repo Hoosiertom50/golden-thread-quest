@@ -78,6 +78,17 @@ function listTests(): Listed[] {
     for (const child of (suite.suites ?? []) as (typeof suite)[]) walk(child);
   };
   for (const suite of JSON.parse(listed.stdout).suites ?? []) walk(suite);
+  // Each test is run by its file and line, so two tests declared on the same line (in a loop) can't
+  // be told apart: refuse rather than run both at once.
+  const seen = new Set<string>();
+  for (const test of found) {
+    const where = `${test.file}:${test.line}`;
+    if (seen.has(where)) {
+      console.error(`More than one test is declared at ${where}, so they can't be run one at a time in order.`);
+      process.exit(2);
+    }
+    seen.add(where);
+  }
   return found.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
 }
 
@@ -197,17 +208,26 @@ try {
     // safety net has run; it is stopped explicitly at the end.
     const started = spawn("node", ["demo-app/server.js"], {
       env: { ...process.env, TIXLY_DEMO_PORT: port },
-      stdio: "ignore",
+      stdio: ["ignore", "pipe", "pipe"],
       detached: true,
     });
     server = started;
-    let exited = false;
-    started.on("exit", () => (exited = true));
-    for (let i = 0; i < 50 && !(await answers(base)); i++) {
-      if (exited) break;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    if (exited || !(await answers(base))) throw new Error(`The demo app didn't start at ${base}.`);
+    // Ready only when THIS app says it is listening (it prints "Tixly demo app on ..."), not just
+    // because something answers on the port, which could be another run's app.
+    const ready = await new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => resolve(false), 10_000);
+      started.stdout?.on("data", (chunk) => {
+        if (String(chunk).includes("Tixly demo app on")) {
+          clearTimeout(timer);
+          resolve(true);
+        }
+      });
+      started.on("exit", () => {
+        clearTimeout(timer);
+        resolve(false);
+      });
+    });
+    if (!ready) throw new Error(`The demo app didn't start at ${base}.`);
   }
   // The orders that exist before the first test, which the safety net must never touch.
   process.env.TIXLY_BASE_URL = base;

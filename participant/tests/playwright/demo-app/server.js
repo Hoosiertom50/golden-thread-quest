@@ -17,7 +17,7 @@
 
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 
 const portSetting = process.env.TIXLY_DEMO_PORT ?? "4173";
 if (!/^[1-9][0-9]{0,4}$/.test(portSetting) || Number(portSetting) > 65535) {
@@ -29,6 +29,36 @@ const eventsPage = readFileSync(new URL("./index.html", import.meta.url));
 const reviewPage = readFileSync(new URL("./review.html", import.meta.url));
 const ordersPage = readFileSync(new URL("./orders.html", import.meta.url));
 const ordersFile = new URL("./data/orders.json", import.meta.url);
+
+// One server per orders file: two servers writing the same file could lose each other's changes. A
+// lock file holding this server's process id is taken at startup and removed when it stops. If a
+// lock is already there, its server must have stopped without removing it (a crash, or being killed
+// outright) before this one takes over; otherwise this one refuses to start.
+const lockFile = new URL("./data/orders.json.lock", import.meta.url);
+function takeLock() {
+  try {
+    writeFileSync(lockFile, String(process.pid), { flag: "wx" });
+    return;
+  } catch {
+    // Someone has the lock; is that server still running?
+  }
+  const holder = Number(readFileSync(lockFile, "utf8"));
+  let running = false;
+  try {
+    process.kill(holder, 0);
+    running = Number.isInteger(holder) && holder > 0;
+  } catch {
+    running = false;
+  }
+  if (running) {
+    console.error(`Another demo app (process ${holder}) is already using data/orders.json; stop it first.`);
+    process.exit(1);
+  }
+  writeFileSync(lockFile, String(process.pid));
+}
+takeLock();
+process.on("exit", () => rmSync(lockFile, { force: true }));
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => process.exit(0));
 // Named after this server process, so two servers sharing the file never write the same
 // temporary file (they can still lose each other's changes: run one server per orders file).
 const ordersTemporary = new URL(`./data/orders.json.${process.pid}.tmp`, import.meta.url);

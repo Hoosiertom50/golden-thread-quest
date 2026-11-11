@@ -50,10 +50,18 @@ test(
     const toKeep = await orders.create({ quantity: 3 });
     await page.goto("/orders");
 
-    await page.getByRole("button", { name: `Cancel order for ${toCancel.name}`, exact: true }).click();
-
+    // Click Cancel, then click the same spot again as soon as the cancellation shows, as a quick
+    // double-click would: the order that moves up into that spot must not be cancelled too.
+    const cancel = page.getByRole("button", { name: `Cancel order for ${toCancel.name}`, exact: true });
+    const spot = await cancel.boundingBox();
+    if (!spot) throw new Error("The Cancel button has no position on the page.");
+    await page.mouse.click(spot.x + spot.width / 2, spot.y + spot.height / 2);
     await expect(page.getByText(`Order for ${toCancel.name} cancelled.`, { exact: true })).toBeVisible();
+    await page.mouse.click(spot.x + spot.width / 2, spot.y + spot.height / 2);
+
     await expect(page.getByRole("button", { name: `Cancel order for ${toCancel.name}`, exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: `Cancel order for ${toKeep.name}`, exact: true })).toBeVisible();
+    // And the server still has it (the page could show a stale list).
+    await expect.poll(async () => (await orders.list()).some((order) => order.id === toKeep.id)).toBe(true);
   },
 );

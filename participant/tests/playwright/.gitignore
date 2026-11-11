@@ -17,3 +17,5 @@ playwright/.cache/
 
 # The demo app's half-written orders file, if it was ever interrupted mid-save.
 demo-app/data/*.tmp
+# The demo app's lock on its orders file, while it runs.
+demo-app/data/orders.json.lock
