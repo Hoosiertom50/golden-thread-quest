@@ -153,6 +153,9 @@ function runOne(test: Listed, number: number, env: NodeJS.ProcessEnv): Promise<{
     child.stdout.on("data", (chunk) => (output += chunk));
     child.stderr.on("data", (chunk) => (output += chunk));
     child.on("close", (code) => resolve({ code, output }));
+    // A test run that can't even be started (no npx, out of processes) counts as a failed test, and
+    // the run carries on to its cleanup.
+    child.on("error", (problem) => resolve({ code: 1, output: `${output}\nCouldn't start the test: ${problem.message}` }));
   });
 }
 
@@ -213,7 +216,10 @@ try {
     });
     server = started;
     // Ready only when THIS app says it is listening (it prints "Tixly demo app on ..."), not just
-    // because something answers on the port, which could be another run's app.
+    // because something answers on the port, which could be another run's app. What it prints on
+    // its error output (such as a lock left by a crash, or a busy port) is kept to explain a failure.
+    let startupErrors = "";
+    started.stderr?.on("data", (chunk) => (startupErrors += chunk));
     const ready = await new Promise<boolean>((resolve) => {
       const timer = setTimeout(() => resolve(false), 10_000);
       started.stdout?.on("data", (chunk) => {
@@ -226,8 +232,13 @@ try {
         clearTimeout(timer);
         resolve(false);
       });
+      started.on("error", (problem) => {
+        clearTimeout(timer);
+        startupErrors += problem.message;
+        resolve(false);
+      });
     });
-    if (!ready) throw new Error(`The demo app didn't start at ${base}.`);
+    if (!ready) throw new Error(`The demo app didn't start at ${base}.${startupErrors.trim() ? `\n${startupErrors.trim()}` : ""}`);
   }
   // The orders that exist before the first test, which the safety net must never touch.
   process.env.TIXLY_BASE_URL = base;

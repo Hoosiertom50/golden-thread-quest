@@ -66,7 +66,15 @@ if (step === "before") {
     for (const order of marked) console.error(`  ${describe(order)}`);
     process.exit(2);
   }
-  writeFileSync(fingerprintFile, JSON.stringify(orders.map((order) => ({ id: order.id, sha256: fingerprint(order) })), null, 2));
+  // Created in one step that fails if a fingerprint already exists (unless --replace), so two
+  // "before" commands at the same moment can't both start a session.
+  try {
+    writeFileSync(fingerprintFile, JSON.stringify(orders.map((order) => ({ id: order.id, sha256: fingerprint(order) })), null, 2),
+      { flag: process.argv.includes("--replace") ? "w" : "wx" });
+  } catch {
+    console.error('A check session is already active for this orders file (its "after" hasn\'t passed yet). Run "after" first, or add --replace to start again.');
+    process.exit(2);
+  }
   console.log(`Before: ${orders.length} order(s) fingerprinted:`);
   for (const order of orders) console.log(`  ${describe(order)}  sha256 ${fingerprint(order).slice(0, 12)}`);
 

@@ -84,5 +84,11 @@ test(
     await expect(page.getByText(`Order for ${toCancel.name} cancelled.`, { exact: true })).toBeVisible();
     await expect(keep).toBeVisible();
     expect((await orders.list()).some((order) => order.id === toKeep.id)).toBe(true);
+
+    // Once the moment has passed, Cancel works again: the guard doesn't leave the page dead.
+    await page.clock.runFor(1000);
+    await keep.click();
+    await expect(page.getByText(`Order for ${toKeep.name} cancelled.`, { exact: true })).toBeVisible();
+    await expect.poll(async () => (await orders.list()).some((order) => order.id === toKeep.id)).toBe(false);
   },
 );

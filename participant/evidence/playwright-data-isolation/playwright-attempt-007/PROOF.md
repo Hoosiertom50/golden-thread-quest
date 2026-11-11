@@ -22,9 +22,10 @@ each test owns its data, and the tools that prove the difference.
   list of orders) the service says so and never writes over it. The service refuses a blank name, an
   event not on sale, a quantity outside 1 to 6, a save that isn't JSON, and any save or cancel sent
   by another website; it only answers requests addressed to this computer (127.0.0.1 or localhost).
-  The pages save and cancel one at a time (a double-click can't save twice, or cancel the next order
-  as it moves up under the pointer) and say what went wrong instead of going blank. A lock lets only
-  one demo app use the orders file at a time.
+  The pages save and cancel one at a time (a double-click can't save twice or cancel the next order
+  as it moves up under the pointer, and holding Enter down can't cancel one order after another) and
+  say what went wrong instead of going blank. A lock lets only one demo app use the orders file at a
+  time.
 - **The coupled pair** (`coupled.spec.ts`): test 1 saves an order for "Test User" through the screen
   and checks it is listed; test 2 cancels "Test User's" order without making one, relying on test 1.
   Forward, both pass and nothing is left. Reversed, test 2 fails and test 1's order is left behind.
@@ -34,8 +35,10 @@ each test owns its data, and the tools that prove the difference.
   2. A buyer cancels their own order: it makes the order first, through the orders service, then
      cancels it through the screen.
   3. Cancelling one buyer's order leaves another buyer's order in Your orders: it makes two orders,
-     cancels one, clicks the same spot again straight away (as a quick double-click would), and
-     checks the other is still listed and still saved.
+     cancels one, clicks the same spot again straight away (as a quick double-click would; the
+     page's clock is held still so "straight away" holds on any machine), checks the other is still
+     listed and still saved, then lets the moment pass and cancels the other one too, to show Cancel
+     works again.
 - **The orders helper** (`support/`): `global-setup.ts` picks a run marker once per run and notes
   the id of every order that already exists; `orders-fixture.ts` gives each test unique names, notes
   every order the test creates and cancels exactly those when the test ends, pass or fail;
@@ -110,7 +113,7 @@ There are two layers, and both are shown working on failing tests in `logs/clean
 - **At the end of the run,** the safety net cancels any order whose name is exactly the helper's
   format with the run's marker, for an order the test never got to note (a crash at the worst
   moment). Proof 2 saves its order through the screen, then fails before noting it: the safety net
-  reports "cancelled 1 order(s) left with run marker qa-8666bac1". The 1 is proof 2's order alone;
+  reports "cancelled 1 order(s) left with run marker qa-8a1609f3". The 1 is proof 2's order alone;
   proof 1's had already been cancelled by its own cleanup.
 
 The safety net never touches an order that existed before the run, even one whose name happened to
@@ -205,7 +208,7 @@ by `node demo-app/server.js`), and the check reports PASS again.
    orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
    unchanged.
 4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
-   forward, reversed and in three random orders (seeds 954248657, 459459529 and 491222345). Of the
+   forward, reversed and in three random orders (seeds 927564076, 202949340 and 549510228). Of the
    random orders, 2 were new (neither forward nor reversed); by chance, 1 repeated forward or
    reversed.
 5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times, up to 4 at a
@@ -219,10 +222,10 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 ## What was tested or validated
 
-- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 2:18 PM to 2:20 PM): as described under
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 2:33 PM to 2:34 PM): as described under
   criteria 1 and 4 to 6, including the runs against a copy of the app with no saved orders, whose
   orders file was empty again afterwards.
-- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 2:18 PM to 2:20 PM): part 1, around
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 2:33 PM to 2:34 PM): part 1, around
   the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
   FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
   reports PASS and the orders file is byte for byte what it was.

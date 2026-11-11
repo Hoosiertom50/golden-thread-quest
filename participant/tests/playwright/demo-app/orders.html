@@ -36,6 +36,12 @@
       const list = document.getElementById("orders");
       const message = document.getElementById("orders-message");
       const empty = document.getElementById("orders-empty");
+      // Holding Enter (or Space) down repeats the key; after a cancellation focus moves to the next
+      // order's Cancel button, so a repeat would cancel that one too. Repeats are ignored: each
+      // cancellation needs a fresh key press.
+      list.addEventListener("keydown", (event) => {
+        if (event.repeat && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+      });
 
       // The saved orders, or null after saying why they couldn't be loaded (the orders service's
       // own message, such as a damaged file, or that the app couldn't be reached).
