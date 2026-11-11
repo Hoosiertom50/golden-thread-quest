@@ -250,7 +250,7 @@ createServer((request, response) => {
       chunks.push(chunk);
       bytes += chunk.length;
       if (bytes > 10_000 && !response.writableEnded) {
-        send(response, 413, { error: "Too large." });
+        send(response, 413, { error: "Too large: a request can be at most 10,000 bytes." });
         request.destroy();
       }
     });

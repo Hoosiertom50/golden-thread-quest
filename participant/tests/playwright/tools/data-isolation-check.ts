@@ -24,7 +24,7 @@
 // can be cleaned up and "after" run again.
 
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -38,9 +38,12 @@ if (fileFlag !== -1 && !process.argv[fileFlag + 1]) {
 }
 const ordersFile =
   fileFlag === -1 ? new URL("../demo-app/data/orders.json", import.meta.url) : pathToFileURL(resolve(process.argv[fileFlag + 1] ?? ""));
+// The session is named after the file's real location (links followed), so two spellings of the
+// same file, such as a symbolic link to it, share one session.
+const sessionKey = existsSync(ordersFile) ? realpathSync(ordersFile) : ordersFile.pathname;
 const fingerprintFile = join(
   tmpdir(),
-  `tixly-data-isolation-before-${createHash("sha256").update(ordersFile.pathname).digest("hex").slice(0, 12)}.json`,
+  `tixly-data-isolation-before-${createHash("sha256").update(sessionKey).digest("hex").slice(0, 12)}.json`,
 );
 const runMarker = /\bqa-[0-9a-f]{8}-/;
 
