@@ -110,7 +110,7 @@ There are two layers, and both are shown working on failing tests in `logs/clean
 - **At the end of the run,** the safety net cancels any order whose name is exactly the helper's
   format with the run's marker, for an order the test never got to note (a crash at the worst
   moment). Proof 2 saves its order through the screen, then fails before noting it: the safety net
-  reports "cancelled 1 order(s) left with run marker qa-4ce7d15b". The 1 is proof 2's order alone;
+  reports "cancelled 1 order(s) left with run marker qa-8666bac1". The 1 is proof 2's order alone;
   proof 1's had already been cancelled by its own cleanup.
 
 The safety net never touches an order that existed before the run, even one whose name happened to
@@ -205,8 +205,9 @@ by `node demo-app/server.js`), and the check reports PASS again.
    orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
    unchanged.
 4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
-   forward, reversed and in three random orders (seeds 894454095, 476863245 and 206722231). Of the
-   random orders, by chance, 3 repeated forward or reversed.
+   forward, reversed and in three random orders (seeds 954248657, 459459529 and 491222345). Of the
+   random orders, 2 were new (neither forward nor reversed); by chance, 1 repeated forward or
+   reversed.
 5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times, up to 4 at a
    time in separate browsers (4 workers): 15 runs, all passed.
 6. **The coupled version fails under reordering:** `logs/shuffle-run.txt`, the coupled pair passes
@@ -218,10 +219,10 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 ## What was tested or validated
 
-- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 2:03 PM to 2:05 PM): as described under
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 2:18 PM to 2:20 PM): as described under
   criteria 1 and 4 to 6, including the runs against a copy of the app with no saved orders, whose
   orders file was empty again afterwards.
-- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 2:03 PM to 2:05 PM): part 1, around
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 2:18 PM to 2:20 PM): part 1, around
   the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
   FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
   reports PASS and the orders file is byte for byte what it was.
@@ -259,7 +260,8 @@ by `node demo-app/server.js`), and the check reports PASS again.
 - **The orders file is a simple stand-in for a database.** It works because each request reads,
   changes and writes the whole file in one uninterrupted step; two servers writing the same file
   could lose each other's changes, so the server takes a lock on the file and a second one refuses
-  to start (a lock left by a server that was killed is taken over).
+  to start. A lock left by a server that was killed outright is never taken over automatically (that
+  can't be made safe when two servers start at once); the server says to delete it by hand.
 - **A hard kill skips the safety net.** Ctrl+C, a closed terminal or unreadable output still lead to
   the cleanup, but killing the run outright (or a power cut) does not; an order left that way
   carries a marker no later run sweeps, so only the check (or the "Your orders" page) shows it.
@@ -268,7 +270,7 @@ by `node demo-app/server.js`), and the check reports PASS again.
 - **The orders file is in Git, so a leaked order shows up as a change to it** until it is cancelled;
   the coupled pair is skipped in normal runs for that reason.
 - **Random orders are limited with three tests:** there are only six possible orders; the three
-  recorded random runs produced 0 that forward and reversed don't cover, plus 3 repeat of forward or
+  recorded random runs produced 2 that forward and reversed don't cover, plus 1 repeat of forward or
   reversed. A seed can be given to repeat any order.
 - **Prices are still written in more than one place:** the events, review and orders pages each keep
   the Spring Concert's price and fee.

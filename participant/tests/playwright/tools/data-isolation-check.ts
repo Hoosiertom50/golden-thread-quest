@@ -60,12 +60,16 @@ if (step === "before") {
     process.exit(2);
   }
   const marked = orders.filter((order) => runMarker.test(order.name));
+  if (marked.length > 0) {
+    // Test data left by an earlier run would otherwise be fingerprinted as data to keep.
+    console.error(`Before: ${marked.length} order(s) left by an earlier test run; clear them first (Your orders page):`);
+    for (const order of marked) console.error(`  ${describe(order)}`);
+    process.exit(2);
+  }
   writeFileSync(fingerprintFile, JSON.stringify(orders.map((order) => ({ id: order.id, sha256: fingerprint(order) })), null, 2));
   console.log(`Before: ${orders.length} order(s) fingerprinted:`);
   for (const order of orders) console.log(`  ${describe(order)}  sha256 ${fingerprint(order).slice(0, 12)}`);
-  if (marked.length > 0) {
-    console.log(`Warning: ${marked.length} of them already carry a test-run marker (left by an earlier run).`);
-  }
+
 } else if (step === "after") {
   if (!existsSync(fingerprintFile)) {
     console.error('No fingerprint to compare with: run "node tools/data-isolation-check.ts before" first.');

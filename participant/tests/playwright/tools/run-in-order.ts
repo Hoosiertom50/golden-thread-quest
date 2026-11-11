@@ -282,7 +282,7 @@ try {
     counts.failed++;
   } finally {
     // Stop our app and wait until it has gone (its port and lock are free), forcing it after 3 s.
-    if (server && server.exitCode === null) {
+    if (server && server.exitCode === null && server.signalCode === null) {
       const stopped = new Promise((resolve) => server?.once("exit", resolve));
       server.kill("SIGTERM");
       const timer = setTimeout(() => server?.kill("SIGKILL"), 3000);

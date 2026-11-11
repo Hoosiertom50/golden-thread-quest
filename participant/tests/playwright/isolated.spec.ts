@@ -60,7 +60,11 @@ test(
     page.on("request", (request) => {
       if (request.method() === "DELETE") cancellations.push(request.url());
     });
+    // The page's clock is frozen (the network isn't), so however slow this machine is, the second
+    // click below always comes "straight after" the first as far as the page can tell.
+    await page.clock.install();
     await page.goto("/orders");
+    await page.clock.pauseAt(Date.now() + 60_000);
 
     // Click Cancel; once the list is rebuilt and the kept order's button has moved up into that spot,
     // click the same spot again, as a quick double-click would. It must not cancel the kept order.
