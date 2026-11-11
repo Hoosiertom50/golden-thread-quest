@@ -13,10 +13,34 @@ test(
   async ({ page, orders }) => {
     const name = orders.uniqueName();
     await page.goto("/review?event=spring-concert&quantity=2");
-    await page.getByLabel("Your name", { exact: true }).fill(name);
-    await page.getByRole("button", { name: "Save order", exact: true }).click();
-    // Note the saved order straight away, so it's cleaned up even if a check below fails.
+    const nameBox = page.getByLabel("Your name", { exact: true });
+    const save = page.getByRole("button", { name: "Save order", exact: true });
+
+    // A save the service turns down (a name of only spaces) leaves Save on, to correct and try again.
+    await nameBox.fill("   ");
+    await save.click();
+    await expect(page.getByRole("status")).toHaveText("Give a name of 1 to 60 characters.");
+    await expect(save).toBeEnabled();
+
+    // A double-click on Save while the save is on its way sends it only once: the save is held
+    // until both clicks are in.
+    const saves: string[] = [];
+    let letThrough = () => {};
+    const held = new Promise<void>((resolve) => (letThrough = resolve));
+    await page.route("**/api/orders", async (route) => {
+      if (route.request().method() === "POST") {
+        saves.push(route.request().postData() ?? "");
+        await held;
+      }
+      await route.fallback();
+    });
+    await nameBox.fill(name);
+    await save.dblclick();
+    letThrough();
+    // Note the saved order straight away, so it's cleaned up even if a check below fails. (It
+    // waits for exactly one order with this name.)
     await orders.trackSavedBy(name);
+    expect(saves).toHaveLength(1);
     await page.getByRole("link", { name: "See your orders", exact: true }).click();
 
     await expect(page.getByRole("button", { name: `Cancel order for ${name}`, exact: true })).toBeVisible();

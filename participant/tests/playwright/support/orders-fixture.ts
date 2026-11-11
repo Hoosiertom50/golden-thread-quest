@@ -9,7 +9,9 @@ import { randomBytes } from "node:crypto";
 //   - create(): saves an order through the orders service (quick setup when the test is not about
 //     saving) and notes its id.
 //   - trackSavedBy(name): for a test that saved through the screen, finds that order's id and notes
-//     it.
+//     it. Only a name this helper gave out (uniqueName) is accepted, and never an order that existed
+//     before the run (TIXLY_PREEXISTING_IDS), so a mistake in a test can't make cleanup cancel
+//     someone else's order.
 // After every test, whether it passed or failed, it cancels exactly the ids it noted, and nothing
 // else. An order that's already gone (the test cancelled it itself) is fine.
 
@@ -23,8 +25,18 @@ export function runMarker(): string {
   return marker;
 }
 
+// The orders that existed before the run (noted by global-setup.ts): never noted for cleanup.
+function preexistingIds(): Set<string> {
+  try {
+    return new Set(JSON.parse(process.env.TIXLY_PREEXISTING_IDS ?? "[]") as string[]);
+  } catch {
+    throw new Error("TIXLY_PREEXISTING_IDS isn't a list of order ids, so nothing can safely be noted for cleanup.");
+  }
+}
+
 class TestOrders {
   private readonly created: string[] = [];
+  private readonly issued = new Set<string>();
   private readonly request: APIRequestContext;
 
   // Written out in full (not as a constructor shorthand) so plain Node can load this file too, as
@@ -34,7 +46,17 @@ class TestOrders {
   }
 
   uniqueName(): string {
-    return `Test User ${runMarker()}-${randomBytes(4).toString("hex")}`;
+    const name = `Test User ${runMarker()}-${randomBytes(4).toString("hex")}`;
+    this.issued.add(name);
+    return name;
+  }
+
+  // Notes an id for cleanup, unless it belongs to an order that existed before the run.
+  private note(id: string): void {
+    if (preexistingIds().has(id)) {
+      throw new Error(`Order ${id} existed before this run; it is never noted for cleanup.`);
+    }
+    this.created.push(id);
   }
 
   // The name is always the generated, run-marked one (it can't be overridden), so even an order whose
@@ -45,11 +67,14 @@ class TestOrders {
     });
     expect(answer.status(), "the orders service saved the order").toBe(201);
     const saved = (await answer.json()) as SavedOrder;
-    this.created.push(saved.id);
+    this.note(saved.id);
     return saved;
   }
 
   async trackSavedBy(name: string): Promise<void> {
+    if (!this.issued.has(name)) {
+      throw new Error(`"${name}" wasn't made by this test's uniqueName(), so it can't be this test's order.`);
+    }
     let id: string | undefined;
     await expect
       .poll(async () => {
@@ -59,7 +84,7 @@ class TestOrders {
         return mine.length;
       }, { message: `exactly one saved order named ${name}` })
       .toBe(1);
-    if (id) this.created.push(id);
+    if (id) this.note(id);
   }
 
   // Every saved order, from the orders service.
