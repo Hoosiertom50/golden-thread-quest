@@ -43,12 +43,19 @@ function pageFor(path) {
   return null;
 }
 
-// The saved orders. Anything that isn't a list of orders, each with an id, counts as unreadable
-// (the caller answers "can't be read"), so it is never listed, and never written over.
+// The saved orders. Anything that isn't a list of complete orders (an id, a name, an event and a
+// whole number of tickets) counts as unreadable (the caller answers "can't be read"), so it is never
+// listed, and never written over.
 function readOrders() {
   const orders = JSON.parse(readFileSync(ordersFile, "utf8"));
-  if (!Array.isArray(orders) || !orders.every((order) => typeof order?.id === "string")) {
-    throw new Error("the orders file isn't a list of orders");
+  const complete = (order) =>
+    typeof order?.id === "string" &&
+    typeof order.name === "string" &&
+    order.name !== "" &&
+    typeof order.event === "string" &&
+    Number.isInteger(order.quantity);
+  if (!Array.isArray(orders) || !orders.every(complete)) {
+    throw new Error("the orders file isn't a list of complete orders");
   }
   return orders;
 }
@@ -127,7 +134,17 @@ function handleOrders(request, response, path, bodyText) {
   return send(response, 404, { error: "Not found" });
 }
 
+// Only requests addressed to this computer, by its own address, are answered. A website can make a
+// browser send requests to this app under the website's own name (DNS rebinding); refusing every
+// other name stops that, and makes the Origin check below compare against a name we trust.
+const OWN_HOSTS = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+
 createServer((request, response) => {
+  if (!OWN_HOSTS.has(request.headers.host ?? "")) {
+    response.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+    response.end("This app only answers requests addressed to 127.0.0.1 or localhost.");
+    return;
+  }
   const path = (request.url ?? "").split("?")[0];
   if (path === "/api/orders" || path.startsWith("/api/orders/")) {
     // Orders are small; a request body over 10 KB is refused rather than read.

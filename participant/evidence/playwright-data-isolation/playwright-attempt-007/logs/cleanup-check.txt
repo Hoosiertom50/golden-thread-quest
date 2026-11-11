@@ -1,5 +1,5 @@
 Cleanup check: no test data left after the runs, and the orders that were there before unchanged
-Started: 11-11-2026 10:50:50 AM
+Started: 11-11-2026 11:30:40 AM
 Node v22.23.3, Playwright 1.63.0, browser: Chromium
 Application: the local Tixly demo app (made-up data, 127.0.0.1 only); saved orders are kept in
 demo-app/data/orders.json, which starts with three made-up "real" orders. No login, token or
@@ -8,7 +8,7 @@ cookie is used. Redaction: personal home-folder paths shown as ~.
 === Part 1: around the isolated tests (whose runs are in shuffle-run.txt) and the cleanup proofs
 
 --- 1a. Before
-Recorded: 11-11-2026 10:50:51 AM
+Recorded: 11-11-2026 11:30:40 AM
 Folder: participant/tests/playwright
 Command: node tools/data-isolation-check.ts before
 Exit code: 0
@@ -19,17 +19,17 @@ Before: 3 order(s) fingerprinted:
   o-real-0003 "Aisha Patel" (spring-concert, 1 ticket)  sha256 3d4b17df74ba
 
 --- 1b. The cleanup proofs: two tests that fail on purpose after saving an order
-Recorded: 11-11-2026 10:51:33 AM
+Recorded: 11-11-2026 11:31:23 AM
 Folder: participant/tests/playwright
 Command: TIXLY_CLEANUP_PROOF=1 npx playwright test cleanup-proof.spec.ts --workers=1 --reporter=list
 Exit code: 1
 
 Running 2 tests using 1 worker
-proof 1 created o-9f376803 (Test User qa-abce0681-9a204538), then fails on purpose
-  ✘  1 [chromium] › cleanup-proof.spec.ts:12:1 › proof 1: a test that fails after creating its order still has it cancelled by its cleanup (32ms)
-proof 2 saved an order for Test User qa-abce0681-d6e499e2 through the screen, then fails before noting it
-  ✘  2 [chromium] › cleanup-proof.spec.ts:19:1 › proof 2: an order the test never got to note is cancelled by the run-end safety net (283ms)
-Safety net: cancelled 1 order(s) left with run marker qa-abce0681.
+proof 1 created o-f0bc3713 (Test User qa-6c0ccde4-f954e093), then fails on purpose
+  ✘  1 [chromium] › cleanup-proof.spec.ts:12:1 › proof 1: a test that fails after creating its order still has it cancelled by its cleanup (31ms)
+proof 2 saved an order for Test User qa-6c0ccde4-8e1b9628 through the screen, then fails before noting it
+  ✘  2 [chromium] › cleanup-proof.spec.ts:19:1 › proof 2: an order the test never got to note is cancelled by the run-end safety net (281ms)
+Safety net: cancelled 1 order(s) left with run marker qa-6c0ccde4.
   1) [chromium] › cleanup-proof.spec.ts:12:1 › proof 1: a test that fails after creating its order still has it cancelled by its cleanup 
     Error: deliberate failure
     expect(received).toBe(expected) // Object.is equality
@@ -57,7 +57,7 @@ Safety net: cancelled 1 order(s) left with run marker qa-abce0681.
     [chromium] › cleanup-proof.spec.ts:19:1 › proof 2: an order the test never got to note is cancelled by the run-end safety net
 
 --- 1c. After the isolated runs and the cleanup proofs
-Recorded: 11-11-2026 10:51:33 AM
+Recorded: 11-11-2026 11:31:23 AM
 Folder: participant/tests/playwright
 Command: node tools/data-isolation-check.ts after
 Exit code: 0
@@ -72,7 +72,7 @@ PASS: no test data left, and all 3 order(s) from before are unchanged.
 === Part 2: around the coupled pair (whose runs are in shuffle-run.txt), to show the check catches a leak
 
 --- 2a. Before
-Recorded: 11-11-2026 10:51:33 AM
+Recorded: 11-11-2026 11:31:23 AM
 Folder: participant/tests/playwright
 Command: node tools/data-isolation-check.ts before
 Exit code: 0
@@ -83,13 +83,13 @@ Before: 3 order(s) fingerprinted:
   o-real-0003 "Aisha Patel" (spring-concert, 1 ticket)  sha256 3d4b17df74ba
 
 --- 2b. After the coupled pair: expected to FAIL (the reversed run left its order)
-Recorded: 11-11-2026 10:52:10 AM
+Recorded: 11-11-2026 11:32:00 AM
 Folder: participant/tests/playwright
 Command: node tools/data-isolation-check.ts after
 Exit code: 1
 
 1. Leftover test data: 1
-   LEFTOVER o-e2af4bfb "Test User" (spring-concert, 2 tickets)
+   LEFTOVER o-b197804d "Test User" (spring-concert, 2 tickets)
 2. Orders from before: 3
    unchanged o-real-0001 "Maria Lopez" (spring-concert, 2 tickets)
    unchanged o-real-0002 "James Chen" (spring-concert, 4 tickets)
@@ -97,12 +97,12 @@ Exit code: 1
 FAIL: 1 leftover(s), 0 order(s) from before removed or changed.
 
 --- 2c. The leftover cancelled by its id through the orders service
-Recorded: 11-11-2026 10:52:10 AM
+Recorded: 11-11-2026 11:32:00 AM
 
-DELETE /api/orders/o-e2af4bfb (Test User): 200 {"cancelled":"o-e2af4bfb"}
+DELETE /api/orders/o-b197804d (Test User): 200 {"cancelled":"o-b197804d"}
 
 --- 2d. After cleaning up
-Recorded: 11-11-2026 10:52:10 AM
+Recorded: 11-11-2026 11:32:00 AM
 Folder: participant/tests/playwright
 Command: node tools/data-isolation-check.ts after
 Exit code: 0
@@ -115,4 +115,4 @@ Exit code: 0
 PASS: no test data left, and all 3 order(s) from before are unchanged.
 
 The orders file is byte for byte what it was before the first run: yes.
-Finished: 11-11-2026 10:52:10 AM
+Finished: 11-11-2026 11:32:00 AM

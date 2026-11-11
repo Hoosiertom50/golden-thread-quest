@@ -22,12 +22,15 @@ export default async function globalSetup(): Promise<void> {
 }
 
 // A request to the demo app, tried once more if the connection drops (the app closes a connection
-// that has been idle for a few seconds, and a long test can leave one idle that long).
+// that has been idle for a few seconds, and a long test can leave one idle that long). Redirects are
+// refused: these requests come from Node, outside the browser's local-only proxy, so following a
+// redirect could send them (or a cancellation) to another site.
 export async function ask(url: URL, init?: RequestInit): Promise<Response> {
+  const options: RequestInit = { ...init, redirect: "error" };
   try {
-    return await fetch(url, init);
+    return await fetch(url, options);
   } catch {
-    return await fetch(url, init);
+    return await fetch(url, options);
   }
 }
 

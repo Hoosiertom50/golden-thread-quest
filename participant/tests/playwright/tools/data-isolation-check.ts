@@ -15,15 +15,21 @@
 //        isolated tests use)
 //     2. real orders: each order from before still there, byte for byte the same
 //   and ends with PASS (exit 0) or FAIL (exit 1).
+//
+// Both take --orders-file <path> to check another orders file instead (for example a scratch copy
+// of the demo app), and the fingerprint is kept per file.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 type Order = { id: string; name: string; event: string; quantity: number };
 
-const ordersFile = new URL("../demo-app/data/orders.json", import.meta.url);
+const fileFlag = process.argv.indexOf("--orders-file");
+const ordersFile =
+  fileFlag === -1 ? new URL("../demo-app/data/orders.json", import.meta.url) : pathToFileURL(resolve(process.argv[fileFlag + 1] ?? ""));
 const fingerprintFile = join(
   tmpdir(),
   `tixly-data-isolation-before-${createHash("sha256").update(ordersFile.pathname).digest("hex").slice(0, 12)}.json`,
@@ -93,6 +99,6 @@ if (step === "before") {
   );
   process.exit(passed ? 0 : 1);
 } else {
-  console.error("Usage: node tools/data-isolation-check.ts before|after");
+  console.error("Usage: node tools/data-isolation-check.ts before|after [--orders-file <path>]");
   process.exit(2);
 }

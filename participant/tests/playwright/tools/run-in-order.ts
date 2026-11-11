@@ -6,11 +6,17 @@
 // For a random order it prints the seed (the number the shuffle came from); giving the same seed
 // again repeats exactly the same order, so a failure seen in a random order can be reproduced.
 //
-// The whole ordered run behaves like one normal run: one copy of the demo app (started here,
-// unless TIXLY_BASE_URL points at one already running), one run marker for every test, and the
-// run-end safety net (support/global-teardown.ts) once, after the last test, not after each one.
-// Each test's own result is read from Playwright's report, so a skipped test is shown as SKIPPED,
-// not counted as a pass.
+// The whole ordered run behaves like one normal run: one copy of the demo app, one run marker for
+// every test, and the run-end safety net (support/global-teardown.ts) once, after the last test,
+// not after each one. The copy of the app is started here on TIXLY_DEMO_PORT (default 4173); if
+// something is already using that port, the tool stops rather than borrow it. To use an app that is
+// already running, say so with TIXLY_BASE_URL.
+//
+// A test counts as PASSED only if Playwright recorded it as passed AND its run finished cleanly; a
+// skipped test is shown as SKIPPED and not counted as a pass. Each test keeps its own results
+// folder (test-results/ordered/<number>), so one test's run can't wipe another's failure
+// screenshot or trace. If the run is interrupted (Ctrl+C), the test that is running finishes, no
+// more start, and the safety net still runs before the app is stopped.
 //
 // Run it from participant/tests/playwright:
 //   node tools/run-in-order.ts forward isolated.spec.ts
@@ -90,6 +96,51 @@ function shuffled<T>(items: T[], startSeed: number): T[] {
   return copy;
 }
 
+// Whether something answers at an address (the answer is read to the end, so no connection is
+// left idle for a later request). Redirects are not followed.
+async function answers(address: string): Promise<boolean> {
+  try {
+    await (await fetch(address, { redirect: "manual" })).arrayBuffer();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The result Playwright recorded for the one test in a run: passed, failed, timedOut or skipped.
+function resultOf(reportFile: string): string {
+  try {
+    const statuses: string[] = [];
+    const walk = (suite: { specs?: { tests?: { results?: { status: string }[] }[] }[]; suites?: unknown[] }) => {
+      for (const spec of suite.specs ?? []) {
+        for (const test of spec.tests ?? []) statuses.push(test.results?.at(-1)?.status ?? "skipped");
+      }
+      for (const child of (suite.suites ?? []) as (typeof suite)[]) walk(child);
+    };
+    for (const suite of JSON.parse(readFileSync(reportFile, "utf8")).suites ?? []) walk(suite);
+    return statuses.length === 1 ? statuses[0] : "failed";
+  } catch {
+    return "failed";
+  }
+}
+
+// Runs one test in its own Playwright run and waits for it to finish.
+function runOne(test: Listed, number: number, env: NodeJS.ProcessEnv): Promise<{ code: number | null; output: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(
+      "npx",
+      ["playwright", "test", `${test.file}:${test.line}`, "--workers=1", "--reporter=line,json",
+       `--output=test-results/ordered/${number}`],
+      // Its own process group, so Ctrl+C reaches this tool, which then lets the test finish.
+      { env, detached: true },
+    );
+    let output = "";
+    child.stdout.on("data", (chunk) => (output += chunk));
+    child.stderr.on("data", (chunk) => (output += chunk));
+    child.on("close", (code) => resolve({ code, output }));
+  });
+}
+
 const tests = listTests();
 if (tests.length === 0) {
   console.error(`No tests found in: ${files.join(", ")}`);
@@ -106,97 +157,95 @@ console.log(`Order: ${order}${order === "random" ? ` (seed ${seed}; repeat with 
 ordered.forEach((test, i) => console.log(`  ${i + 1}. ${test.title}`));
 console.log("");
 
-// One run marker and one copy of the demo app for the whole ordered run.
 const marker = process.env.TIXLY_RUN_MARKER ?? `qa-${randomBytes(4).toString("hex")}`;
-let base = process.env.TIXLY_BASE_URL;
-let server: ChildProcess | undefined;
-if (base === undefined) {
-  const port = process.env.TIXLY_DEMO_PORT ?? "4173";
-  server = spawn("node", ["demo-app/server.js"], { env: { ...process.env, TIXLY_DEMO_PORT: port }, stdio: "ignore" });
-  base = `http://127.0.0.1:${port}`;
-  await waitForApp(base);
-}
-// The orders that exist before the first test, which the safety net must never touch.
-process.env.TIXLY_BASE_URL = base;
-const { existingOrderIds } = await import("../support/global-setup.ts");
-const preexisting = process.env.TIXLY_PREEXISTING_IDS ?? JSON.stringify(await existingOrderIds());
-if (server) delete process.env.TIXLY_BASE_URL;
-console.log(`Run marker: ${marker}\n`);
-
-async function waitForApp(address: string): Promise<void> {
-  for (let i = 0; i < 50; i++) {
-    try {
-      // The answer is read to the end, so the connection isn't left idle for a later request.
-      await (await fetch(address)).arrayBuffer();
-      return;
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  }
-  console.error(`The demo app didn't start at ${address}.`);
-  process.exit(2);
-}
-
-// The result Playwright recorded for the one test in a run: passed, failed, timedOut or skipped.
-function resultOf(reportFile: string): string {
-  if (!existsSync(reportFile)) return "failed";
-  const statuses: string[] = [];
-  const walk = (suite: { specs?: { tests?: { results?: { status: string }[] }[] }[]; suites?: unknown[] }) => {
-    for (const spec of suite.specs ?? []) {
-      for (const test of spec.tests ?? []) statuses.push(test.results?.at(-1)?.status ?? "skipped");
-    }
-    for (const child of (suite.suites ?? []) as (typeof suite)[]) walk(child);
-  };
-  for (const suite of JSON.parse(readFileSync(reportFile, "utf8")).suites ?? []) walk(suite);
-  return statuses.length === 1 ? statuses[0] : "failed";
-}
-
 const reportFile = join(tmpdir(), `run-in-order-${process.pid}.json`);
 const counts = { passed: 0, failed: 0, skipped: 0 };
+let interrupted = false;
+const stopSoon = () => {
+  if (!interrupted) console.log("\nInterrupted: finishing the test that is running, then cleaning up.");
+  interrupted = true;
+};
+process.on("SIGINT", stopSoon);
+process.on("SIGTERM", stopSoon);
+
+let server: ChildProcess | undefined;
+let base = process.env.TIXLY_BASE_URL;
+let preexisting: string | undefined;
 try {
-  ordered.forEach((test, i) => {
+  // One copy of the demo app for the whole run: our own, unless TIXLY_BASE_URL names one.
+  if (base === undefined) {
+    const port = process.env.TIXLY_DEMO_PORT ?? "4173";
+    base = `http://127.0.0.1:${port}`;
+    if (await answers(base)) {
+      throw new Error(`Something is already using port ${port}. Stop it, choose another TIXLY_DEMO_PORT, or set TIXLY_BASE_URL to use that app on purpose.`);
+    }
+    const started = spawn("node", ["demo-app/server.js"], { env: { ...process.env, TIXLY_DEMO_PORT: port }, stdio: "ignore" });
+    server = started;
+    let exited = false;
+    started.on("exit", () => (exited = true));
+    for (let i = 0; i < 50 && !(await answers(base)); i++) {
+      if (exited) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    if (exited || !(await answers(base))) throw new Error(`The demo app didn't start at ${base}.`);
+  }
+  // The orders that exist before the first test, which the safety net must never touch.
+  process.env.TIXLY_BASE_URL = base;
+  const { existingOrderIds } = await import("../support/global-setup.ts");
+  preexisting = process.env.TIXLY_PREEXISTING_IDS ?? JSON.stringify(await existingOrderIds());
+  console.log(`Run marker: ${marker}\n`);
+
+  for (const [i, test] of ordered.entries()) {
+    if (interrupted) break;
     rmSync(reportFile, { force: true });
     // file:line runs exactly that one test, against the shared copy of the app; the safety net
     // waits until the end (TIXLY_SAFETY_NET_LATER).
-    const run = spawnSync(
-      "npx",
-      ["playwright", "test", `${test.file}:${test.line}`, "--workers=1", "--reporter=line,json"],
-      {
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          TIXLY_RUN_MARKER: marker,
-          TIXLY_BASE_URL: base,
-          TIXLY_SAFETY_NET_LATER: "1",
-          TIXLY_PREEXISTING_IDS: preexisting,
-          PLAYWRIGHT_JSON_OUTPUT_FILE: reportFile,
-        },
-      },
-    );
-    const status = run.status === 0 || run.status === 1 ? resultOf(reportFile) : "failed";
-    const shown = status === "passed" ? "PASSED" : status === "skipped" ? "SKIPPED" : "FAILED";
-    counts[status === "passed" ? "passed" : status === "skipped" ? "skipped" : "failed"]++;
+    const run = await runOne(test, i + 1, {
+      ...process.env,
+      TIXLY_RUN_MARKER: marker,
+      TIXLY_BASE_URL: base,
+      TIXLY_PREEXISTING_IDS: preexisting,
+      TIXLY_SAFETY_NET_LATER: "1",
+      PLAYWRIGHT_JSON_OUTPUT_FILE: reportFile,
+    });
+    const status = existsSync(reportFile) ? resultOf(reportFile) : "failed";
+    const shown = status === "passed" && run.code === 0 ? "PASSED" : status === "skipped" && run.code === 0 ? "SKIPPED" : "FAILED";
+    counts[shown === "PASSED" ? "passed" : shown === "SKIPPED" ? "skipped" : "failed"]++;
     console.log(`${i + 1}. ${shown}  ${test.title}`);
     if (shown === "FAILED") {
-      const details = `${run.stdout}${run.stderr}`
+      const details = run.output
         .split("\n")
         .filter((line) => /Error:|Expected|Received|waiting for|locator\./.test(line))
         .slice(0, 4)
         .map((line) => `     ${line.trim()}`);
       console.log(details.join("\n"));
     }
-  });
-  // The safety net, once, after the last test.
-  process.env.TIXLY_RUN_MARKER = marker;
-  process.env.TIXLY_BASE_URL = base;
-  process.env.TIXLY_PREEXISTING_IDS = preexisting;
-  delete process.env.TIXLY_SAFETY_NET_LATER;
-  const { default: safetyNet } = await import("../support/global-teardown.ts");
-  await safetyNet();
+  }
+} catch (problem) {
+  console.error(problem instanceof Error ? problem.message : problem);
+  counts.failed++;
 } finally {
   rmSync(reportFile, { force: true });
-  server?.kill();
+  try {
+    // The safety net, once, after the last test (or after an interruption or error), while the
+    // app is still running.
+    if (base !== undefined && preexisting !== undefined) {
+      process.env.TIXLY_RUN_MARKER = marker;
+      process.env.TIXLY_BASE_URL = base;
+      process.env.TIXLY_PREEXISTING_IDS = preexisting;
+      delete process.env.TIXLY_SAFETY_NET_LATER;
+      const { default: safetyNet } = await import("../support/global-teardown.ts");
+      await safetyNet();
+    }
+  } catch (problem) {
+    console.error(problem instanceof Error ? problem.message : problem);
+    counts.failed++;
+  } finally {
+    server?.kill();
+  }
 }
 console.log(`\n${counts.passed} passed, ${counts.failed} failed, ${counts.skipped} skipped, in ${order} order.`);
 if (counts.skipped > 0) console.log("A skipped test didn't run, so it isn't counted as passing (see its file for how to turn it on).");
-process.exit(counts.failed === 0 && counts.skipped === 0 ? 0 : 1);
+const ran = counts.passed + counts.failed + counts.skipped;
+if (interrupted) console.log(`The run was interrupted after ${Math.min(ran, ordered.length)} of ${ordered.length} test(s), so it doesn't count as a pass.`);
+process.exit(counts.failed === 0 && counts.skipped === 0 && !interrupted ? 0 : 1);

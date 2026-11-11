@@ -19,7 +19,7 @@
         </thead>
         <tbody id="orders"></tbody>
       </table>
-      <p id="orders-empty" hidden>You have no saved orders.</p>
+      <p id="orders-empty" tabindex="-1" hidden>You have no saved orders.</p>
       <p role="status" id="orders-message"></p>
       <p><a href="/">Back to events</a></p>
     </main>
@@ -50,7 +50,9 @@
       // they come back only once the list has been refreshed, so two quick clicks can't send the
       // same cancellation twice or show an out-of-date list.
       async function cancelOrder(order) {
-        for (const button of list.querySelectorAll("button")) button.disabled = true;
+        const buttons = [...list.querySelectorAll("button")];
+        const position = buttons.findIndex((button) => button.dataset.orderId === order.id);
+        for (const button of buttons) button.disabled = true;
         try {
           const answer = await fetch(`/api/orders/${encodeURIComponent(order.id)}`, { method: "DELETE" });
           message.textContent = answer.ok ? `Order for ${order.name} cancelled.` : "That order couldn't be cancelled.";
@@ -58,6 +60,14 @@
           message.textContent = "That order couldn't be cancelled. Is the demo app running?";
         }
         await showOrders();
+        // The list was rebuilt, so put a keyboard or screen-reader user back where they were: on the
+        // same order if it's still there (the cancel failed), otherwise on the Cancel button that
+        // took its place (or the one before, if it was last), or on the "no saved orders" note.
+        const after = [...list.querySelectorAll("button")];
+        const same = after.find((button) => button.dataset.orderId === order.id);
+        const next = same ?? after[Math.min(position, after.length - 1)];
+        if (next) next.focus();
+        else if (!empty.hidden) empty.focus();
       }
 
       // One row per saved order: name, event, tickets, total and a Cancel button named after the
@@ -88,6 +98,7 @@
           cancel.type = "button";
           cancel.textContent = "Cancel order";
           cancel.setAttribute("aria-label", `Cancel order for ${order.name}`);
+          cancel.dataset.orderId = order.id;
           cancel.addEventListener("click", () => cancelOrder(order));
           actions.append(cancel);
           row.append(actions);
