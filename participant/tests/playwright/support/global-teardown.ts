@@ -33,9 +33,14 @@ export default async function globalTeardown(): Promise<void> {
   const all = (await listing.json()) as SavedOrder[];
   const leftovers = all.filter((order) => order.name.includes(` ${marker}-`) && !before.has(order.id));
   const problems: string[] = [];
+  // Every leftover is tried, even if an earlier one fails; all failures are reported together.
   for (const order of leftovers) {
-    const answer = await ask(new URL(`/api/orders/${encodeURIComponent(order.id)}`, base), { method: "DELETE" });
-    if (answer.status !== 200 && answer.status !== 404) problems.push(`${order.id}: ${answer.status}`);
+    try {
+      const answer = await ask(new URL(`/api/orders/${encodeURIComponent(order.id)}`, base), { method: "DELETE" });
+      if (answer.status !== 200 && answer.status !== 404) problems.push(`${order.id}: ${answer.status}`);
+    } catch (problem) {
+      problems.push(`${order.id}: ${problem instanceof Error ? problem.message : problem}`);
+    }
   }
   if (problems.length > 0) throw new Error(`Safety net couldn't cancel: ${problems.join(", ")}`);
   if (leftovers.length > 0) {

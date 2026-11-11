@@ -25,12 +25,14 @@ export default async function globalSetup(): Promise<void> {
 // that has been idle for a few seconds, and a long test can leave one idle that long). Redirects are
 // refused: these requests come from Node, outside the browser's local-only proxy, so following a
 // redirect could send them (or a cancellation) to another site.
+// Each attempt has 10 seconds, including reading the answer, so a stuck app can't hold up a run or
+// its cleanup.
 export async function ask(url: URL, init?: RequestInit): Promise<Response> {
-  const options: RequestInit = { ...init, redirect: "error" };
+  const options = (): RequestInit => ({ ...init, redirect: "error", signal: AbortSignal.timeout(10_000) });
   try {
-    return await fetch(url, options);
+    return await fetch(url, options());
   } catch {
-    return await fetch(url, options);
+    return await fetch(url, options());
   }
 }
 

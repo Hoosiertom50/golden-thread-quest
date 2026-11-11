@@ -52,10 +52,10 @@ each test owns its data, and the tools that prove the difference.
   order, to show cleanup still happens. They are skipped in normal runs.
 - **The check** (`tools/data-isolation-check.ts`): `before` fingerprints every order there now;
   `after` reports any leftover test data (an order that wasn't there before, a second copy of an
-  order, or a name with a run marker) and whether each order from before is still there, byte for
-  byte the same, then ends with PASS or FAIL. It reads the orders file directly, so it works whether
-  or not the app is running. `--orders-file <path>` checks another orders file, such as a scratch
-  copy of the app's.
+  order, or a name with a run marker) and whether each order from before is still there with the
+  same content (compared by a fingerprint of each order), then ends with PASS or FAIL. It reads the
+  orders file directly, so it works whether or not the app is running. `--orders-file <path>` checks
+  another orders file, such as a scratch copy of the app's.
 - **The README and setup check** describe the new tests and tools and check the 10 new project files
   (31 instead of 21), and `.gitignore` covers the orders service's temporary file.
 
@@ -92,8 +92,9 @@ Every order an isolated test creates is named like `Test User qa-1a2b3c4d-5e6f7a
   running at the same moment, never share a name.
 
 Each part has about 4 billion possible values, so two people running the tests at once get different
-markers and their orders can't collide either. In the logs, each run shows its own marker, and 15
-test runs, up to 4 at a time in separate browsers, all passed.
+markers and their orders can't collide either. In the logs, each one-at-a-time run prints its own
+marker (the parallel runs show theirs only inside order names), and 15 test runs, up to 4 at a time
+in separate browsers, all passed.
 
 ## How cleanup behaves when a test fails halfway
 
@@ -106,7 +107,7 @@ There are two layers, and both are shown working on failing tests in `logs/clean
 - **At the end of the run,** the safety net cancels anything still carrying the run's marker, for an
   order the test never got to note (a crash at the worst moment). Proof 2 saves its order through
   the screen, then fails before noting it: the safety net reports "cancelled 1 order(s) left with
-  run marker qa-bf74badc". The 1 is proof 2's order alone; proof 1's had already been cancelled by
+  run marker qa-cfcf6c03". The 1 is proof 2's order alone; proof 1's had already been cancelled by
   its own cleanup.
 
 The safety net never touches an order that existed before the run, even one whose name happened to
@@ -200,24 +201,23 @@ by `node demo-app/server.js`), and the check reports PASS again.
    orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
    unchanged.
 4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
-   forward, reversed and in three random orders (seeds 377223611, 995936697 and 893964424). Of the
-   random orders, 2 were new (neither forward nor reversed); by chance, 1 repeated forward or
-   reversed.
+   forward, reversed and in three random orders (seeds 888971788, 874846746 and 421843728). Of the
+   random orders, 3 were new (neither forward nor reversed), 2 different.
 5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times, up to 4 at a
    time in separate browsers (4 workers): 15 runs, all passed.
 6. **The coupled version fails under reordering:** `logs/shuffle-run.txt`, the coupled pair passes
    forward (2 of 2) and fails reversed (1 passed, 1 failed: the cancel test waits for a "Cancel
    order for Test User" button that isn't there).
 7. **No data present before the run is altered or removed:** `logs/cleanup-check.txt`, every "after"
-   check lists the three real orders as unchanged (each compared by fingerprint), and the orders
-   file ends byte for byte as it began.
+   check lists the three real orders as unchanged (each compared by fingerprint), and the recording
+   script's own comparison shows the orders file ends byte for byte as it began.
 
 ## What was tested or validated
 
-- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 11:44 AM to 11:46 AM): as described under
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 12:15 PM to 12:16 PM): as described under
   criteria 1 and 4 to 6, including the runs against a copy of the app with no saved orders, whose
   orders file was empty again afterwards.
-- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 11:44 AM to 11:46 AM): part 1, around
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 12:15 PM to 12:16 PM): part 1, around
   the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
   FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
   reports PASS and the orders file is byte for byte what it was.
@@ -251,15 +251,19 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 ## Remaining limitations
 
-- **The orders file is a simple stand-in for a database.** It works because the demo server handles
-  one request at a time; two separate servers writing the same file at once could lose an order.
+- **The orders file is a simple stand-in for a database.** It works because each request reads,
+  changes and writes the whole file in one uninterrupted step; two separate servers writing the same
+  file at once can still lose each other's changes, so the project runs one server per orders file.
+- **A hard kill skips the safety net.** Ctrl+C, a closed terminal or unreadable output still lead to
+  the cleanup, but killing the run outright (or a power cut) does not; an order left that way
+  carries a marker no later run sweeps, so only the check (or the "Your orders" page) shows it.
 - **Screenshots, traces and logs keep test names** after the orders are gone (see the reflection).
   The test names are made up and hold no real details.
 - **The orders file is in Git, so a leaked order shows up as a change to it** until it is cancelled;
   the coupled pair is skipped in normal runs for that reason.
 - **Random orders are limited with three tests:** there are only six possible orders; the three
-  recorded random runs produced 2 that forward and reversed don't cover, plus 1 repeat of forward or
-  reversed. A seed can be given to repeat any order.
+  recorded random runs produced 2 that forward and reversed don't cover. A seed can be given to
+  repeat any order.
 - **Prices are still written in more than one place:** the events, review and orders pages each keep
   the Spring Concert's price and fee.
 - **One browser (Chromium).**

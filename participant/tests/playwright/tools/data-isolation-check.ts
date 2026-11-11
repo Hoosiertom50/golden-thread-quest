@@ -11,8 +11,8 @@
 //   ...run the tests...
 //   node tools/data-isolation-check.ts after    compares with that fingerprint and reports:
 //     1. leftovers: any order that wasn't there before, any second copy of an order (the same id
-//        twice), or any name carrying a test-run marker ("qa-" and eight letters or digits, as the
-//        isolated tests use)
+//        twice), or any name carrying a test-run marker ("qa-" and eight hex digits, as the isolated
+//        tests use)
 //     2. real orders: each order from before still there, byte for byte the same
 //   and ends with PASS (exit 0) or FAIL (exit 1).
 //
@@ -28,6 +28,10 @@ import { pathToFileURL } from "node:url";
 type Order = { id: string; name: string; event: string; quantity: number };
 
 const fileFlag = process.argv.indexOf("--orders-file");
+if (fileFlag !== -1 && !process.argv[fileFlag + 1]) {
+  console.error("--orders-file needs the path of an orders file.");
+  process.exit(2);
+}
 const ordersFile =
   fileFlag === -1 ? new URL("../demo-app/data/orders.json", import.meta.url) : pathToFileURL(resolve(process.argv[fileFlag + 1] ?? ""));
 const fingerprintFile = join(

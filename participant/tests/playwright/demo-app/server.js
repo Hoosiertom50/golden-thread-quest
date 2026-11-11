@@ -11,8 +11,9 @@
 //   POST   /api/orders       save one: {"name": ..., "event": ..., "quantity": ...}; answers with the
 //                            saved order, including its new id
 //   DELETE /api/orders/<id>  cancel the order with that id
-// Each request reads and writes the whole file without pausing in between, and the server handles
-// one request at a time, so two tests saving at once can't overwrite each other's orders.
+// Each request reads, changes and writes the whole file in one uninterrupted step (no waiting in
+// between, so no other request can run in the middle), so two tests saving at once through this
+// server can't overwrite each other's orders.
 
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
@@ -28,7 +29,9 @@ const eventsPage = readFileSync(new URL("./index.html", import.meta.url));
 const reviewPage = readFileSync(new URL("./review.html", import.meta.url));
 const ordersPage = readFileSync(new URL("./orders.html", import.meta.url));
 const ordersFile = new URL("./data/orders.json", import.meta.url);
-const ordersTemporary = new URL("./data/orders.json.tmp", import.meta.url);
+// Named after this server process, so two servers sharing the file never write the same
+// temporary file (they can still lose each other's changes: run one server per orders file).
+const ordersTemporary = new URL(`./data/orders.json.${process.pid}.tmp`, import.meta.url);
 
 // The events that can be ordered, and the longest buyer name.
 const EVENTS = new Set(["spring-concert"]);
@@ -42,6 +45,10 @@ function pageFor(path) {
   if (path === "/orders") return ordersPage;
   return null;
 }
+
+// What an order id looks like: the same rule the cancel route uses, so every listed order can be
+// cancelled.
+const ORDER_ID = /^o-[a-z0-9-]{1,40}$/;
 
 // A problem reading the saved orders (as opposed to saving them).
 class Unreadable extends Error {}
@@ -58,6 +65,7 @@ function readOrders() {
   }
   const complete = (order) =>
     typeof order?.id === "string" &&
+    ORDER_ID.test(order.id) &&
     typeof order.name === "string" &&
     order.name !== "" &&
     typeof order.event === "string" &&
@@ -87,7 +95,10 @@ function validOrder(body) {
     return "Send the order as a JSON object.";
   }
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  if (name === "" || name.length > MAX_NAME) return `Give a name of 1 to ${MAX_NAME} characters.`;
+  // A name has to show something: no control characters, and at least one letter, digit or mark
+  // (a name of only spaces, zero-width or other invisible characters is refused).
+  const shows = /[\p{L}\p{N}\p{P}\p{S}]/u.test(name) && !/\p{Cc}/u.test(name);
+  if (!shows || name.length > MAX_NAME) return `Give a name of 1 to ${MAX_NAME} characters.`;
   if (typeof body.event !== "string" || !EVENTS.has(body.event)) return "That event isn't on sale.";
   if (!Number.isInteger(body.quantity) || body.quantity < 1 || body.quantity > 6) {
     return "Choose from 1 to 6 tickets.";
@@ -137,7 +148,8 @@ function handleOrders(request, response, path, bodyText) {
     writeOrders([...orders, saved]);
     return send(response, 201, saved);
   }
-  const match = /^\/api\/orders\/(o-[a-z0-9-]{1,40})$/.exec(path);
+  const match = /^\/api\/orders\/(.+)$/.exec(path);
+  if (match && !ORDER_ID.test(match[1])) return send(response, 404, { error: "No order with that id." });
   if (match && request.method === "DELETE") {
     const orders = readOrders();
     const remaining = orders.filter((order) => order.id !== match[1]);
@@ -162,18 +174,21 @@ createServer((request, response) => {
   }
   const path = (request.url ?? "").split("?")[0];
   if (path === "/api/orders" || path.startsWith("/api/orders/")) {
-    // Orders are small; a request body over 10 KB is refused rather than read.
-    let bodyText = "";
-    request.setEncoding("utf8");
+    // Orders are small; a request body over 10 KB (counted in bytes, as sent) is refused rather
+    // than read.
+    const chunks = [];
+    let bytes = 0;
     request.on("data", (chunk) => {
-      bodyText += chunk;
-      if (bodyText.length > 10_000 && !response.writableEnded) {
+      chunks.push(chunk);
+      bytes += chunk.length;
+      if (bytes > 10_000 && !response.writableEnded) {
         send(response, 413, { error: "Too large." });
         request.destroy();
       }
     });
     request.on("end", () => {
       if (response.writableEnded) return;
+      const bodyText = Buffer.concat(chunks).toString("utf8");
       // If the orders file can't be read (damaged, or not valid JSON) or can't be updated (a full
       // disk, no permission), say which instead of crashing: the pages keep working, and the file
       // is left as it is (every change is made only after a successful read and written whole), so

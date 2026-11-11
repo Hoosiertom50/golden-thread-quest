@@ -60,9 +60,14 @@
         for (const button of buttons) button.disabled = true;
         try {
           const answer = await fetch(`/api/orders/${encodeURIComponent(order.id)}`, { method: "DELETE" });
-          message.textContent = answer.ok ? `Order for ${order.name} cancelled.` : "That order couldn't be cancelled.";
+          // 404: it's already gone (cancelled from another page, for example).
+          message.textContent =
+            answer.ok ? `Order for ${order.name} cancelled.`
+            : answer.status === 404 ? `Order for ${order.name} was already cancelled.`
+            : "That order couldn't be cancelled.";
         } catch {
-          message.textContent = "That order couldn't be cancelled. Is the demo app running?";
+          // No answer: it may or may not have been cancelled; the refreshed list shows which.
+          message.textContent = `Couldn't confirm the cancellation of the order for ${order.name}; the list below shows what's saved now.`;
         }
         await showOrders();
         // The list was rebuilt, so put a keyboard or screen-reader user back where they were: on the

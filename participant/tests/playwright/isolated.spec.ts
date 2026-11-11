@@ -20,6 +20,9 @@ test(
     await page.getByRole("link", { name: "See your orders", exact: true }).click();
 
     await expect(page.getByRole("button", { name: `Cancel order for ${name}`, exact: true })).toBeVisible();
+    // The saved order is the one reviewed: 2 tickets, $55.00.
+    const row = page.getByRole("row").filter({ has: page.getByRole("cell", { name, exact: true }) });
+    await expect(row.getByRole("cell")).toHaveText([name, "Spring Concert", "2", "$55.00", "Cancel order"]);
   },
 );
 
