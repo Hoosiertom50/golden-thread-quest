@@ -5,7 +5,7 @@ import { expect, test } from "./support/orders-fixture.ts";
 // the orders helper cancels exactly what the test created when it ends, whether it passed or
 // failed. Neither test relies on the other, so they pass in any order and in parallel.
 //
-// Names look like "Test User qa-0d4f2a-7k2m": "qa-0d4f2a" marks this run, "7k2m" this order.
+// Names look like "Test User qa-1a2b3c4d-5e6f7a8b": "qa-1a2b3c4d" marks this run, "5e6f7a8b" this order.
 
 test(
   "a buyer saves an order and sees it in Your orders (isolated)",

@@ -84,10 +84,10 @@ From a fresh copy of the repository:
    `demo-app/server.js`. The tests that save orders clean up after themselves, so after a run the
    file is exactly as it was and `git status` shows no change to it.
    - `isolated.spec.ts` (run every time): each test makes its own order, named like
-     `Test User qa-0d4f2a-7k2m` (a run marker from `support/global-setup.ts`, then a code for the
+     `Test User qa-1a2b3c4d-5e6f7a8b` (a run marker from `support/global-setup.ts`, then a code for the
      order), and `support/orders-fixture.ts` cancels exactly what it made when the test ends, pass
      or fail. After the run, `support/global-teardown.ts` cancels anything still carrying that
-     run's marker.
+     run's marker, but never an order that existed before the run.
    - `coupled.spec.ts` (skipped unless `TIXLY_COUPLED=1`): a deliberately coupled pair that only
      passes in one order and can leave a "Test User" order behind.
    - `cleanup-proof.spec.ts` (skipped unless `TIXLY_CLEANUP_PROOF=1`): two tests that fail on

@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 
 // The per-test helper for tests that create saved orders (the data-isolation quest). It gives each
 // test:
-//   - uniqueName(): "Test User <run marker>-<code>", for example "Test User qa-0d4f2a-7k2m". The run
+//   - uniqueName(): "Test User <run marker>-<code>", for example "Test User qa-1a2b3c4d-5e6f7a8b". The run
 //     marker is shared by the whole run (global-setup.ts); the code is new for every call, so no
 //     two tests, runs or testers can end up with the same name.
 //   - create(): saves an order through the orders service (quick setup when the test is not about
@@ -17,7 +17,7 @@ export type SavedOrder = { id: string; name: string; event: string; quantity: nu
 
 export function runMarker(): string {
   const marker = process.env.TIXLY_RUN_MARKER ?? "";
-  if (!/^qa-[0-9a-f]{6}$/.test(marker)) {
+  if (!/^qa-[0-9a-f]{8}$/.test(marker)) {
     throw new Error("No run marker: run the tests with npx playwright test, which sets one up first.");
   }
   return marker;
@@ -25,11 +25,16 @@ export function runMarker(): string {
 
 class TestOrders {
   private readonly created: string[] = [];
+  private readonly request: APIRequestContext;
 
-  constructor(private readonly request: APIRequestContext) {}
+  // Written out in full (not as a constructor shorthand) so plain Node can load this file too, as
+  // tools/run-in-order.ts does when it runs the safety net.
+  constructor(request: APIRequestContext) {
+    this.request = request;
+  }
 
   uniqueName(): string {
-    return `Test User ${runMarker()}-${randomBytes(2).toString("hex")}`;
+    return `Test User ${runMarker()}-${randomBytes(4).toString("hex")}`;
   }
 
   async create(order: Partial<Omit<SavedOrder, "id">> = {}): Promise<SavedOrder> {

@@ -43,8 +43,14 @@ function pageFor(path) {
   return null;
 }
 
+// The saved orders. Anything that isn't a list of orders, each with an id, counts as unreadable
+// (the caller answers "can't be read"), so it is never listed, and never written over.
 function readOrders() {
-  return JSON.parse(readFileSync(ordersFile, "utf8"));
+  const orders = JSON.parse(readFileSync(ordersFile, "utf8"));
+  if (!Array.isArray(orders) || !orders.every((order) => typeof order?.id === "string")) {
+    throw new Error("the orders file isn't a list of orders");
+  }
+  return orders;
 }
 
 // Written to a temporary file first and then moved into place, so the file is never left
@@ -75,9 +81,24 @@ function send(response, status, value) {
   response.end(JSON.stringify(value));
 }
 
+// A save or cancel sent by another website (a page open in the browser can send one to this
+// computer) is refused: a browser always says which site a request comes from (Origin), and it must
+// be this app itself. The tests' own requests come from no website, so they carry no Origin.
+function fromAnotherSite(request) {
+  const origin = request.headers.origin;
+  return origin !== undefined && origin !== `http://${request.headers.host}`;
+}
+
 function handleOrders(request, response, path, bodyText) {
   if (path === "/api/orders" && request.method === "GET") return send(response, 200, readOrders());
+  if ((request.method === "POST" || request.method === "DELETE") && fromAnotherSite(request)) {
+    return send(response, 403, { error: "Orders can only be changed from this app." });
+  }
   if (path === "/api/orders" && request.method === "POST") {
+    // Only a JSON save: a plain-text one is what another site can send without asking first.
+    if (!(request.headers["content-type"] ?? "").startsWith("application/json")) {
+      return send(response, 415, { error: "Send the order as JSON." });
+    }
     let body;
     try {
       body = JSON.parse(bodyText);
@@ -86,8 +107,13 @@ function handleOrders(request, response, path, bodyText) {
     }
     const order = validOrder(body);
     if (typeof order === "string") return send(response, 400, { error: order });
-    const saved = { id: `o-${randomBytes(4).toString("hex")}`, ...order };
-    writeOrders([...readOrders(), saved]);
+    const orders = readOrders();
+    // A new random id, never one already in use: cancelling by id must only ever reach one order.
+    let id;
+    do id = `o-${randomBytes(4).toString("hex")}`;
+    while (orders.some((existing) => existing.id === id));
+    const saved = { id, ...order };
+    writeOrders([...orders, saved]);
     return send(response, 201, saved);
   }
   const match = /^\/api\/orders\/(o-[a-z0-9-]{1,40})$/.exec(path);

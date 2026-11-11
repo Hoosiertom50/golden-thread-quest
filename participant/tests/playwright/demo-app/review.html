@@ -71,12 +71,24 @@
           if (saveButton.disabled) return;
           saveButton.disabled = true;
           const name = document.getElementById("buyer-name").value;
-          const answer = await fetch("/api/orders", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name, event: eventId, quantity }),
-          });
-          const result = await answer.json();
+          let answer;
+          let result;
+          try {
+            answer = await fetch("/api/orders", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ name, event: eventId, quantity }),
+            });
+            result = await answer.json();
+          } catch {
+            // No usable answer: the order may or may not have been saved. The button stays off, so
+            // a retry can't save it twice; the buyer checks Your orders instead.
+            const link = document.createElement("a");
+            link.href = "/orders";
+            link.textContent = "Check Your orders";
+            message.replaceChildren("Couldn't confirm the save. ", link, " before trying again.");
+            return;
+          }
           message.replaceChildren();
           if (answer.ok) {
             const link = document.createElement("a");

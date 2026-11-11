@@ -5,11 +5,14 @@
 //   node tools/data-isolation-check.ts before   takes a fingerprint of every order there now (the
 //                                              "real" orders) and keeps it in the computer's
 //                                              temporary folder (not test-results/, which Playwright
-//                                              empties at the start of every run)
+//                                              empties at the start of every run), under a name
+//                                              made from this orders file's location, so another
+//                                              copy of the project keeps its own
 //   ...run the tests...
 //   node tools/data-isolation-check.ts after    compares with that fingerprint and reports:
-//     1. leftovers: any order that wasn't there before, or any name carrying a test-run marker
-//        ("qa-" and six letters or digits, as the isolated tests use)
+//     1. leftovers: any order that wasn't there before, any second copy of an order (the same id
+//        twice), or any name carrying a test-run marker ("qa-" and eight letters or digits, as the
+//        isolated tests use)
 //     2. real orders: each order from before still there, byte for byte the same
 //   and ends with PASS (exit 0) or FAIL (exit 1).
 
@@ -21,8 +24,11 @@ import { join } from "node:path";
 type Order = { id: string; name: string; event: string; quantity: number };
 
 const ordersFile = new URL("../demo-app/data/orders.json", import.meta.url);
-const fingerprintFile = join(tmpdir(), "tixly-data-isolation-before.json");
-const runMarker = /\bqa-[0-9a-f]{6}-/;
+const fingerprintFile = join(
+  tmpdir(),
+  `tixly-data-isolation-before-${createHash("sha256").update(ordersFile.pathname).digest("hex").slice(0, 12)}.json`,
+);
+const runMarker = /\bqa-[0-9a-f]{8}-/;
 
 const fingerprint = (order: Order) => createHash("sha256").update(JSON.stringify(order)).digest("hex");
 const readOrders = () => JSON.parse(readFileSync(ordersFile, "utf8")) as Order[];
@@ -32,6 +38,10 @@ const describe = (order: Order) =>
 const step = process.argv[2];
 if (step === "before") {
   const orders = readOrders();
+  if (new Set(orders.map((order) => order.id)).size !== orders.length) {
+    console.error("Before: some order ids appear more than once; sort the orders file out first.");
+    process.exit(2);
+  }
   const marked = orders.filter((order) => runMarker.test(order.name));
   writeFileSync(fingerprintFile, JSON.stringify(orders.map((order) => ({ id: order.id, sha256: fingerprint(order) })), null, 2));
   console.log(`Before: ${orders.length} order(s) fingerprinted:`);
@@ -49,7 +59,14 @@ if (step === "before") {
   const now = readOrders();
   const byId = new Map(now.map((order) => [order.id, order]));
 
-  const leftovers = now.filter((order) => !beforeIds.has(order.id) || runMarker.test(order.name));
+  // Every order is counted, not just looked up by id: a second copy of an order (even an exact
+  // copy of one from before) is a leftover too.
+  const seen = new Set<string>();
+  const leftovers = now.filter((order) => {
+    const repeat = seen.has(order.id);
+    seen.add(order.id);
+    return repeat || !beforeIds.has(order.id) || runMarker.test(order.name);
+  });
   console.log(`1. Leftover test data: ${leftovers.length}`);
   for (const order of leftovers) console.log(`   LEFTOVER ${describe(order)}`);
 

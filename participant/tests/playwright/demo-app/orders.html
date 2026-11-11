@@ -19,6 +19,7 @@
         </thead>
         <tbody id="orders"></tbody>
       </table>
+      <p id="orders-empty" hidden>You have no saved orders.</p>
       <p role="status" id="orders-message"></p>
       <p><a href="/">Back to events</a></p>
     </main>
@@ -29,12 +30,45 @@
       };
       const list = document.getElementById("orders");
       const message = document.getElementById("orders-message");
+      const empty = document.getElementById("orders-empty");
+
+      // The saved orders, or null after saying why they couldn't be loaded (the orders service's
+      // own message, such as a damaged file, or that the app couldn't be reached).
+      async function loadOrders() {
+        try {
+          const answer = await fetch("/api/orders");
+          const result = await answer.json();
+          if (answer.ok && Array.isArray(result)) return result;
+          message.textContent = result?.error ?? "Your orders couldn't be loaded.";
+        } catch {
+          message.textContent = "Your orders couldn't be loaded. Is the demo app running?";
+        }
+        return null;
+      }
+
+      // One cancellation at a time: while one is on its way, every Cancel button is disabled, and
+      // they come back only once the list has been refreshed, so two quick clicks can't send the
+      // same cancellation twice or show an out-of-date list.
+      async function cancelOrder(order) {
+        for (const button of list.querySelectorAll("button")) button.disabled = true;
+        try {
+          const answer = await fetch(`/api/orders/${encodeURIComponent(order.id)}`, { method: "DELETE" });
+          message.textContent = answer.ok ? `Order for ${order.name} cancelled.` : "That order couldn't be cancelled.";
+        } catch {
+          message.textContent = "That order couldn't be cancelled. Is the demo app running?";
+        }
+        await showOrders();
+      }
 
       // One row per saved order: name, event, tickets, total and a Cancel button named after the
       // buyer ("Cancel order for Maria Lopez"), so a person or a test can tell the buttons apart.
       async function showOrders() {
-        const orders = await (await fetch("/api/orders")).json();
+        const orders = await loadOrders();
         list.replaceChildren();
+        if (orders === null) {
+          empty.hidden = true;
+          return;
+        }
         for (const order of orders) {
           const event = Object.hasOwn(EVENTS, order.event) ? EVENTS[order.event] : null;
           const row = document.createElement("tr");
@@ -54,16 +88,13 @@
           cancel.type = "button";
           cancel.textContent = "Cancel order";
           cancel.setAttribute("aria-label", `Cancel order for ${order.name}`);
-          cancel.addEventListener("click", async () => {
-            const answer = await fetch(`/api/orders/${encodeURIComponent(order.id)}`, { method: "DELETE" });
-            message.textContent = answer.ok ? `Order for ${order.name} cancelled.` : "That order couldn't be cancelled.";
-            await showOrders();
-          });
+          cancel.addEventListener("click", () => cancelOrder(order));
           actions.append(cancel);
           row.append(actions);
           list.append(row);
         }
-        if (orders.length === 0) message.textContent = "You have no saved orders.";
+        // Its own line, so it never replaces a message such as "Order for ... cancelled.".
+        empty.hidden = orders.length !== 0;
       }
       showOrders();
     </script>

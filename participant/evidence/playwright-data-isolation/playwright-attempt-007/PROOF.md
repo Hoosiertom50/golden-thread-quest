@@ -17,9 +17,12 @@ each test owns its data, and the tools that prove the difference.
   "Cancel order for <name>" button. Behind them, the demo server has a small orders service (list,
   save, cancel) that keeps orders in `demo-app/data/orders.json`, a stand-in for a real database:
   what is saved stays saved between runs until it is cancelled. The file starts with three made-up
-  "real" orders (Maria Lopez, James Chen, Aisha Patel). Each saved order gets a random id, the file
-  is never left half-written, and the service refuses a blank name, an event not on sale and a
-  quantity outside 1 to 6.
+  "real" orders (Maria Lopez, James Chen, Aisha Patel). Each saved order gets a random id never
+  already in use; the file is never left half-written, and if it can't be read (damaged, or not a
+  list of orders) the service says so and never writes over it. The service refuses a blank name, an
+  event not on sale, a quantity outside 1 to 6, a save that isn't JSON, and any save or cancel sent
+  by another website. The pages save and cancel one at a time (a double-click can't do it twice) and
+  say what went wrong instead of going blank.
 - **The coupled pair** (`coupled.spec.ts`): test 1 saves an order for "Test User" through the screen
   and checks it is listed; test 2 cancels "Test User's" order without making one, relying on test 1.
   Forward, both pass and nothing is left. Reversed, test 2 fails and test 1's order is left behind.
@@ -30,21 +33,25 @@ each test owns its data, and the tools that prove the difference.
      cancels it through the screen.
   3. Cancelling one buyer's order leaves another buyer's order in Your orders: it makes two orders,
      cancels one and checks the other is still listed.
-- **The orders helper** (`support/`): `global-setup.ts` picks a run marker once per run;
-  `orders-fixture.ts` gives each test unique names, notes every order the test creates and cancels
-  exactly those when the test ends, pass or fail; `global-teardown.ts` is the run-end safety net,
-  cancelling anything still carrying that run's marker, and nothing else. The project settings
+- **The orders helper** (`support/`): `global-setup.ts` picks a run marker once per run and notes
+  the id of every order that already exists; `orders-fixture.ts` gives each test unique names, notes
+  every order the test creates and cancels exactly those when the test ends, pass or fail;
+  `global-teardown.ts` is the run-end safety net, cancelling anything still carrying that run's marker that
+  didn't exist before the run, and failing the run if a cancellation fails. The project settings
   (`playwright.config.ts`) run the setup before and the safety net after every run.
 - **The run-order tool** (`tools/run-in-order.ts`): Playwright always runs a file's tests top to
   bottom, so this lists the tests, puts them in forward, reversed or random order, and runs them one
-  at a time in that order, as one run with one marker. For a random order it prints the seed;
-  `--seed` repeats that exact order.
+  at a time in that order. The whole ordered run behaves like one normal run: one copy of the app,
+  one run marker, and the safety net once at the end. It reads each test's real result, so a skipped
+  test is shown as SKIPPED, not counted as a pass. For a random order it prints the seed; `--seed`
+  repeats that exact order.
 - **The cleanup proofs** (`cleanup-proof.spec.ts`): two tests that fail on purpose after saving an
   order, to show cleanup still happens. They are skipped in normal runs.
 - **The check** (`tools/data-isolation-check.ts`): `before` fingerprints every order there now;
-  `after` reports any leftover test data (an order that wasn't there before, or a name with a run
-  marker) and whether each order from before is still there, byte for byte the same, then ends with
-  PASS or FAIL. It reads the orders file directly, so it works whether or not the app is running.
+  `after` reports any leftover test data (an order that wasn't there before, a second copy of an
+  order, or a name with a run marker) and whether each order from before is still there, byte for
+  byte the same, then ends with PASS or FAIL. It reads the orders file directly, so it works whether
+  or not the app is running.
 - **The README and setup check** describe the new tests and tools and check the 10 new project files
   (31 instead of 21), and `.gitignore` covers the orders service's temporary file.
 
@@ -72,16 +79,17 @@ My decisions:
 
 ## How names are made unique
 
-Every order an isolated test creates is named like `Test User qa-0d4f2a-7k2m`:
+Every order an isolated test creates is named like `Test User qa-1a2b3c4d-5e6f7a8b`:
 
-- `qa-0d4f2a` is the **run marker**, picked once per run (`support/global-setup.ts`) and shared by
+- `qa-1a2b3c4d` is the **run marker**, picked once per run (`support/global-setup.ts`) and shared by
   every test in it, in every browser. It is what lets the safety net and the check find all of one
   run's data, and only that run's.
-- `7k2m` is a **random code for that order**, new each time, so two tests in the same run, even
+- `5e6f7a8b` is a **random code for that order**, new each time, so two tests in the same run, even
   running at the same moment, never share a name.
 
-Two people running the tests at once get different markers, so their orders can't collide either. In
-the logs, each run shows its own marker, and 15 tests running at once in 4 browsers all passed.
+Each part has about 4 billion possible values, so two people running the tests at once get different
+markers and their orders can't collide either. In the logs, each run shows its own marker, and 15
+tests running at once in 4 browsers all passed.
 
 ## How cleanup behaves when a test fails halfway
 
@@ -94,11 +102,13 @@ There are two layers, and both are shown working on failing tests in `logs/clean
 - **At the end of the run,** the safety net cancels anything still carrying the run's marker, for an
   order the test never got to note (a crash at the worst moment). Proof 2 saves its order through
   the screen, then fails before noting it: the safety net reports "cancelled 1 order(s) left with
-  run marker qa-43dff9". The 1 is proof 2's order alone; proof 1's had already been cancelled by its
-  own cleanup.
+  run marker qa-abce0681". The 1 is proof 2's order alone; proof 1's had already been cancelled by
+  its own cleanup.
 
-The failure is never hidden: both proofs are reported as failed. The check that follows reports
-PASS: nothing left, and the three real orders unchanged.
+The safety net never touches an order that existed before the run, even one whose name happened to
+contain the marker, and a cancellation that fails fails the run, so a cleanup problem is never
+silent. The failure is never hidden either: both proofs are reported as failed. The check that
+follows reports PASS: nothing left, and the three real orders unchanged.
 
 ## Reflection: what data could a test still leak that my cleanup doesn't know about?
 
@@ -150,8 +160,14 @@ TIXLY_CLEANUP_PROOF=1 npx playwright test cleanup-proof.spec.ts --workers=1
 node tools/data-isolation-check.ts after
 ```
 
-Every isolated run passes, the proofs fail on purpose, and the check reports PASS. To see the
-coupled pair fail and the check catch its leftover:
+Every isolated run passes, the proofs fail on purpose, and the check reports PASS.
+
+To run the isolated tests against an app with no saved orders, copy `demo-app/` to a scratch folder,
+put `[]` in its `data/orders.json`, start it with
+`TIXLY_DEMO_PORT=4184 node <scratch folder>/demo-app/server.js`, and add
+`TIXLY_BASE_URL=http://127.0.0.1:4184` in front of the commands above.
+
+To see the coupled pair fail and the check catch its leftover:
 
 ```
 node tools/data-isolation-check.ts before
@@ -167,7 +183,9 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 1. **Each test creates the data it needs:** in `isolated.spec.ts`, test 1 saves its own order
    through the screen, test 2 makes the order it cancels, and test 3 makes both orders it uses. None
-   reads another test's data. (In `coupled.spec.ts`, test 2 makes nothing and relies on test 1: the
+   reads another test's data or relies on orders already being there: `logs/shuffle-run.txt` also
+   runs them, forward, reversed and in parallel, against a copy of the app with no saved orders at
+   all, and all pass. (In `coupled.spec.ts`, test 2 makes nothing and relies on test 1: the
    opposite, on purpose.)
 2. **Created data has a name that cannot collide with another run:** every order is named with the
    run marker and a random code for that order (see "How names are made unique"). Each run in
@@ -177,9 +195,9 @@ by `node demo-app/server.js`), and the check reports PASS again.
    orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
    unchanged.
 4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
-   forward, reversed and in three random orders (seeds 112758457, 236555568 and 621920163). By
-   chance, the second random order was the reversed order, and the first and third were the same
-   new order (save, then the two-order cancel, then the single cancel).
+   forward, reversed and in three random orders (seeds 895589119, 798269893 and 562077251). Two of
+   the random orders were new (neither forward nor reversed); by chance, the other was the reversed
+   order.
 5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times with 4
    browsers at once: 15 passed.
 6. **The coupled version fails under reordering:** `logs/shuffle-run.txt`, the coupled pair passes
@@ -191,9 +209,10 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 ## What was tested or validated
 
-- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 10:24 AM to 10:25 AM): as described under
-  criteria 4 to 6.
-- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 10:24 AM to 10:25 AM): part 1, around
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 10:50 AM to 10:52 AM): as described under
+  criteria 1 and 4 to 6, including the runs against a copy of the app with no saved orders, whose
+  orders file was empty again afterwards.
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 10:50 AM to 10:52 AM): part 1, around
   the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
   FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
   reports PASS and the orders file is byte for byte what it was.
@@ -232,9 +251,9 @@ by `node demo-app/server.js`), and the check reports PASS again.
   The test names are made up and hold no real details.
 - **The orders file is in Git, so a leaked order shows up as a change to it** until it is cancelled;
   the coupled pair is skipped in normal runs for that reason.
-- **Random orders are limited with three tests:** there are only six possible orders, and the three
-  recorded random runs produced one of them that forward and reversed don't cover (twice), plus the
-  reversed order (once). A seed can be given to repeat any order.
+- **Random orders are limited with three tests:** there are only six possible orders; the three
+  recorded random runs produced two that forward and reversed don't cover, plus the reversed order.
+  A seed can be given to repeat any order.
 - **Prices are still written in more than one place:** the events, review and orders pages each keep
   the Spring Concert's price and fee.
 - **One browser (Chromium).**
