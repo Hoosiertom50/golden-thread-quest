@@ -63,8 +63,10 @@
             // After a cancellation the list is rebuilt and the next order's Cancel button moves up under the
       // pointer, so for a moment afterwards pointer clicks on Cancel are ignored: a quick second click
       // (as in a double-click) can't cancel a different order. A slower second click doesn't either:
-      // a click at the spot of the last pointer cancellation counts only once the pointer has moved
+            // a click at the spot of the last pointer cancellation counts only once the pointer has moved
       // away from it (more than a few pixels) and come back, so the buyer has aimed at the new order.
+      // A click there on the SAME order (its cancellation failed and it is still listed) is a retry,
+      // so it counts once the moment has passed.
       // Keyboard and screen-reader activations aren't affected (they don't come from the pointer),
       // and focus still moves as described below.
       let ignoreClicksUntil = 0;
@@ -79,8 +81,8 @@
       async function cancelOrder(order, event) {
         const fromPointer = event.detail > 0;
         if (fromPointer && Date.now() < ignoreClicksUntil) return;
-        if (fromPointer && lastPointerSpot && !awayFrom(lastPointerSpot, event)) return;
-        lastPointerSpot = fromPointer ? { x: event.clientX, y: event.clientY } : null;
+                if (fromPointer && lastPointerSpot && lastPointerSpot.orderId !== order.id && !awayFrom(lastPointerSpot, event)) return;
+        lastPointerSpot = fromPointer ? { x: event.clientX, y: event.clientY, orderId: order.id } : null;
         const buttons = [...list.querySelectorAll("button")];
         const position = buttons.findIndex((button) => button.dataset.orderId === order.id);
         for (const button of buttons) button.disabled = true;

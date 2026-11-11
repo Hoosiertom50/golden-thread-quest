@@ -85,8 +85,9 @@ My decisions:
 - **The coupled pair and the cleanup proofs are skipped in normal runs** (`TIXLY_COUPLED=1` and
   `TIXLY_CLEANUP_PROOF=1` turn them on), because the coupled pair can leave a real order behind and
   the proofs fail on purpose. The normal suite shows 13 passed and 4 skipped.
-- **Three random orders recorded,** not one, so a single random run that happens to repeat forward
-  or reversed can't stand in for "random".
+- **Five random orders recorded,** not one, so a single random run that happens to repeat forward or
+  reversed can't stand in for "random", and five give a better spread of the orders forward and
+  reversed don't cover.
 
 ## How names are made unique
 
@@ -114,7 +115,7 @@ There are two layers, and both are shown working on failing tests in `logs/clean
 - **At the end of the run,** the safety net cancels any order whose name is exactly the helper's
   format with the run's marker, for an order the test never got to note (a crash at the worst
   moment). Proof 2 saves its order through the screen, then fails before noting it: the safety net
-  reports "cancelled 1 order(s) left with run marker qa-195fbb20". The 1 is proof 2's order alone;
+  reports "cancelled 1 order(s) left with run marker qa-75118bcf". The 1 is proof 2's order alone;
   proof 1's had already been cancelled by its own cleanup.
 
 The safety net never touches an order that existed before the run, even one whose name happened to
@@ -210,8 +211,9 @@ by `node demo-app/server.js`), and the check reports PASS again.
    orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
    unchanged.
 4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
-   forward, reversed and in three random orders (seeds 468521602, 123327042 and 601924910). Of the
-   random orders, 3 were new (neither forward nor reversed), 1 different.
+   forward, reversed and in five random orders (seeds 384349846, 364709290, 363114263, 630282935 and
+   865185398). Of the random orders, 2 were new (neither forward nor reversed) but all the same
+   order; by chance, 3 repeated forward or reversed.
 5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times, up to 4 at a
    time in separate browsers (4 workers): 15 runs, all passed.
 6. **The coupled version fails under reordering:** `logs/shuffle-run.txt`, the coupled pair passes
@@ -223,10 +225,10 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 ## What was tested or validated
 
-- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 4:16 PM to 4:17 PM): as described under
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 4:29 PM to 4:31 PM): as described under
   criteria 1 and 4 to 6, including the runs against a copy of the app with no saved orders, whose
   orders file was empty again afterwards.
-- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 4:16 PM to 4:17 PM): part 1, around
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 4:29 PM to 4:31 PM): part 1, around
   the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
   FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
   reports PASS and the orders file is byte for byte what it was.
@@ -273,11 +275,16 @@ by `node demo-app/server.js`), and the check reports PASS again.
   The test names are made up and hold no real details.
 - **The orders file is in Git, so a leaked order shows up as a change to it** until it is cancelled;
   the coupled pair is skipped in normal runs for that reason.
-- **Random orders are limited with three tests:** there are only six possible orders; the three
-  recorded random runs produced 1 that forward and reversed don't cover. A seed can be given to
-  repeat any order.
+- **Random orders are limited with three tests:** there are only six possible orders; the five
+  recorded random runs produced 1 of the four that forward and reversed don't cover, plus 3 repeats
+  of forward or reversed. A seed can be given to repeat any order.
 - **Prices are still written in more than one place:** the events, review and orders pages each keep
   the Spring Concert's price and fee.
+- **Touch screens: one extra tap after a cancellation.** To stop a slow double-click from cancelling
+  the next order as it moves up under the pointer, a click on the same spot as the last cancellation
+  counts only after the pointer has moved away. A mouse just moves; on a touch screen the buyer has
+  to tap somewhere else first before tapping that spot again. Keyboard and screen-reader users
+  aren't affected.
 - **One browser (Chromium).**
 - **Files from earlier quests changed again:** `demo-app/server.js` (the orders service),
   `demo-app/review.html` (saving an order), `playwright.config.ts` (the setup and safety net),
