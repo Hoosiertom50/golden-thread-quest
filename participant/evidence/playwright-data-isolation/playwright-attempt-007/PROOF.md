@@ -93,7 +93,7 @@ Every order an isolated test creates is named like `Test User qa-1a2b3c4d-5e6f7a
 
 Each part has about 4 billion possible values, so two people running the tests at once get different
 markers and their orders can't collide either. In the logs, each run shows its own marker, and 15
-tests running at once in 4 browsers all passed.
+test runs, up to 4 at a time in separate browsers, all passed.
 
 ## How cleanup behaves when a test fails halfway
 
@@ -106,7 +106,7 @@ There are two layers, and both are shown working on failing tests in `logs/clean
 - **At the end of the run,** the safety net cancels anything still carrying the run's marker, for an
   order the test never got to note (a crash at the worst moment). Proof 2 saves its order through
   the screen, then fails before noting it: the safety net reports "cancelled 1 order(s) left with
-  run marker qa-6c0ccde4". The 1 is proof 2's order alone; proof 1's had already been cancelled by
+  run marker qa-bf74badc". The 1 is proof 2's order alone; proof 1's had already been cancelled by
   its own cleanup.
 
 The safety net never touches an order that existed before the run, even one whose name happened to
@@ -200,11 +200,11 @@ by `node demo-app/server.js`), and the check reports PASS again.
    orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
    unchanged.
 4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
-   forward, reversed and in three random orders (seeds 381564297, 524394054 and 689157199). Of the
+   forward, reversed and in three random orders (seeds 377223611, 995936697 and 893964424). Of the
    random orders, 2 were new (neither forward nor reversed); by chance, 1 repeated forward or
    reversed.
-5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times with 4
-   browsers at once: 15 passed.
+5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times, up to 4 at a
+   time in separate browsers (4 workers): 15 runs, all passed.
 6. **The coupled version fails under reordering:** `logs/shuffle-run.txt`, the coupled pair passes
    forward (2 of 2) and fails reversed (1 passed, 1 failed: the cancel test waits for a "Cancel
    order for Test User" button that isn't there).
@@ -214,10 +214,10 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 ## What was tested or validated
 
-- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 11:30 AM to 11:32 AM): as described under
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 11:44 AM to 11:46 AM): as described under
   criteria 1 and 4 to 6, including the runs against a copy of the app with no saved orders, whose
   orders file was empty again afterwards.
-- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 11:30 AM to 11:32 AM): part 1, around
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 11:44 AM to 11:46 AM): part 1, around
   the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
   FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
   reports PASS and the orders file is byte for byte what it was.
@@ -245,8 +245,9 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 - **Add a check that reports leftover data:** done, `tools/data-isolation-check.ts`.
 - **Run the suite twice in parallel against the same environment:** not attempted. The parallel run
-  above is one run with four browsers at once; two separate runs at the same moment would need one
-  shared copy of the app started by hand, since each run otherwise starts its own on the same port.
+  above is one run with up to four browsers at a time; two separate runs at the same moment would
+  need one shared copy of the app started by hand, since each run otherwise starts its own on the
+  same port.
 
 ## Remaining limitations
 

@@ -1,12 +1,12 @@
 Shuffle run: the isolated tests in every order and in parallel; the coupled pair forward and reversed
-Started: 11-11-2026 11:30:40 AM
+Started: 11-11-2026 11:44:53 AM
 Node v22.23.3, Playwright 1.63.0, browser: Chromium
 Application: the local Tixly demo app (made-up data, 127.0.0.1 only); saved orders are kept in
 demo-app/data/orders.json, which starts with three made-up "real" orders. No login, token or
 cookie is used. Redaction: personal home-folder paths shown as ~.
 
 --- Isolated tests, forward order (one at a time)
-Recorded: 11-11-2026 11:30:45 AM
+Recorded: 11-11-2026 11:44:58 AM
 Folder: participant/tests/playwright
 Command: node tools/run-in-order.ts forward isolated.spec.ts
 Exit code: 0
@@ -16,7 +16,7 @@ Order: forward
   2. a buyer cancels their own order (isolated: makes the order it cancels)
   3. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
 
-Run marker: qa-38c921ab
+Run marker: qa-9e4e8103
 
 1. PASSED  a buyer saves an order and sees it in Your orders (isolated)
 2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
@@ -25,7 +25,7 @@ Run marker: qa-38c921ab
 3 passed, 0 failed, 0 skipped, in forward order.
 
 --- Isolated tests, reversed order (one at a time)
-Recorded: 11-11-2026 11:30:50 AM
+Recorded: 11-11-2026 11:45:03 AM
 Folder: participant/tests/playwright
 Command: node tools/run-in-order.ts reversed isolated.spec.ts
 Exit code: 0
@@ -35,7 +35,7 @@ Order: reversed
   2. a buyer cancels their own order (isolated: makes the order it cancels)
   3. a buyer saves an order and sees it in Your orders (isolated)
 
-Run marker: qa-d0a02b42
+Run marker: qa-eae4f616
 
 1. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
 2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
@@ -44,36 +44,17 @@ Run marker: qa-d0a02b42
 3 passed, 0 failed, 0 skipped, in reversed order.
 
 --- Isolated tests, random order 1 of 3 (one at a time)
-Recorded: 11-11-2026 11:30:54 AM
+Recorded: 11-11-2026 11:45:08 AM
 Folder: participant/tests/playwright
 Command: node tools/run-in-order.ts random isolated.spec.ts
 Exit code: 0
 
-Order: random (seed 381564297; repeat with --seed 381564297)
-  1. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
-  2. a buyer cancels their own order (isolated: makes the order it cancels)
-  3. a buyer saves an order and sees it in Your orders (isolated)
-
-Run marker: qa-97409988
-
-1. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
-2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
-3. PASSED  a buyer saves an order and sees it in Your orders (isolated)
-
-3 passed, 0 failed, 0 skipped, in random order.
-
---- Isolated tests, random order 2 of 3 (one at a time)
-Recorded: 11-11-2026 11:30:59 AM
-Folder: participant/tests/playwright
-Command: node tools/run-in-order.ts random isolated.spec.ts
-Exit code: 0
-
-Order: random (seed 524394054; repeat with --seed 524394054)
+Order: random (seed 377223611; repeat with --seed 377223611)
   1. a buyer cancels their own order (isolated: makes the order it cancels)
   2. a buyer saves an order and sees it in Your orders (isolated)
   3. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
 
-Run marker: qa-a38a6e41
+Run marker: qa-3a7865a2
 
 1. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
 2. PASSED  a buyer saves an order and sees it in Your orders (isolated)
@@ -81,54 +62,73 @@ Run marker: qa-a38a6e41
 
 3 passed, 0 failed, 0 skipped, in random order.
 
---- Isolated tests, random order 3 of 3 (one at a time)
-Recorded: 11-11-2026 11:31:04 AM
+--- Isolated tests, random order 2 of 3 (one at a time)
+Recorded: 11-11-2026 11:45:13 AM
 Folder: participant/tests/playwright
 Command: node tools/run-in-order.ts random isolated.spec.ts
 Exit code: 0
 
-Order: random (seed 689157199; repeat with --seed 689157199)
-  1. a buyer saves an order and sees it in Your orders (isolated)
-  2. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
-  3. a buyer cancels their own order (isolated: makes the order it cancels)
+Order: random (seed 995936697; repeat with --seed 995936697)
+  1. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+  2. a buyer cancels their own order (isolated: makes the order it cancels)
+  3. a buyer saves an order and sees it in Your orders (isolated)
 
-Run marker: qa-b5378a29
+Run marker: qa-a2fa9287
 
-1. PASSED  a buyer saves an order and sees it in Your orders (isolated)
-2. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
-3. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
+1. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
+3. PASSED  a buyer saves an order and sees it in Your orders (isolated)
 
 3 passed, 0 failed, 0 skipped, in random order.
 
---- Isolated tests in parallel: each test 5 times, 4 browsers at once
-Recorded: 11-11-2026 11:31:08 AM
+--- Isolated tests, random order 3 of 3 (one at a time)
+Recorded: 11-11-2026 11:45:17 AM
+Folder: participant/tests/playwright
+Command: node tools/run-in-order.ts random isolated.spec.ts
+Exit code: 0
+
+Order: random (seed 893964424; repeat with --seed 893964424)
+  1. a buyer cancels their own order (isolated: makes the order it cancels)
+  2. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+  3. a buyer saves an order and sees it in Your orders (isolated)
+
+Run marker: qa-a0442000
+
+1. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
+2. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+3. PASSED  a buyer saves an order and sees it in Your orders (isolated)
+
+3 passed, 0 failed, 0 skipped, in random order.
+
+--- Isolated tests in parallel: each test 5 times, up to 4 at a time (4 workers)
+Recorded: 11-11-2026 11:45:22 AM
 Folder: participant/tests/playwright
 Command: npx playwright test isolated.spec.ts --fully-parallel --workers=4 --repeat-each=5 --reporter=list
 Exit code: 0
 
 Running 15 tests using 4 workers
-  ✓   2 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (412ms)
-  ✓   4 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (408ms)
-  ✓   1 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (468ms)
-  ✓   3 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (461ms)
-  ✓   7 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (383ms)
-  ✓   5 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (379ms)
-  ✓   6 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (390ms)
-  ✓   8 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (450ms)
-  ✓   9 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (204ms)
-  ✓  11 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (298ms)
-  ✓  12 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (332ms)
-  ✓  10 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (378ms)
-  ✓  13 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (286ms)
-  ✓  14 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (265ms)
-  ✓  15 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (265ms)
-  15 passed (3.5s)
+  ✓   2 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (398ms)
+  ✓   1 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (400ms)
+  ✓   3 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (457ms)
+  ✓   4 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (476ms)
+  ✓   6 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (407ms)
+  ✓   5 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (419ms)
+  ✓   8 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (411ms)
+  ✓   7 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (481ms)
+  ✓  10 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (402ms)
+  ✓  12 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (402ms)
+  ✓   9 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (403ms)
+  ✓  11 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (475ms)
+  ✓  14 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (331ms)
+  ✓  15 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (332ms)
+  ✓  13 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (397ms)
+  15 passed (3.9s)
 
 === The isolated tests against a copy of the demo app with NO saved orders (its
 orders file holds [] only; started on port 4184 from a temporary copy of demo-app/)
 
 --- No saved orders: isolated tests, forward order
-Recorded: 11-11-2026 11:31:12 AM
+Recorded: 11-11-2026 11:45:26 AM
 Folder: participant/tests/playwright
 Command: TIXLY_BASE_URL=http://127.0.0.1:4184 node tools/run-in-order.ts forward isolated.spec.ts
 Exit code: 0
@@ -138,7 +138,7 @@ Order: forward
   2. a buyer cancels their own order (isolated: makes the order it cancels)
   3. cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
 
-Run marker: qa-b66e5fb2
+Run marker: qa-45a0cd92
 
 1. PASSED  a buyer saves an order and sees it in Your orders (isolated)
 2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
@@ -147,7 +147,7 @@ Run marker: qa-b66e5fb2
 3 passed, 0 failed, 0 skipped, in forward order.
 
 --- No saved orders: isolated tests, reversed order
-Recorded: 11-11-2026 11:31:17 AM
+Recorded: 11-11-2026 11:45:31 AM
 Folder: participant/tests/playwright
 Command: TIXLY_BASE_URL=http://127.0.0.1:4184 node tools/run-in-order.ts reversed isolated.spec.ts
 Exit code: 0
@@ -157,7 +157,7 @@ Order: reversed
   2. a buyer cancels their own order (isolated: makes the order it cancels)
   3. a buyer saves an order and sees it in Your orders (isolated)
 
-Run marker: qa-8666d163
+Run marker: qa-1fb0fe7a
 
 1. PASSED  cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
 2. PASSED  a buyer cancels their own order (isolated: makes the order it cancels)
@@ -165,34 +165,34 @@ Run marker: qa-8666d163
 
 3 passed, 0 failed, 0 skipped, in reversed order.
 
---- No saved orders: isolated tests in parallel, each 5 times, 4 browsers
-Recorded: 11-11-2026 11:31:21 AM
+--- No saved orders: isolated tests in parallel, each 5 times, up to 4 at a time (4 workers)
+Recorded: 11-11-2026 11:45:35 AM
 Folder: participant/tests/playwright
 Command: TIXLY_BASE_URL=http://127.0.0.1:4184 npx playwright test isolated.spec.ts --fully-parallel --workers=4 --repeat-each=5 --reporter=list
 Exit code: 0
 
 Running 15 tests using 4 workers
+  ✓   2 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (394ms)
   ✓   3 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (393ms)
-  ✓   4 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (392ms)
-  ✓   1 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (443ms)
-  ✓   2 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (444ms)
-  ✓   6 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (357ms)
-  ✓   8 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (358ms)
-  ✓   5 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (387ms)
-  ✓   7 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (420ms)
-  ✓   9 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (341ms)
-  ✓  11 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (389ms)
-  ✓  12 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (394ms)
-  ✓  10 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (413ms)
-  ✓  15 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (331ms)
-  ✓  14 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (330ms)
-  ✓  13 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (392ms)
-  15 passed (3.6s)
+  ✓   4 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (445ms)
+  ✓   1 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (446ms)
+  ✓   7 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (367ms)
+  ✓   5 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (369ms)
+  ✓   6 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (388ms)
+  ✓   8 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (422ms)
+  ✓   9 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (207ms)
+  ✓  11 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (369ms)
+  ✓  12 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (370ms)
+  ✓  10 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (390ms)
+  ✓  13 [chromium] › isolated.spec.ts:10:1 › a buyer saves an order and sees it in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (345ms)
+  ✓  15 [chromium] › isolated.spec.ts:41:1 › cancelling one buyer's order leaves another buyer's order in Your orders (isolated) @data-isolated @risk-medium @writes-data @fast (253ms)
+  ✓  14 [chromium] › isolated.spec.ts:26:1 › a buyer cancels their own order (isolated: makes the order it cancels) @data-isolated @risk-medium @writes-data @fast (268ms)
+  15 passed (3.4s)
 
 That copy's orders file afterwards: []
 
 --- Coupled pair, forward order (one at a time)
-Recorded: 11-11-2026 11:31:26 AM
+Recorded: 11-11-2026 11:45:41 AM
 Folder: participant/tests/playwright
 Command: TIXLY_COUPLED=1 node tools/run-in-order.ts forward coupled.spec.ts
 Exit code: 0
@@ -201,7 +201,7 @@ Order: forward
   1. a buyer saves an order for Test User and sees it in Your orders (coupled)
   2. a buyer cancels Test User's order (coupled: relies on the order the test above saved)
 
-Run marker: qa-327251a6
+Run marker: qa-421863fa
 
 1. PASSED  a buyer saves an order for Test User and sees it in Your orders (coupled)
 2. PASSED  a buyer cancels Test User's order (coupled: relies on the order the test above saved)
@@ -209,7 +209,7 @@ Run marker: qa-327251a6
 2 passed, 0 failed, 0 skipped, in forward order.
 
 --- Coupled pair, reversed order (one at a time): expected to fail
-Recorded: 11-11-2026 11:32:00 AM
+Recorded: 11-11-2026 11:46:14 AM
 Folder: participant/tests/playwright
 Command: TIXLY_COUPLED=1 node tools/run-in-order.ts reversed coupled.spec.ts
 Exit code: 1
@@ -218,7 +218,7 @@ Order: reversed
   1. a buyer cancels Test User's order (coupled: relies on the order the test above saved)
   2. a buyer saves an order for Test User and sees it in Your orders (coupled)
 
-Run marker: qa-176e836b
+Run marker: qa-5010b68e
 
 1. FAILED  a buyer cancels Test User's order (coupled: relies on the order the test above saved)
      Error: locator.click: Test timeout of 30000ms exceeded.
@@ -227,4 +227,4 @@ Run marker: qa-176e836b
 
 1 passed, 1 failed, 0 skipped, in reversed order.
 
-Finished: 11-11-2026 11:32:00 AM
+Finished: 11-11-2026 11:46:14 AM

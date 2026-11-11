@@ -43,11 +43,19 @@ function pageFor(path) {
   return null;
 }
 
+// A problem reading the saved orders (as opposed to saving them).
+class Unreadable extends Error {}
+
 // The saved orders. Anything that isn't a list of complete orders (an id, a name, an event and a
 // whole number of tickets) counts as unreadable (the caller answers "can't be read"), so it is never
 // listed, and never written over.
 function readOrders() {
-  const orders = JSON.parse(readFileSync(ordersFile, "utf8"));
+  let orders;
+  try {
+    orders = JSON.parse(readFileSync(ordersFile, "utf8"));
+  } catch (problem) {
+    throw new Unreadable(problem instanceof Error ? problem.message : String(problem));
+  }
   const complete = (order) =>
     typeof order?.id === "string" &&
     typeof order.name === "string" &&
@@ -55,7 +63,11 @@ function readOrders() {
     typeof order.event === "string" &&
     Number.isInteger(order.quantity);
   if (!Array.isArray(orders) || !orders.every(complete)) {
-    throw new Error("the orders file isn't a list of complete orders");
+    throw new Unreadable("the orders file isn't a list of complete orders");
+  }
+  // Each id once: cancelling by id must only ever reach one order.
+  if (new Set(orders.map((order) => order.id)).size !== orders.length) {
+    throw new Unreadable("the orders file has the same order id more than once");
   }
   return orders;
 }
@@ -103,7 +115,9 @@ function handleOrders(request, response, path, bodyText) {
   }
   if (path === "/api/orders" && request.method === "POST") {
     // Only a JSON save: a plain-text one is what another site can send without asking first.
-    if (!(request.headers["content-type"] ?? "").startsWith("application/json")) {
+    // The media type, without parameters such as "; charset=utf-8", in any letter case.
+    const mediaType = (request.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+    if (mediaType !== "application/json") {
       return send(response, 415, { error: "Send the order as JSON." });
     }
     let body;
@@ -137,7 +151,8 @@ function handleOrders(request, response, path, bodyText) {
 // Only requests addressed to this computer, by its own address, are answered. A website can make a
 // browser send requests to this app under the website's own name (DNS rebinding); refusing every
 // other name stops that, and makes the Origin check below compare against a name we trust.
-const OWN_HOSTS = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+// (On port 80, browsers leave the port out of the name, so the bare names count too.)
+const OWN_HOSTS = new Set([`127.0.0.1:${port}`, `localhost:${port}`, ...(port === 80 ? ["127.0.0.1", "localhost"] : [])]);
 
 createServer((request, response) => {
   if (!OWN_HOSTS.has(request.headers.host ?? "")) {
@@ -159,14 +174,16 @@ createServer((request, response) => {
     });
     request.on("end", () => {
       if (response.writableEnded) return;
-      // If the orders file can't be read (damaged, or not valid JSON), say so instead of crashing:
-      // the pages keep working, and the file is left as it is (every change is made only after a
-      // successful read), so it can still be put right by hand.
+      // If the orders file can't be read (damaged, or not valid JSON) or can't be updated (a full
+      // disk, no permission), say which instead of crashing: the pages keep working, and the file
+      // is left as it is (every change is made only after a successful read and written whole), so
+      // it can still be put right by hand.
       try {
         handleOrders(request, response, path, bodyText);
       } catch (problem) {
         console.error(`Orders service: ${problem instanceof Error ? problem.message : problem}`);
-        if (!response.headersSent) send(response, 500, { error: "The saved orders file can't be read." });
+        const error = problem instanceof Unreadable ? "The saved orders file can't be read." : "The saved orders file couldn't be updated.";
+        if (!response.headersSent) send(response, 500, { error });
       }
     });
     return;

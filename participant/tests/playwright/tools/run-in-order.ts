@@ -96,11 +96,12 @@ function shuffled<T>(items: T[], startSeed: number): T[] {
   return copy;
 }
 
-// Whether something answers at an address (the answer is read to the end, so no connection is
-// left idle for a later request). Redirects are not followed.
+// Whether something answers at an address within 2 seconds (the answer is read to the end, so no
+// connection is left idle for a later request, and the time limit covers the whole answer, so a
+// stuck app can't hold up startup or an interruption). Redirects are not followed.
 async function answers(address: string): Promise<boolean> {
   try {
-    await (await fetch(address, { redirect: "manual" })).arrayBuffer();
+    await (await fetch(address, { redirect: "manual", signal: AbortSignal.timeout(2000) })).arrayBuffer();
     return true;
   } catch {
     return false;
@@ -179,7 +180,13 @@ try {
     if (await answers(base)) {
       throw new Error(`Something is already using port ${port}. Stop it, choose another TIXLY_DEMO_PORT, or set TIXLY_BASE_URL to use that app on purpose.`);
     }
-    const started = spawn("node", ["demo-app/server.js"], { env: { ...process.env, TIXLY_DEMO_PORT: port }, stdio: "ignore" });
+    // Its own process group too, so a Ctrl+C in the terminal doesn't stop the app before the
+    // safety net has run; it is stopped explicitly at the end.
+    const started = spawn("node", ["demo-app/server.js"], {
+      env: { ...process.env, TIXLY_DEMO_PORT: port },
+      stdio: "ignore",
+      detached: true,
+    });
     server = started;
     let exited = false;
     started.on("exit", () => (exited = true));

@@ -4,6 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tixly: your orders</title>
+    <style>
+      /* Not shown on screen, but still read out by screen readers. */
+      .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+        overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    </style>
   </head>
   <body>
     <!-- Tixly is an invented ticket app. This page is a local demo for the tests, with made-up data.
@@ -15,7 +20,7 @@
       <h2>Your orders</h2>
       <table aria-label="Saved orders">
         <thead>
-          <tr><th scope="col">Name</th><th scope="col">Event</th><th scope="col">Tickets</th><th scope="col">Total</th><th scope="col"><span hidden>Actions</span></th></tr>
+          <tr><th scope="col">Name</th><th scope="col">Event</th><th scope="col">Tickets</th><th scope="col">Total</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
         </thead>
         <tbody id="orders"></tbody>
       </table>
