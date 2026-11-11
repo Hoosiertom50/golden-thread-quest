@@ -55,12 +55,14 @@
       // they come back only once the list has been refreshed, so two quick clicks can't send the
       // same cancellation twice or show an out-of-date list.
       // After a cancellation the list is rebuilt and the next order's Cancel button moves up under the
-      // pointer, so for a moment afterwards Cancel clicks are ignored: a quick second click (as in a
-      // double-click) can't cancel a different order. Focus still moves as described below.
+      // pointer, so for a moment afterwards pointer clicks on Cancel are ignored: a quick second click
+      // (as in a double-click) can't cancel a different order. Keyboard and screen-reader activations
+      // aren't affected (they don't come from the pointer), and focus still moves as described below.
       let ignoreClicksUntil = 0;
 
-      async function cancelOrder(order) {
-        if (Date.now() < ignoreClicksUntil) return;
+      async function cancelOrder(order, event) {
+        const fromPointer = event.detail > 0;
+        if (fromPointer && Date.now() < ignoreClicksUntil) return;
         const buttons = [...list.querySelectorAll("button")];
         const position = buttons.findIndex((button) => button.dataset.orderId === order.id);
         for (const button of buttons) button.disabled = true;
@@ -117,7 +119,7 @@
           cancel.textContent = "Cancel order";
           cancel.setAttribute("aria-label", `Cancel order for ${order.name}`);
           cancel.dataset.orderId = order.id;
-          cancel.addEventListener("click", () => cancelOrder(order));
+          cancel.addEventListener("click", (event) => cancelOrder(order, event));
           actions.append(cancel);
           row.append(actions);
           list.append(row);

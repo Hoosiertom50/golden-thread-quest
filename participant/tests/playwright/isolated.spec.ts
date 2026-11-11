@@ -48,20 +48,37 @@ test(
     // Two orders of its own: one to cancel, one that must survive.
     const toCancel = await orders.create({ quantity: 1 });
     const toKeep = await orders.create({ quantity: 3 });
+    // This page sees only this test's two orders (the real list from the server, filtered), so the
+    // order to keep sits right below the one to cancel however many other tests save at the same time.
+    await page.route("**/api/orders", async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      const answer = await route.fetch();
+      const all = (await answer.json()) as { id: string }[];
+      await route.fulfill({ response: answer, json: all.filter((order) => order.id === toCancel.id || order.id === toKeep.id) });
+    });
+    const cancellations: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "DELETE") cancellations.push(request.url());
+    });
     await page.goto("/orders");
 
-    // Click Cancel, then click the same spot again as soon as the cancellation shows, as a quick
-    // double-click would: the order that moves up into that spot must not be cancelled too.
+    // Click Cancel; once the list is rebuilt and the kept order's button has moved up into that spot,
+    // click the same spot again, as a quick double-click would. It must not cancel the kept order.
     const cancel = page.getByRole("button", { name: `Cancel order for ${toCancel.name}`, exact: true });
+    const keep = page.getByRole("button", { name: `Cancel order for ${toKeep.name}`, exact: true });
     const spot = await cancel.boundingBox();
     if (!spot) throw new Error("The Cancel button has no position on the page.");
-    await page.mouse.click(spot.x + spot.width / 2, spot.y + spot.height / 2);
-    await expect(page.getByText(`Order for ${toCancel.name} cancelled.`, { exact: true })).toBeVisible();
-    await page.mouse.click(spot.x + spot.width / 2, spot.y + spot.height / 2);
+    const middle = { x: spot.x + spot.width / 2, y: spot.y + spot.height / 2 };
+    await page.mouse.click(middle.x, middle.y);
+    await expect(cancel).toHaveCount(0);
+    await expect.poll(async () => Math.abs(((await keep.boundingBox())?.y ?? -1000) - spot.y)).toBeLessThan(2);
+    await page.mouse.click(middle.x, middle.y);
+    // No second cancellation, then or after: wait until the page has no requests left in flight.
+    await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("button", { name: `Cancel order for ${toCancel.name}`, exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: `Cancel order for ${toKeep.name}`, exact: true })).toBeVisible();
-    // And the server still has it (the page could show a stale list).
-    await expect.poll(async () => (await orders.list()).some((order) => order.id === toKeep.id)).toBe(true);
+    expect(cancellations).toHaveLength(1);
+    await expect(page.getByText(`Order for ${toCancel.name} cancelled.`, { exact: true })).toBeVisible();
+    await expect(keep).toBeVisible();
+    expect((await orders.list()).some((order) => order.id === toKeep.id)).toBe(true);
   },
 );

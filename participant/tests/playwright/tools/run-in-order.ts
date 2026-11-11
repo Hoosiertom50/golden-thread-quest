@@ -281,7 +281,14 @@ try {
     console.error(problem instanceof Error ? problem.message : problem);
     counts.failed++;
   } finally {
-    server?.kill();
+    // Stop our app and wait until it has gone (its port and lock are free), forcing it after 3 s.
+    if (server && server.exitCode === null) {
+      const stopped = new Promise((resolve) => server?.once("exit", resolve));
+      server.kill("SIGTERM");
+      const timer = setTimeout(() => server?.kill("SIGKILL"), 3000);
+      await stopped;
+      clearTimeout(timer);
+    }
   }
 }
 console.log(`\n${counts.passed} passed, ${counts.failed} failed, ${counts.skipped} skipped, in ${order} order.`);

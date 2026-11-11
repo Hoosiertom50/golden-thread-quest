@@ -31,7 +31,10 @@ export default async function globalTeardown(): Promise<void> {
   if (listing.status === 404) return;
   if (!listing.ok) throw new Error(`Safety net: the orders service answered ${listing.status}.`);
   const all = (await listing.json()) as SavedOrder[];
-  const leftovers = all.filter((order) => order.name.includes(` ${marker}-`) && !before.has(order.id));
+  // Only the exact name the orders helper makes ("Test User <marker>-<8 hex digits>"), not any name
+  // that merely contains the marker.
+  const generated = new RegExp(`^Test User ${marker}-[0-9a-f]{8}$`);
+  const leftovers = all.filter((order) => generated.test(order.name) && !before.has(order.id));
   const problems: string[] = [];
   // Every leftover is tried, even if an earlier one fails; all failures are reported together.
   for (const order of leftovers) {

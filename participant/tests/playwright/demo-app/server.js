@@ -19,6 +19,9 @@ import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 
+// Waits a short while without giving other code a chance to run (used once, at startup).
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
 const portSetting = process.env.TIXLY_DEMO_PORT ?? "4173";
 if (!/^[1-9][0-9]{0,4}$/.test(portSetting) || Number(portSetting) > 65535) {
   console.error(`TIXLY_DEMO_PORT must be a whole number from 1 to 65535, not "${portSetting}"`);
@@ -33,7 +36,9 @@ const ordersFile = new URL("./data/orders.json", import.meta.url);
 // One server per orders file: two servers writing the same file could lose each other's changes. A
 // lock file holding this server's process id is taken at startup and removed when it stops. If a
 // lock is already there, its server must have stopped without removing it (a crash, or being killed
-// outright) before this one takes over; otherwise this one refuses to start.
+// outright) before this one takes over; otherwise this one refuses to start. A takeover replaces the
+// lock in one step and is then checked: if two servers took over at the same moment, only the one
+// whose id is in the lock afterwards carries on. A server only ever removes a lock holding its own id.
 const lockFile = new URL("./data/orders.json.lock", import.meta.url);
 function takeLock() {
   try {
@@ -54,10 +59,26 @@ function takeLock() {
     console.error(`Another demo app (process ${holder}) is already using data/orders.json; stop it first.`);
     process.exit(1);
   }
-  writeFileSync(lockFile, String(process.pid));
+  const mine = new URL(`./data/orders.json.lock.${process.pid}`, import.meta.url);
+  writeFileSync(mine, String(process.pid));
+  renameSync(mine, lockFile);
+  pause(100);
+  if (Number(readFileSync(lockFile, "utf8")) !== process.pid) {
+    console.error("Another demo app took over data/orders.json at the same moment; stop it first.");
+    process.exit(1);
+  }
 }
+let haveLock = false;
 takeLock();
-process.on("exit", () => rmSync(lockFile, { force: true }));
+haveLock = true;
+process.on("exit", () => {
+  if (!haveLock) return;
+  try {
+    if (Number(readFileSync(lockFile, "utf8")) === process.pid) rmSync(lockFile, { force: true });
+  } catch {
+    // Already gone.
+  }
+});
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => process.exit(0));
 // Named after this server process, so two servers sharing the file never write the same
 // temporary file (they can still lose each other's changes: run one server per orders file).

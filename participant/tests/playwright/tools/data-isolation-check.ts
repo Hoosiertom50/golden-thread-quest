@@ -17,10 +17,13 @@
 //   and ends with PASS (exit 0) or FAIL (exit 1).
 //
 // Both take --orders-file <path> to check another orders file instead (for example a scratch copy
-// of the demo app), and the fingerprint is kept per file.
+// of the demo app), and the fingerprint is kept per file. One check session at a time: "before" won't
+// replace a fingerprint whose session hasn't passed yet (add --replace if that session was
+// abandoned); an "after" that passes ends the session, one that fails keeps it open so the leftovers
+// can be cleaned up and "after" run again.
 
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -47,6 +50,10 @@ const describe = (order: Order) =>
 
 const step = process.argv[2];
 if (step === "before") {
+  if (existsSync(fingerprintFile) && !process.argv.includes("--replace")) {
+    console.error('A check session is already active for this orders file (its "after" hasn\'t passed yet). Run "after" first, or add --replace to start again.');
+    process.exit(2);
+  }
   const orders = readOrders();
   if (new Set(orders.map((order) => order.id)).size !== orders.length) {
     console.error("Before: some order ids appear more than once; sort the orders file out first.");
@@ -96,6 +103,9 @@ if (step === "before") {
   }
 
   const passed = leftovers.length === 0 && changed === 0;
+  // A PASS ends the session. After a FAIL it stays open, so the leftovers can be cleaned up and
+  // "after" run again against the same fingerprint.
+  if (passed) rmSync(fingerprintFile, { force: true });
   console.log(
     passed
       ? `PASS: no test data left, and all ${before.length} order(s) from before are unchanged.`
@@ -103,6 +113,6 @@ if (step === "before") {
   );
   process.exit(passed ? 0 : 1);
 } else {
-  console.error("Usage: node tools/data-isolation-check.ts before|after [--orders-file <path>]");
+  console.error("Usage: node tools/data-isolation-check.ts before|after [--orders-file <path>] [--replace]");
   process.exit(2);
 }
