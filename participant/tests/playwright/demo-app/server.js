@@ -209,7 +209,13 @@ createServer((request, response) => {
     response.end("Not found");
     return;
   }
-  response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+  // Never shown inside another site's frame, so no site can trick a click on Save or Cancel
+  // (clickjacking).
+  response.writeHead(200, {
+    "content-type": "text/html; charset=utf-8",
+    "content-security-policy": "frame-ancestors 'none'",
+    "x-frame-options": "DENY",
+  });
   response.end(page);
 }).listen(port, "127.0.0.1", () => {
   console.log(`Tixly demo app on http://127.0.0.1:${port}`);

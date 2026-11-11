@@ -95,6 +95,8 @@
             link.href = "/orders";
             link.textContent = "See your orders";
             message.append(`Order saved for ${result.name}. `, link);
+            // The form disappears, so keyboard and screen-reader users are taken to the new link.
+            link.focus();
             form.hidden = true;
           } else {
             message.textContent = result.error;

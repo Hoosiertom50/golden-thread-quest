@@ -92,9 +92,9 @@ Every order an isolated test creates is named like `Test User qa-1a2b3c4d-5e6f7a
   running at the same moment, never share a name.
 
 Each part has about 4 billion possible values, so two people running the tests at once get different
-markers and their orders can't collide either. In the logs, each one-at-a-time run prints its own
-marker (the parallel runs show theirs only inside order names), and 15 test runs, up to 4 at a time
-in separate browsers, all passed.
+markers and their orders can't collide either. In the logs, each one-at-a-time run records its own
+marker (the parallel runs don't print theirs), and 15 test runs, up to 4 at a time in separate
+browsers, all passed.
 
 ## How cleanup behaves when a test fails halfway
 
@@ -107,7 +107,7 @@ There are two layers, and both are shown working on failing tests in `logs/clean
 - **At the end of the run,** the safety net cancels anything still carrying the run's marker, for an
   order the test never got to note (a crash at the worst moment). Proof 2 saves its order through
   the screen, then fails before noting it: the safety net reports "cancelled 1 order(s) left with
-  run marker qa-cfcf6c03". The 1 is proof 2's order alone; proof 1's had already been cancelled by
+  run marker qa-ce88a130". The 1 is proof 2's order alone; proof 1's had already been cancelled by
   its own cleanup.
 
 The safety net never touches an order that existed before the run, even one whose name happened to
@@ -194,15 +194,16 @@ by `node demo-app/server.js`), and the check reports PASS again.
    all, and all pass. (In `coupled.spec.ts`, test 2 makes nothing and relies on test 1: the
    opposite, on purpose.)
 2. **Created data has a name that cannot collide with another run:** every order is named with the
-   run marker and a random code for that order (see "How names are made unique"). Each run in
-   `logs/shuffle-run.txt` shows a different marker.
+   run marker and a random code for that order (see "How names are made unique"). Each one-at-a-time
+   run in `logs/shuffle-run.txt` records a different marker.
 3. **A test removes only the data it created:** the helper cancels only the ids the test noted, and
    the safety net only orders with that run's marker. Test 3 checks that cancelling one of its
    orders leaves the other, and every check in `logs/cleanup-check.txt` shows the three real orders
    unchanged.
 4. **The tests pass in forward, reversed and random order:** `logs/shuffle-run.txt`, 3 of 3 passed
-   forward, reversed and in three random orders (seeds 888971788, 874846746 and 421843728). Of the
-   random orders, 3 were new (neither forward nor reversed), 2 different.
+   forward, reversed and in three random orders (seeds 705255974, 680907298 and 869618771). Of the
+   random orders, 2 were new (neither forward nor reversed); by chance, 1 repeated forward or
+   reversed.
 5. **The tests pass in parallel:** `logs/shuffle-run.txt`, each isolated test 5 times, up to 4 at a
    time in separate browsers (4 workers): 15 runs, all passed.
 6. **The coupled version fails under reordering:** `logs/shuffle-run.txt`, the coupled pair passes
@@ -214,10 +215,10 @@ by `node demo-app/server.js`), and the check reports PASS again.
 
 ## What was tested or validated
 
-- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 12:15 PM to 12:16 PM): as described under
+- **The shuffle run** (`logs/shuffle-run.txt`, 11-11-2026, 12:50 PM to 12:52 PM): as described under
   criteria 1 and 4 to 6, including the runs against a copy of the app with no saved orders, whose
   orders file was empty again afterwards.
-- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 12:15 PM to 12:16 PM): part 1, around
+- **The cleanup check** (`logs/cleanup-check.txt`, 11-11-2026, 12:50 PM to 12:52 PM): part 1, around
   the isolated runs and the cleanup proofs, reports PASS; part 2, around the coupled pair, reports
   FAIL with the leaked "Test User" order, which is then cancelled by its id, after which the check
   reports PASS and the orders file is byte for byte what it was.
@@ -228,8 +229,9 @@ by `node demo-app/server.js`), and the check reports PASS again.
 - **The orders service** was tried by hand before any test used it: listing, saving, refusing a
   blank name, an event not on sale, 9 tickets and malformed input, cancelling, and cancelling again
   (not found).
-- **The earlier tests still pass:** the normal suite shows 13 passed and 4 skipped (the coupled pair
-  and the proofs).
+- **The earlier tests still pass:** the whole normal suite shows 13 passed and 4 skipped (the
+  coupled pair and the proofs), and the project-setup check passes (`logs/cleanup-check.txt`, part
+  3).
 - **My predictions before each run** were all right, including that reversing the coupled pair would
   fail the cancel test and leave "Test User" behind, and that a test failing halfway would still be
   reported as failed while its order was removed.
@@ -262,8 +264,8 @@ by `node demo-app/server.js`), and the check reports PASS again.
 - **The orders file is in Git, so a leaked order shows up as a change to it** until it is cancelled;
   the coupled pair is skipped in normal runs for that reason.
 - **Random orders are limited with three tests:** there are only six possible orders; the three
-  recorded random runs produced 2 that forward and reversed don't cover. A seed can be given to
-  repeat any order.
+  recorded random runs produced 2 that forward and reversed don't cover, plus 1 repeat of forward or
+  reversed. A seed can be given to repeat any order.
 - **Prices are still written in more than one place:** the events, review and orders pages each keep
   the Spring Concert's price and fee.
 - **One browser (Chromium).**
