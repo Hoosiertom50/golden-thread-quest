@@ -25,7 +25,7 @@
         <tbody id="orders"></tbody>
       </table>
       <p id="orders-empty" tabindex="-1" hidden>You have no saved orders.</p>
-      <p role="status" id="orders-message"></p>
+      <p role="status" id="orders-message" tabindex="-1"></p>
       <p><a href="/">Back to events</a></p>
     </main>
     <script>
@@ -78,6 +78,7 @@
         const next = same ?? after[Math.min(position, after.length - 1)];
         if (next) next.focus();
         else if (!empty.hidden) empty.focus();
+        else message.focus(); // the list couldn't be loaded: the message says why
       }
 
       // One row per saved order: name, event, tickets, total and a Cancel button named after the

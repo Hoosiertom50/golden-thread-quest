@@ -96,8 +96,10 @@ function validOrder(body) {
   }
   const name = typeof body.name === "string" ? body.name.trim() : "";
   // A name has to show something: no control characters, and at least one letter, digit or mark
-  // (a name of only spaces, zero-width or other invisible characters is refused).
-  const shows = /[\p{L}\p{N}\p{P}\p{S}]/u.test(name) && !/\p{Cc}/u.test(name);
+  // once the characters that draw nothing are set aside (spaces, zero-width and format characters,
+  // and blank-looking ones such as the braille blank or the Hangul fillers).
+  const visible = name.replace(/[\p{Z}\p{Cf}\u2800\u115F\u1160\u3164\uFFA0]/gu, "");
+  const shows = /[\p{L}\p{N}\p{P}\p{S}]/u.test(visible) && !/\p{Cc}/u.test(name);
   if (!shows || name.length > MAX_NAME) return `Give a name of 1 to ${MAX_NAME} characters.`;
   if (typeof body.event !== "string" || !EVENTS.has(body.event)) return "That event isn't on sale.";
   if (!Number.isInteger(body.quantity) || body.quantity < 1 || body.quantity > 6) {

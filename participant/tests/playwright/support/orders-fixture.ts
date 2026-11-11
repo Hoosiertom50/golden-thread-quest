@@ -62,10 +62,13 @@ class TestOrders {
 
   async cleanUp(): Promise<void> {
     const problems: string[] = [];
+    // Every noted order is tried, even if an earlier one fails; all failures are reported together.
     for (const id of this.created) {
-      const answer = await this.request.delete(`/api/orders/${encodeURIComponent(id)}`);
-      if (answer.status() !== 200 && answer.status() !== 404) {
-        problems.push(`${id}: ${answer.status()}`);
+      try {
+        const answer = await this.request.delete(`/api/orders/${encodeURIComponent(id)}`);
+        if (answer.status() !== 200 && answer.status() !== 404) problems.push(`${id}: ${answer.status()}`);
+      } catch (problem) {
+        problems.push(`${id}: ${problem instanceof Error ? problem.message : problem}`);
       }
     }
     if (problems.length > 0) throw new Error(`Cleanup couldn't cancel: ${problems.join(", ")}`);

@@ -16,9 +16,10 @@
 // skipped test is shown as SKIPPED and not counted as a pass. Each test keeps its own results
 // folder (test-results/ordered/<number>), so one test's run can't wipe another's failure
 // screenshot or trace. If the run is interrupted (Ctrl+C, or the terminal closing), the test that
-// is running finishes, no more start, and the safety net still runs before the app is stopped; the
-// same if the output can't be written any more (piped into a "head" that has closed). Only a hard
-// kill (or a power cut) can skip it, and then the data-isolation check still reports the leftover.
+// is running finishes, no more start, and the safety net still runs before the app is stopped. If
+// the output can't be written any more (piped into a "head" that has closed), the remaining tests
+// still run and the safety net still runs; only the printing stops. Only a hard kill (or a power
+// cut) can skip the safety net, and then the data-isolation check still reports the leftover.
 //
 // Run it from participant/tests/playwright:
 //   node tools/run-in-order.ts forward isolated.spec.ts
