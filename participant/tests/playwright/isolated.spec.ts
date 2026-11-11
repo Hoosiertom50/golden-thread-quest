@@ -38,6 +38,9 @@ test(
 
     await expect(page.getByText(`Order for ${order.name} cancelled.`, { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: `Cancel order for ${order.name}`, exact: true })).toHaveCount(0);
+    // Really cancelled, not just hidden: the orders service no longer has it (checked before the
+    // helper's own cleanup could remove it and hide the difference).
+    await expect.poll(async () => (await orders.list()).some((saved) => saved.id === order.id)).toBe(false);
   },
 );
 
@@ -84,8 +87,9 @@ test(
     await expect(page.getByText(`Order for ${toCancel.name} cancelled.`, { exact: true })).toBeVisible();
     await expect(keep).toBeVisible();
     expect((await orders.list()).some((order) => order.id === toKeep.id)).toBe(true);
+    expect((await orders.list()).some((order) => order.id === toCancel.id)).toBe(false);
 
-        // A slower second click at the same spot, with the pointer never moved, doesn't cancel it either.
+    // A slower second click at the same spot, with the pointer never moved, doesn't cancel it either.
     await page.clock.runFor(1000);
     await page.mouse.click(middle.x, middle.y);
     await page.waitForLoadState("networkidle");
