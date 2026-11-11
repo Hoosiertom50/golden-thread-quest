@@ -91,3 +91,8 @@ Every change this application made to your files, newest last.
 - `2026-11-10T18:49:46Z` playwright-stable-locators: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-10T18:49:46Z` Submitted playwright-stable-locators for review as submission-20261110184946-5bc2c3.
 - `2026-11-10T19:00:12Z` Review of playwright-stable-locators: approved by Claude (automated reviewer).
+- `2026-11-11T13:49:01Z` Started playwright-data-isolation as attempt playwright-attempt-007.
+- `2026-11-11T22:43:38Z` playwright-data-isolation: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-11T22:43:52Z` playwright-data-isolation: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-11T22:44:07Z` playwright-data-isolation: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-11T22:44:07Z` Submitted playwright-data-isolation for review as submission-20261111224407-7495a0.

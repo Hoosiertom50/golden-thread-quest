@@ -48,7 +48,9 @@ const MUST_BE_IGNORED: { path: string; what: string }[] = [
   { path: ".env.local", what: "a local environment file" },
   { path: ".env-local", what: "an environment file named with a dash" },
   { path: ".env_production", what: "an environment file named with an underscore" },
-  { path: "production.env", what: "an environment file ending in .env" },
+    { path: "production.env", what: "an environment file ending in .env" },
+  { path: "demo-app/data/orders.json.lock", what: "the demo app's lock on its orders file" },
+  { path: "demo-app/data/orders.json.4242.tmp", what: "a half-written orders file" },
 ];
 
 // The project's own files, which must be committed.
@@ -62,16 +64,26 @@ const MUST_NOT_BE_IGNORED: string[] = [
   "model-usage.spec.ts",
   "brittle.spec.ts",
   "stable.spec.ts",
+  "coupled.spec.ts",
+  "isolated.spec.ts",
+  "cleanup-proof.spec.ts",
+  "support/global-setup.ts",
+  "support/global-teardown.ts",
+  "support/orders-fixture.ts",
   "pages/example-page.ts",
   "pages/models.ts",
   "demo-app/index.html",
   "demo-app/review.html",
   "demo-app/server.js",
+  "demo-app/orders.html",
+  "demo-app/data/orders.json",
   "demo-app-redesigned/index.html",
   "demo-app-redesigned/review.html",
   "demo-app-redesigned/server.js",
   "tools/project-setup-check.ts",
   "tools/locator-count.ts",
+  "tools/run-in-order.ts",
+  "tools/data-isolation-check.ts",
   ".gitignore",
   ".env.example",
 ];
@@ -318,14 +330,22 @@ function main(): number {
   // "firefox_beta-1234"); the folder holding them is ".local-browsers" or "ms-playwright".
   const browserFolder =
     /(^|\/)(android|chromium|chromium_headless_shell|chromium_tip_of_tree|chromium_tip_of_tree_headless_shell|firefox|firefox_beta|webkit|ffmpeg|winldd)-\d+\/|(^|\/)(\.local-browsers|ms-playwright)\//;
-  const installedPackage = /(^|\/)node_modules\//i;
+    const installedPackage = /(^|\/)node_modules\//i;
+  // The demo app's lock (a committed one would stop the app starting in a fresh clone) and its
+  // half-written orders files.
+  const ordersWorkFile = (file: string) =>
+    file === `${projectPath}/demo-app/data/orders.json.lock` ||
+    (file.startsWith(`${projectPath}/demo-app/data/`) && file.endsWith(".tmp"));
   const committedGenerated = files.filter(
     (file) =>
-      generated.some((folder) => file.startsWith(folder)) || installedPackage.test(file) || browserFolder.test(file),
+      generated.some((folder) => file.startsWith(folder)) ||
+      installedPackage.test(file) ||
+      browserFolder.test(file) ||
+      ordersWorkFile(file),
   );
   check(
     committedGenerated.length === 0,
-    "no output from this project's runs, installed package or downloaded browser is among the files Git would commit",
+        "no output from this project's runs, orders lock or half-written orders file, installed package or downloaded browser is among the files Git would commit",
     committedGenerated.slice(0, 20).map((file) => `${file} would be committed`),
   );
 
