@@ -13,7 +13,8 @@
 //     1. leftovers: any order that wasn't there before, any second copy of an order (the same id
 //        twice), or any name carrying a test-run marker ("qa-" and eight hex digits, as the isolated
 //        tests use)
-//     2. real orders: each order from before still there, byte for byte the same
+//     2. real orders: each order from before still there with exactly the same content (each
+//        order's fields are compared, not the file's layout, which the app rewrites in its own way)
 //   and ends with PASS (exit 0) or FAIL (exit 1).
 //
 // Both take --orders-file <path> to check another orders file instead (for example a scratch copy

@@ -82,7 +82,9 @@ From a fresh copy of the repository:
    **Saved orders and test data.** The demo app keeps saved orders in `demo-app/data/orders.json`
    (in Git, with three made-up "real" orders), through a small orders service in
    `demo-app/server.js`. The tests that save orders clean up after themselves, so after a run the
-   file is exactly as it was and `git status` shows no change to it.
+   file holds exactly the orders it held before. The app writes the file in its own layout (the
+   layout it is committed in), so `git status` shows no change to it; a copy edited by hand in a
+   different layout keeps its orders but comes back in the app's layout after the first save.
    - `isolated.spec.ts` (run every time): each test makes its own order, named like
      `Test User qa-1a2b3c4d-5e6f7a8b` (a run marker from `support/global-setup.ts`, then a code for the
      order), and `support/orders-fixture.ts` cancels exactly what it made when the test ends, pass
