@@ -71,8 +71,12 @@ if (step === "before") {
   try {
     writeFileSync(fingerprintFile, JSON.stringify(orders.map((order) => ({ id: order.id, sha256: fingerprint(order) })), null, 2),
       { flag: process.argv.includes("--replace") ? "w" : "wx" });
-  } catch {
-    console.error('A check session is already active for this orders file (its "after" hasn\'t passed yet). Run "after" first, or add --replace to start again.');
+  } catch (problem) {
+    if ((problem as NodeJS.ErrnoException).code === "EEXIST") {
+      console.error('A check session is already active for this orders file (its "after" hasn\'t passed yet). Run "after" first, or add --replace to start again.');
+    } else {
+      console.error(`Couldn't write the fingerprint to ${fingerprintFile}: ${problem instanceof Error ? problem.message : String(problem)}`);
+    }
     process.exit(2);
   }
   console.log(`Before: ${orders.length} order(s) fingerprinted:`);

@@ -54,7 +54,13 @@ function takeLock() {
     running = false;
   }
   if (running) {
-    console.error(`Another demo app (process ${holder}) is already using data/orders.json; stop it first.`);
+    // A running process with that number may be another demo app, or (after a crash and a restart
+    // of the computer's process numbering) something unrelated; the lock is refused either way.
+    console.error(
+      `The lock on data/orders.json names process ${holder}, which is still running. If that is another ` +
+        "demo app, stop it first. If it isn't a demo app (the number can be reused after a crash), make sure " +
+        "no demo app is running, delete demo-app/data/orders.json.lock, and start again.",
+    );
   } else {
     console.error(
       `A lock on data/orders.json was left by a demo app that stopped without removing it (process ${holder}). ` +
@@ -100,7 +106,7 @@ const ORDER_ID = /^o-[a-z0-9-]{1,40}$/;
 class Unreadable extends Error {}
 
 // The saved orders. Anything that isn't a list of complete orders (an id, a name, an event and a
-// whole number of tickets) counts as unreadable (the caller answers "can't be read"), so it is never
+// whole number of tickets from 1 to 6, the same limits a save has) counts as unreadable (the caller answers "can't be read"), so it is never
 // listed, and never written over.
 function readOrders() {
   let orders;
@@ -115,7 +121,9 @@ function readOrders() {
     typeof order.name === "string" &&
     order.name !== "" &&
     typeof order.event === "string" &&
-    Number.isInteger(order.quantity);
+    Number.isInteger(order.quantity) &&
+    order.quantity >= 1 &&
+    order.quantity <= 6;
   if (!Array.isArray(orders) || !orders.every(complete)) {
     throw new Unreadable("the orders file isn't a list of complete orders");
   }

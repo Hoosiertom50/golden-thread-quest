@@ -65,8 +65,15 @@ if (seed !== undefined && order !== "random") {
 
 // The tests in the files, as Playwright lists them, in the order they are written.
 function listTests(): Listed[] {
+  // Report-location settings left in the shell would send the listing to a file instead of stdout
+  // (and could overwrite a report there), so they are cleared for this one command.
+  const env = { ...process.env };
+  delete env.PLAYWRIGHT_JSON_OUTPUT_FILE;
+  delete env.PLAYWRIGHT_JSON_OUTPUT_DIR;
+  delete env.PLAYWRIGHT_JSON_OUTPUT_NAME;
   const listed = spawnSync("npx", ["playwright", "test", ...files, "--list", "--reporter=json"], {
     encoding: "utf8",
+    env,
   });
   if (listed.status !== 0) {
     console.error(`Couldn't list the tests:\n${listed.stdout}${listed.stderr}`);
