@@ -44,7 +44,12 @@ const fingerprintFile = join(
 );
 const runMarker = /\bqa-[0-9a-f]{8}-/;
 
-const fingerprint = (order: Order) => createHash("sha256").update(JSON.stringify(order)).digest("hex");
+// Each order's fields, in name order, so a file whose keys were only reordered (by a formatter,
+// say) still matches; every field is kept, so any changed value doesn't.
+const fingerprint = (order: Order) =>
+  createHash("sha256")
+    .update(JSON.stringify(Object.entries(order).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))))
+    .digest("hex");
 const readOrders = () => JSON.parse(readFileSync(ordersFile, "utf8")) as Order[];
 const describe = (order: Order) =>
   `${order.id} "${order.name}" (${order.event}, ${order.quantity} ticket${order.quantity === 1 ? "" : "s"})`;

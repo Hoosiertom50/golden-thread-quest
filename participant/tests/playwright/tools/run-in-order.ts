@@ -271,12 +271,12 @@ try {
     counts[shown === "PASSED" ? "passed" : shown === "SKIPPED" ? "skipped" : "failed"]++;
     console.log(`${i + 1}. ${shown}  ${test.title}`);
     if (shown === "FAILED") {
-      const details = run.output
-        .split("\n")
-        .filter((line) => /Error:|Expected|Received|waiting for|locator\./.test(line))
-        .slice(0, 4)
-        .map((line) => `     ${line.trim()}`);
-      console.log(details.join("\n"));
+            const lines = run.output.split("\n").filter((line) => line.trim() !== "");
+      const matching = lines.filter((line) => /Error:|Expected|Received|waiting for|locator\./.test(line)).slice(0, 4);
+      // When nothing looks like an assertion (the test couldn't even start, say), the last few lines
+      // it printed are shown instead, so a failure never comes without a reason.
+      const details = (matching.length > 0 ? matching : lines.slice(-4)).map((line) => `     ${line.trim()}`);
+      console.log(details.length > 0 ? details.join("\n") : "     (the test printed nothing)");
     }
   }
 } catch (problem) {

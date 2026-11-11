@@ -106,7 +106,10 @@ From a fresh copy of the repository:
    `run-in-order.ts` takes `forward`, `reversed` or `random` (it prints the seed; `--seed <number>`
    repeats that order). The check ends with PASS when no test data is left and the orders that were
    there before are unchanged. If a run does leave an order behind, the check lists it; cancel
-   it with its "Cancel order for ..." button on the "Your orders" page (`/orders`).
+   it with its "Cancel order for ..." button on the "Your orders" page (`/orders`). The check
+   reads this project's `demo-app/data/orders.json`; when the tests use another copy of the app
+   (`TIXLY_BASE_URL`), add `--orders-file <that copy's demo-app/data/orders.json>` to both check
+   commands so it looks at the file the tests actually used.
 
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
    repository for credentials. This step also needs the repository's Python environment

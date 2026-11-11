@@ -136,10 +136,17 @@ function readOrders() {
 
 // Written to a temporary file first and then moved into place, so the file is never left
 // half-written. Two-space indentation and a final new line, the same as the file in Git, so once
-// the tests have cleaned up, the file is byte for byte what it was.
+// the tests have cleaned up, the committed file is byte for byte what it was. If the write or the
+// move fails, the temporary file (which may hold the order that wasn't saved) is removed; only a
+// hard kill in between can leave one behind.
 function writeOrders(orders) {
-  writeFileSync(ordersTemporary, `${JSON.stringify(orders, null, 2)}\n`);
-  renameSync(ordersTemporary, ordersFile);
+  try {
+    writeFileSync(ordersTemporary, `${JSON.stringify(orders, null, 2)}\n`);
+    renameSync(ordersTemporary, ordersFile);
+  } catch (problem) {
+    rmSync(ordersTemporary, { force: true });
+    throw problem;
+  }
 }
 
 // A saved order must name a buyer (1 to 60 characters, not only spaces), an event on sale and a
