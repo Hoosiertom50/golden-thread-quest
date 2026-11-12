@@ -154,4 +154,13 @@ attempts:
   evidence_path: participant/evidence/playwright-data-isolation/playwright-attempt-007
   submission_id: submission-20261111224407-7495a0
   review_id: review-20261111225120-60fcc8
-updated_at: '2026-11-11T22:51:20Z'
+- attempt_id: playwright-attempt-008
+  quest_id: playwright-api-assisted-test
+  quest_version: 1
+  content_hash: sha256:811a1b17b71e46aed9d70ec283fb3281cb5461ff7a6744777103258d7ec4ecda
+  state: submitted
+  started_at: '2026-11-12T14:09:38Z'
+  updated_at: '2026-11-12T16:24:45Z'
+  evidence_path: participant/evidence/playwright-api-assisted-test/playwright-attempt-008
+  submission_id: submission-20261112162445-970909
+updated_at: '2026-11-12T16:24:45Z'
