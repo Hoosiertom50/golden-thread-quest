@@ -51,4 +51,5 @@ def test_a_quest_not_yet_submitted_has_no_button(content_repo: Path, tmp_path: P
     assert started.returncode == 0, started.stderr
     config = AppConfig.for_repo(content_repo, participant_root=participant)
 
-    assert "Check for my review" not in _page(config, REVIEWED, online=True)
+    # The evidence page's prose names the button, so the test looks for the button's form.
+    assert "/api/action/check-for-review/" not in _page(config, REVIEWED, online=True)
