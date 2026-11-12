@@ -158,9 +158,10 @@ attempts:
   quest_id: playwright-api-assisted-test
   quest_version: 1
   content_hash: sha256:811a1b17b71e46aed9d70ec283fb3281cb5461ff7a6744777103258d7ec4ecda
-  state: submitted
+  state: verified
   started_at: '2026-11-12T14:09:38Z'
-  updated_at: '2026-11-12T16:24:45Z'
+  updated_at: '2026-11-12T16:29:42Z'
   evidence_path: participant/evidence/playwright-api-assisted-test/playwright-attempt-008
   submission_id: submission-20261112162445-970909
-updated_at: '2026-11-12T16:24:45Z'
+  review_id: review-20261112162942-e162b0
+updated_at: '2026-11-12T16:29:42Z'
