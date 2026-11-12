@@ -47,21 +47,25 @@ From a fresh copy of the repository:
    npx playwright install chromium
    ```
 
-4. Run the tests:
+4. Set a made-up API key for the demo app's orders service (any value; a new random one is
+   fine), then run the tests:
 
    ```
+   export TIXLY_API_KEY=$(openssl rand -hex 16)
    npm test
    ```
 
-   Playwright starts the demo app on `http://127.0.0.1:4173`, runs 13 tests in Chromium (the
-   smoke test in `tests/`, the ticket-total test, `first-independent-test.spec.ts`, the 6
-   order-review tests, `model-usage.spec.ts`, the two locator-comparison tests, `brittle.spec.ts`
-   and `stable.spec.ts`, and the 3 data-isolation tests, `isolated.spec.ts`) and stops the app
-   again. A passing run ends with `4 skipped` and `13 passed`: the 4 skipped tests only run when
-   asked (see "Saved orders and test data" below). The page tests find everything through the page
+   The key lasts for that terminal window; see "Credentials" below. Playwright starts the demo app
+   on `http://127.0.0.1:4173`, runs 15 tests in Chromium (the smoke test in `tests/`, the
+   ticket-total test, `first-independent-test.spec.ts`, the 6 order-review tests,
+   `model-usage.spec.ts`, the two locator-comparison tests, `brittle.spec.ts` and `stable.spec.ts`,
+   the 3 data-isolation tests, `isolated.spec.ts`, and the two cancel tests, `api-assisted.spec.ts`
+   and `ui-only.spec.ts`) and stops the app again. A passing run ends with `4 skipped` and
+   `15 passed`: the 4 skipped tests only run when asked (see "Saved orders and test data" below). The page tests find everything through the page
    models in `pages/`, except the locator-comparison and data tests, which write their locators out.
    To run only some tests, use their tag: `npx playwright test --grep @ticket-total`,
-   `--grep @order-review`, `--grep @locator-comparison` or `--grep @data-isolated`.
+   `--grep @order-review`, `--grep @locator-comparison`, `--grep @data-isolated`,
+   `--grep @api-assisted` or `--grep @ui-only`.
 
    **Brittle and stable locators.** `brittle.spec.ts` finds things by how the page is built
    (positions, generated names, a path); `stable.spec.ts` checks the same thing by what a user
@@ -111,6 +115,30 @@ From a fresh copy of the repository:
    (`TIXLY_BASE_URL`), add `--orders-file <that copy's demo-app/data/orders.json>` to both check
    commands so it looks at the file the tests actually used.
 
+   **API-assisted and UI-only tests.** Both check that a buyer can cancel an order on "Your
+   orders". `api-assisted.spec.ts` creates the order through the orders service (the API), cancels
+   it on the screen, and checks through the API that it is really gone and that the orders from
+   before the run are untouched. `ui-only.spec.ts` does the whole thing through the screen (events
+   page, review page, save, then cancel) and checks only what the screen shows.
+   `context/playwright/api-boundary.md` (in `participant/`) says what the API-assisted test trusts
+   the API for and what it doesn't. To see the difference, make a broken copy of the app where
+   Cancel only pretends (it says "cancelled" and hides the row, but nothing is cancelled), start it
+   on another port with the same key, and point both tests at it:
+
+   ```
+   node tools/break-cancel.ts /tmp/tixly-broken
+   TIXLY_DEMO_PORT=4191 node /tmp/tixly-broken/server.js
+   ```
+
+   (`break-cancel.ts` only writes into a new or empty folder, so delete `/tmp/tixly-broken`, or pick
+   another folder, before making the copy again.)
+
+   then, in a second terminal (with the same `TIXLY_API_KEY`),
+   `TIXLY_BASE_URL=http://127.0.0.1:4191 npx playwright test api-assisted.spec.ts ui-only.spec.ts`.
+   The API-assisted test fails at its API check; the UI-only test passes, because the screen looks
+   right. `TIXLY_DEMO_DELAY_MS=300` (0 to 5000) makes the demo app wait that long before every
+   answer, a stand-in for a network when timing the two tests; it is off unless set.
+
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
    repository for credentials. This step also needs the repository's Python environment
    (`.venv`), which you have once the quest app is set up as the repository's main README
@@ -130,6 +158,8 @@ the environment:
   refuses any other address, so the tests can't reach a public or production site by mistake.
 - `TIXLY_DEMO_PORT`: the port the demo app uses, `4173` unless set. Change it if that port is
   already in use.
+- `TIXLY_DEMO_DELAY_MS`: an optional simulated network delay for the demo app, in milliseconds
+  (0 to 5000, off unless set); see "API-assisted and UI-only tests" above.
 
 For example, to use another port for one run:
 
@@ -139,10 +169,14 @@ TIXLY_DEMO_PORT=5174 npm test
 
 ## Credentials
 
-The demo app needs no login, so no credentials are used. If a later test needs one, read it from an
-environment variable in the test (for example `process.env.TIXLY_TEST_PASSWORD`) and set it in your
-terminal before running. Never write a password, token or session cookie into a test, this folder
-or a log. Environment files in this folder (`.env`, and names such as `.env.local`, `.env-local`,
+The demo app has no buyer login. Its orders service answers the app's own pages, and anything
+else (the tests, the tools, a script) only with its API key: a made-up value from the environment
+variable `TIXLY_API_KEY`, which the demo app reads when it starts and the tests send in a request
+header. Set it in your terminal before running (step 4); the demo app and the tests must use the
+same one. The tests send it only from Node (`support/global-setup.ts`), never from the browser, so
+it can't appear on a page, in a screenshot or in a trace, and nothing prints it. If a later test
+needs another credential, read it from an environment variable the same way. Never write a
+password, token or session cookie into a test, this folder or a log. Environment files in this folder (`.env`, and names such as `.env.local`, `.env-local`,
 `.env_production` or `production.env`) are ignored by Git, so they can't be committed by accident;
 only `.env.example` is kept.
 
@@ -165,6 +199,7 @@ and running the tests creates `test-results/` and `playwright-report/`; none of 
 | The run seems to hang before any test starts | A program on the port is accepting connections but not answering. Press Ctrl+C, then run `TIXLY_DEMO_PORT=5174 npm test`. |
 | `TIXLY_DEMO_PORT must be a whole number from 1 to 65535` | `TIXLY_DEMO_PORT` is set but empty, `0` or not a port number. Unset it (`unset TIXLY_DEMO_PORT`) to use 4173, or set a port such as `5174`. |
 | `TIXLY_BASE_URL must point at this computer` | `TIXLY_BASE_URL` is set to another site. Unset it (`unset TIXLY_BASE_URL`) or point it at `http://127.0.0.1:<port>`. |
+| `The orders service refused the request (401): TIXLY_API_KEY isn't set` (or `isn't the key the app was started with`) | Set a made-up key in the terminal you run the tests from, `export TIXLY_API_KEY=$(openssl rand -hex 16)`, and run again. If you started a demo app by hand, start it from a terminal with the same key. |
 | `A lock on data/orders.json was left by a demo app that stopped without removing it` | A demo app was killed outright (or crashed) while running. Make sure none is running, delete `demo-app/data/orders.json.lock`, and run again. |
 | The test fails on a check | Open the report with `npx playwright show-report`; the trace and screenshot of the failure are in `test-results/`. |
 

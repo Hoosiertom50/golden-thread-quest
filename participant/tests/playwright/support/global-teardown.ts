@@ -14,7 +14,7 @@
 //   - the app has no orders service at all (answers 404), such as demo-app-redesigned/, used by
 //     tests that never save an order.
 
-import { ask } from "./global-setup.ts";
+import { ask, baseUrl } from "./global-setup.ts";
 import { runMarker, type SavedOrder } from "./orders-fixture.ts";
 
 export default async function globalTeardown(): Promise<void> {
@@ -26,7 +26,7 @@ export default async function globalTeardown(): Promise<void> {
   }
   const before = new Set(JSON.parse(preexisting) as string[]);
   // new URL keeps the path right whether or not the base address ends in "/".
-  const base = process.env.TIXLY_BASE_URL ?? `http://127.0.0.1:${process.env.TIXLY_DEMO_PORT ?? "4173"}`;
+  const base = baseUrl();
   const listing = await ask(new URL("/api/orders", base));
   if (listing.status === 404) return;
   if (!listing.ok) throw new Error(`Safety net: the orders service answered ${listing.status}.`);
