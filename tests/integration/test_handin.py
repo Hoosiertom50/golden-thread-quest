@@ -303,6 +303,40 @@ def test_hand_in_with_nothing_left_out_says_nothing_about_it(world: dict[str, Pa
     assert "Not sent" not in outcome.to_text()
 
 
+def test_ignored_build_output_is_one_quiet_line_not_a_secrets_warning(
+    world: dict[str, Path],
+) -> None:
+    """Pilot feedback, PR #27: a Playwright project's `node_modules`, report and test output
+    were listed as "named like passwords or keys"."""
+    participant = world["participant"]
+    (participant / ".gitignore").write_text(
+        "node_modules/\nplaywright-report/\ntest-results/\n*.token\n"
+    )
+    for folder, name in (
+        ("node_modules/pkg", "index.js"),
+        ("playwright-report", "index.html"),
+        ("test-results", ".last-run.json"),
+    ):
+        (participant / EVIDENCE / folder).mkdir(parents=True, exist_ok=True)
+        (participant / EVIDENCE / folder / name).write_text("x\n")
+    outcome = hand_in(participant, runner=FakeGh())
+    text = outcome.to_text()
+    assert "3 files ignored by Git" in text
+    assert "named like passwords" not in text
+    assert "node_modules" not in text
+
+
+def test_build_output_does_not_hide_a_real_secret_like_file(world: dict[str, Path]) -> None:
+    participant = world["participant"]
+    (participant / ".gitignore").write_text("node_modules/\n*.token\n")
+    (participant / EVIDENCE / "node_modules").mkdir()
+    (participant / EVIDENCE / "node_modules" / "a.js").write_text("x\n")
+    (participant / EVIDENCE / "api.token").write_text("redacted\n")
+    text = hand_in(participant, runner=FakeGh()).to_text()
+    assert "1 file ignored by Git" in text
+    assert f"{EVIDENCE}/api.token" in text and "named like passwords" in text
+
+
 def test_a_left_out_name_is_shown_as_it_was_saved(world: dict[str, Path]) -> None:
     participant = world["participant"]
     (participant / ".gitignore").write_text("*.token\n")

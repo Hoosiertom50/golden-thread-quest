@@ -115,6 +115,10 @@ keys (for example `something.token`, or anything in a `secrets` folder), so they
 handed in. If one of them is a file the quest asks for, take any secret out of it, save it
 under the name the evidence page shows, and run `gtq hand-in` again.
 
+If it says **"Left out: N files ignored by Git"**, those are dependencies and test output
+such as `node_modules` and `test-results`. Nothing sensitive is involved and your reviewer
+does not need them.
+
 You do not need to tell anyone. An automatic check runs on your pull request within a few
 minutes and leaves a comment on it: either what to fix, or that it is waiting for a reviewer.
 That comment is not a review.
