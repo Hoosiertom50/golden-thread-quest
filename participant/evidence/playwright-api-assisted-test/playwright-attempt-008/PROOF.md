@@ -131,19 +131,20 @@ and the UI-only test passes.
    to cancel, it is this check that fails ("the cancelled order is gone from the orders service",
    expected false, received true).
 4. **The API-assisted test takes less than half the time of the UI-only version:**
-   `logs/timing-run.txt`, part 1, on this computer, 5 runs of each taking turns: medians 205 ms and
-   446 ms, 46%, under half. Part 2, with a simulated network delaying every answer by 300 ms: 3,147
-   ms and 3,377 ms, 93%, not under half. So on this computer the API-assisted test is under half,
-   but only just, and with the simulated network it is not. Why the gap is small: most of its time
-   is the part both versions share (loading "Your orders", clicking Cancel and waiting for the page
-   to show the result, which includes the row disappearing from the list), while the walk the API
-   lets it skip is only two small pages on an app running on this computer; and it adds requests of
-   its own (a listing before, the creation, a listing after and a cleanup). With the simulated
-   network every answer costs the same 300 ms, page or API alike, so those added requests use up
-   most of what skipping the pages saves. On a real site a page (styles, scripts, images and its own
-   data requests) costs far more than an API call, so the saving grows with each slow page the API
-   lets a test skip. The simulated runs of the UI-only test also vary more (3,337 to 3,833 ms),
-   because its screen checks retry until each slow answer arrives.
+   `logs/timing-run.txt`, part 1, on this computer, 5 runs of each taking turns: medians 210 ms and
+   420 ms, 50%, not under half. Part 2, with a simulated network delaying every answer by 300 ms:
+   3,142 ms and 4,296 ms, 73%, not under half. So on these numbers the API-assisted test is not
+   under half. Why the gap is small: most of its time is the part both versions share (loading "Your
+   orders", clicking Cancel and waiting for the page to show the result, which includes the row
+   disappearing from the list), while the walk the API lets it skip is only two small pages on an
+   app running on this computer; and it adds requests of its own (a listing before, the creation, a
+   listing after and a cleanup). With the simulated network every answer costs the same 300 ms, page
+   or API alike, so those added requests use up most of what skipping the pages saves. On a real
+   site, where a page (styles, scripts, images and its own data requests) usually costs more than an
+   API call, the saving would grow with each slow page the API lets a test skip; that depends on the
+   site (a cached page or a slow API call could reverse it) and isn't measured here. The simulated
+   runs of the UI-only test also vary more (3,808 to 4,330 ms), because its screen checks retry
+   until each slow answer arrives.
 5. **Breaking the UI behavior makes the API-assisted test fail:** `logs/timing-run.txt`, part 3, the
    broken copy's three changed lines, then the API-assisted test failing at its API check while the
    screen check before it passed; the UI-only test passes against the same broken copy.
@@ -152,14 +153,18 @@ and the UI-only test passes.
    `logs/timing-run.txt`, part 5: its actual value was found in none of the 25 files left by the
    failed run (its trace, searched file by file inside, and 2 screenshots), none of the 50 files
    after a run recorded with tracing on (2 traces), none of the 28 command outputs (including the
-   broken copy's server), and not in the log; the repository's credential scan of the log found 0.
+   broken copy's server), and not in the log; the repository's credential scan of the log found 0. A
+   file search can't read text drawn into a screenshot, so the screenshots rest on a stronger fact:
+   the key never reaches the browser (it is sent only from Node), so no page can show it. I also
+   looked at a failure screenshot from the broken copy: it shows "Your orders" with the three real
+   orders and the "cancelled" message, and nothing like a key.
 7. **The note says what the API is not trusted for:** `context/playwright/api-boundary.md`, "What
    the test refuses to trust the API for": the behavior under test, what the buyer sees, that an
    order made through the API is just like a buyer's, and anything about the other pages.
 
 ## What was tested or validated
 
-- **The timing run** (`logs/timing-run.txt`, 11-12-2026, 10:25 AM to 10:26 AM): as described under
+- **The timing run** (`logs/timing-run.txt`, 11-12-2026, 10:35 AM to 10:36 AM): as described under
   criteria 1 and 3 to 6.
 - **The key itself** was tried before any test used it, on a scratch copy of the app: listing the
   orders with no key and with a wrong key gave 401, with the right key the 3 orders, and the "Your
@@ -180,7 +185,7 @@ and the UI-only test passes.
   and the screen looking fine while the API check failed. Wrong on time: I guessed 2 and 6 seconds,
   then 3; the tests took about 0.2 and 0.44 seconds. I expected the simulated network to make the
   API-assisted test come in under half; it made the gap smaller. For the recorded timing I said
-  "about half, not under"; it came out at 46%.
+  "about half, not under"; it came out at 50%.
 - **This quest has no automatic checker.** The criteria above were checked against the files and the
   log.
 
@@ -212,5 +217,6 @@ and the UI-only test passes.
 
 No password, token, customer name or private ticket content is here. The only credential is the
 orders service's API key: made up, new for each recording, set in the environment and never written
-down; the checks above show it in no output, trace, screenshot or log. Every name in the demo app
-and the log is made up, and the log shows personal home-folder paths as `~`.
+down; the checks above found it in no output, trace or log, and it never reaches the browser, so no
+screenshot can show it. Every name in the demo app and the log is made up, and the log shows
+personal home-folder paths as `~`.
