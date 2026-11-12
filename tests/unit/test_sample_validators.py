@@ -13,7 +13,8 @@ from pathlib import Path
 from quest_app.safe_io import MAX_EVIDENCE_FILE_BYTES
 from quest_app.validator_runner import ValidatorOutput, Workspace
 from validators.jira_read_assigned import _check_disappearances_reported
-from validators.playwright_quality import BRITTLE_SELECTORS, run as run_playwright_quality
+from validators.playwright_quality import BRITTLE_SELECTORS
+from validators.playwright_quality import run as run_playwright_quality
 from validators.repository_foundation import _check_ignore_rules, _check_no_secrets_in_evidence
 
 STALE_FIXTURE = json.loads(Path("validators/fixtures/jira/stale-item.json").read_text())
