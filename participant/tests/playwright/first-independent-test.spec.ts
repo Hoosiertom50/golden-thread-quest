@@ -17,8 +17,9 @@ const EXPECTED_TOTAL = "Total: $55.00";
 
 test(
   "a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket",
-  // Tags: feature, risk, read-only/write, expected duration. Run just this one with --grep @ticket-total.
-  { tag: ["@ticket-total", "@risk-high", "@read-only", "@fast"] },
+  // Tags from the scheme (participant/context/playwright/tag-scheme.md): feature, risk, read or write,
+  // layer and duration. It was tagged @ticket-total before the scheme; that tag was folded into @events.
+  { tag: ["@events", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
   async ({ page }, testInfo) => {
     const eventsPage = new UpcomingEventsPage(page);
     await eventsPage.open();

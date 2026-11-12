@@ -56,16 +56,34 @@ From a fresh copy of the repository:
    ```
 
    The key lasts for that terminal window; see "Credentials" below. Playwright starts the demo app
-   on `http://127.0.0.1:4173`, runs 15 tests in Chromium (the smoke test in `tests/`, the
+   on `http://127.0.0.1:4173`, runs 23 tests in Chromium (the smoke test in `tests/`, the
    ticket-total test, `first-independent-test.spec.ts`, the 6 order-review tests,
    `model-usage.spec.ts`, the two locator-comparison tests, `brittle.spec.ts` and `stable.spec.ts`,
-   the 3 data-isolation tests, `isolated.spec.ts`, and the two cancel tests, `api-assisted.spec.ts`
-   and `ui-only.spec.ts`) and stops the app again. A passing run ends with `4 skipped` and `15
-   passed`: the 4 skipped tests only run when asked (see "Saved orders and test data" below). The
-   page tests find everything through the page models in `pages/`, except the locator-comparison and
-   data tests, which write their locators out. To run only some tests, use their tag: `npx
-   playwright test --grep @ticket-total`, `--grep @order-review`, `--grep @locator-comparison`,
-   `--grep @data-isolated`, `--grep @api-assisted` or `--grep @ui-only`.
+   the 3 data-isolation tests, `isolated.spec.ts`, the two cancel tests, `api-assisted.spec.ts` and
+   `ui-only.spec.ts`, and the 8 tagging tests, `tagged.spec.ts`) and stops the app again. A passing
+   run ends with `4 skipped` and `23 passed`: the 4 skipped tests only run when asked (see "Saved
+   orders and test data" below). The page tests find everything through the page models in `pages/`,
+   except the locator-comparison, data and cancel tests, which write their locators out.
+
+   **Tags.** Every test carries one tag from each of five dimensions, from the one-page scheme in
+   `context/playwright/tag-scheme.md` (in `participant/`): a feature (`@events`, `@order-review`,
+   `@saved-orders`), a risk (`@risk-high`, `@risk-medium`, `@risk-low`), read or write
+   (`@read-only`, `@writes-data`), a layer (`@layer-ui`, `@layer-api`, `@layer-mixed`) and a
+   duration (`@fast`, at most 2 seconds; `@slow`, at most 30), and may carry one suite tag
+   (`@locator-comparison`, `@data-isolated`, `@data-coupled`, `@api-assisted`, `@ui-only`). Run a
+   set by tag, for example `npx playwright test --grep @fast`, `--grep @saved-orders`, or
+   `--grep-invert @writes-data` to leave out every test that changes saved data. To check that every
+   test follows the scheme, and that no test ran over its duration limit, run the tests with a JSON
+   report and then the check:
+
+   ```
+   PLAYWRIGHT_JSON_OUTPUT_FILE=/tmp/tixly-run.json npx playwright test --reporter=json
+   node tools/tagging-check.ts --results /tmp/tixly-run.json
+   ```
+
+   It ends with PASS, or FAIL naming each test with a missing, doubled or unknown tag, or that ran
+   over its limit. Without `--results` it checks the tags only. Don't write `@` in a test's title:
+   Playwright counts any `@word` in a title as a tag too.
 
    **Brittle and stable locators.** `brittle.spec.ts` finds things by how the page is built
    (positions, generated names, a path); `stable.spec.ts` checks the same thing by what a user

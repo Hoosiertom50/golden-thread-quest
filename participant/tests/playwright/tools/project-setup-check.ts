@@ -69,6 +69,7 @@ const MUST_NOT_BE_IGNORED: string[] = [
   "cleanup-proof.spec.ts",
   "api-assisted.spec.ts",
   "ui-only.spec.ts",
+  "tagged.spec.ts",
   "support/global-setup.ts",
   "support/global-teardown.ts",
   "support/orders-fixture.ts",
@@ -87,6 +88,7 @@ const MUST_NOT_BE_IGNORED: string[] = [
   "tools/run-in-order.ts",
   "tools/data-isolation-check.ts",
   "tools/break-cancel.ts",
+  "tools/tagging-check.ts",
   ".gitignore",
   ".env.example",
 ];
