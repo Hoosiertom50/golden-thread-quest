@@ -31,13 +31,15 @@ if (!/^[1-9][0-9]{0,4}$/.test(portSetting) || Number(portSetting) > 65535) {
 }
 const port = Number(portSetting);
 
-// A stand-in for a network, off unless asked for: TIXLY_DEMO_DELAY_MS (0 to 5000) holds every answer,
+// A stand-in for a network, off unless asked for: TIXLY_DEMO_DELAY_MS (0 to 1000) holds every answer,
 // pages and orders service alike, for that many milliseconds. On this computer everything answers
 // at once, so timings here would understate what a slow page costs on a real site; the delay is
 // only ever a labelled simulation, used to compare tests (the API-assisted test quest).
 const delaySetting = process.env.TIXLY_DEMO_DELAY_MS ?? "0";
-if (!/^[0-9]{1,4}$/.test(delaySetting) || Number(delaySetting) > 5000) {
-  console.error(`TIXLY_DEMO_DELAY_MS must be a whole number from 0 to 5000, not "${delaySetting}"`);
+// At most 1000 ms: a test waits for about ten answers in a row and each check gives a page 5 seconds,
+// so longer delays would make a working app fail the tests' time limits.
+if (!/^[0-9]{1,4}$/.test(delaySetting) || Number(delaySetting) > 1000) {
+  console.error(`TIXLY_DEMO_DELAY_MS must be a whole number from 0 to 1000, not "${delaySetting}"`);
   process.exit(1);
 }
 const delay = Number(delaySetting);

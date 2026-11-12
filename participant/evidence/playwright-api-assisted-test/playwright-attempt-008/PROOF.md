@@ -131,19 +131,19 @@ and the UI-only test passes.
    to cancel, it is this check that fails ("the cancelled order is gone from the orders service",
    expected false, received true).
 4. **The API-assisted test takes less than half the time of the UI-only version:**
-   `logs/timing-run.txt`, part 1, on this computer, 5 runs of each taking turns: medians 231 ms and
-   443 ms, 52%, not under half. Part 2, with a simulated network delaying every answer by 300 ms:
-   3,140 ms and 4,332 ms, 72%, not under half. So on these numbers the API-assisted test is not
-   under half. Why not: most of its time is the part both versions share (loading "Your orders",
-   clicking Cancel and waiting for the page to show the result, which includes the row disappearing
-   from the list), while the walk the API lets it skip is only two small pages on an app running on
-   this computer; and it adds requests of its own (a listing before, the creation, a listing after
-   and a cleanup). With the simulated network every answer costs the same 300 ms, page or API alike,
-   so those added requests use up most of what skipping the pages saves. On a real site a page
-   (styles, scripts, images and its own data requests) costs far more than an API call, so the
-   saving grows with each slow page the API lets a test skip. The simulated runs of the UI-only test
-   also vary more (3,819 to 4,628 ms), because its screen checks retry until each slow answer
-   arrives.
+   `logs/timing-run.txt`, part 1, on this computer, 5 runs of each taking turns: medians 205 ms and
+   446 ms, 46%, under half. Part 2, with a simulated network delaying every answer by 300 ms: 3,147
+   ms and 3,377 ms, 93%, not under half. So on this computer the API-assisted test is under half,
+   but only just, and with the simulated network it is not. Why the gap is small: most of its time
+   is the part both versions share (loading "Your orders", clicking Cancel and waiting for the page
+   to show the result, which includes the row disappearing from the list), while the walk the API
+   lets it skip is only two small pages on an app running on this computer; and it adds requests of
+   its own (a listing before, the creation, a listing after and a cleanup). With the simulated
+   network every answer costs the same 300 ms, page or API alike, so those added requests use up
+   most of what skipping the pages saves. On a real site a page (styles, scripts, images and its own
+   data requests) costs far more than an API call, so the saving grows with each slow page the API
+   lets a test skip. The simulated runs of the UI-only test also vary more (3,337 to 3,833 ms),
+   because its screen checks retry until each slow answer arrives.
 5. **Breaking the UI behavior makes the API-assisted test fail:** `logs/timing-run.txt`, part 3, the
    broken copy's three changed lines, then the API-assisted test failing at its API check while the
    screen check before it passed; the UI-only test passes against the same broken copy.
@@ -159,7 +159,7 @@ and the UI-only test passes.
 
 ## What was tested or validated
 
-- **The timing run** (`logs/timing-run.txt`, 11-12-2026, 10:07 AM to 10:08 AM): as described under
+- **The timing run** (`logs/timing-run.txt`, 11-12-2026, 10:25 AM to 10:26 AM): as described under
   criteria 1 and 3 to 6.
 - **The key itself** was tried before any test used it, on a scratch copy of the app: listing the
   orders with no key and with a wrong key gave 401, with the right key the 3 orders, and the "Your
@@ -180,7 +180,7 @@ and the UI-only test passes.
   and the screen looking fine while the API check failed. Wrong on time: I guessed 2 and 6 seconds,
   then 3; the tests took about 0.2 and 0.44 seconds. I expected the simulated network to make the
   API-assisted test come in under half; it made the gap smaller. For the recorded timing I said
-  "about half, not under"; it came out at 52%.
+  "about half, not under"; it came out at 46%.
 - **This quest has no automatic checker.** The criteria above were checked against the files and the
   log.
 

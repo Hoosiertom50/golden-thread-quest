@@ -136,7 +136,7 @@ From a fresh copy of the repository:
    then, in a second terminal (with the same `TIXLY_API_KEY`),
    `TIXLY_BASE_URL=http://127.0.0.1:4191 npx playwright test api-assisted.spec.ts ui-only.spec.ts`.
    The API-assisted test fails at its API check; the UI-only test passes, because the screen looks
-   right. `TIXLY_DEMO_DELAY_MS=300` (0 to 5000) makes the demo app wait that long before every
+   right. `TIXLY_DEMO_DELAY_MS=300` (0 to 1000) makes the demo app wait that long before every
    answer, a stand-in for a network when timing the two tests; it is off unless set.
 
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
@@ -159,7 +159,7 @@ the environment:
 - `TIXLY_DEMO_PORT`: the port the demo app uses, `4173` unless set. Change it if that port is
   already in use.
 - `TIXLY_DEMO_DELAY_MS`: an optional simulated network delay for the demo app, in milliseconds
-  (0 to 5000, off unless set); see "API-assisted and UI-only tests" above.
+  (0 to 1000, off unless set); see "API-assisted and UI-only tests" above.
 
 For example, to use another port for one run:
 
