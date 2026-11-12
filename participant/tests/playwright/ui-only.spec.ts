@@ -12,7 +12,7 @@ import { expect, test } from "./support/orders-fixture.ts";
 
 test(
   "a buyer cancels an order (UI-only: saved and cancelled through the screen)",
-  { tag: ["@ui-only", "@risk-medium", "@writes-data"] },
+  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@ui-only"] },
   async ({ page, orders }) => {
     const name = orders.uniqueName();
 

@@ -9,7 +9,7 @@ import { expect, test } from "./support/orders-fixture.ts";
 
 test(
   "a buyer saves an order and sees it in Your orders (isolated)",
-  { tag: ["@data-isolated", "@risk-medium", "@writes-data", "@fast"] },
+  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-isolated"] },
   async ({ page, orders }) => {
     const name = orders.uniqueName();
     await page.goto("/review?event=spring-concert&quantity=2");
@@ -52,7 +52,7 @@ test(
 
 test(
   "a buyer cancels their own order (isolated: makes the order it cancels)",
-  { tag: ["@data-isolated", "@risk-medium", "@writes-data", "@fast"] },
+  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast", "@data-isolated"] },
   async ({ page, orders }) => {
     // Setup through the orders service: this test is about cancelling, not saving.
     const order = await orders.create({ quantity: 1 });
@@ -70,7 +70,7 @@ test(
 
 test(
   "cancelling one buyer's order leaves another buyer's order in Your orders (isolated)",
-  { tag: ["@data-isolated", "@risk-medium", "@writes-data", "@fast"] },
+  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast", "@data-isolated"] },
   async ({ page, orders }) => {
     // Two orders of its own: one to cancel, one that must survive.
     const toCancel = await orders.create({ quantity: 1 });
