@@ -14,8 +14,9 @@ from __future__ import annotations
 import json
 import subprocess
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 WORKFLOW = "pilot-precheck.yml"
 # Long enough for a pre-check to start and finish (it takes about 30 seconds), and for GitHub to
@@ -37,7 +38,7 @@ def _when(text: str) -> datetime:
     return datetime.fromisoformat(text.replace("Z", "+00:00"))
 
 
-def is_stuck(pr: dict, runs: list[dict], now: datetime) -> bool:
+def is_stuck(pr: dict[str, Any], runs: list[dict[str, Any]], now: datetime) -> bool:
     """True when this pull request's current commit has no pre-check that finished well.
 
     A run still queued or in progress is not stuck, and nothing is stuck before `GRACE`.
@@ -56,7 +57,7 @@ def sweep(
     repo: str, state: Path, notify: Callable[[str], None], now: datetime | None = None, run: Gh = gh
 ) -> list[int]:
     """Restart stuck pre-checks. Returns the pull requests it acted on."""
-    now = now or datetime.now(UTC)
+    now = now or datetime.now(timezone.utc)
     path = state / "precheck-watchdog.json"
     try:
         tried: dict[str, str] = json.loads(path.read_text(encoding="utf-8"))
