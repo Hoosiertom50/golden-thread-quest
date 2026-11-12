@@ -17,7 +17,7 @@ titles don't use `@`. Decisions by Tom Carter; wording drafted with Claude (Clau
 |---|---|
 | `@risk-high` | Money is wrong, or an order is lost, wrongly kept or belongs to the wrong buyer. |
 | `@risk-medium` | The buyer is blocked or misled, but no money or order is lost. |
-| `@risk-low` | Cosmetic or wording only. |
+| `@risk-low` | Cosmetic or wording only, or a check of the tests' own helpers that no buyer uses. |
 
 ## 3. Read or write: whether the test changes saved data
 | Tag | Means |

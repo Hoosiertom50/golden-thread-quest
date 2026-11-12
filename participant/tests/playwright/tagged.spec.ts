@@ -74,6 +74,8 @@ test(
     if (answer.status === 201) await orders.trackSavedBy(name);
     expect(answer.status, "a 7-ticket order is refused").toBe(400);
     expect(body.error).toBe("Choose from 1 to 6 tickets.");
+    // Refused means not saved, whatever the answer says: no order with this name is listed.
+    expect((await orders.list()).some((saved) => saved.name === name), "the refused order isn't saved").toBe(false);
   },
 );
 
@@ -90,7 +92,9 @@ test(
     const saved = JSON.parse(readFileSync(new URL("./demo-app/data/orders.json", import.meta.url), "utf8")) as { name: string }[];
     const real = saved.filter((order) => !order.name.startsWith("Test User"));
     expect(real.length, "the orders file has saved orders that aren't test data").toBeGreaterThan(0);
-    const listed = await orders.list();
+    // Exactly those orders: each one listed as saved, and nothing else (no copies, nothing made up).
+    const listed = (await orders.list()).filter((order) => !order.name.startsWith("Test User"));
+    expect(listed).toHaveLength(real.length);
     for (const order of real) expect(listed).toContainEqual(order);
   },
 );

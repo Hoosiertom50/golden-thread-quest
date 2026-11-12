@@ -29,15 +29,20 @@ type Test = { id: string; title: string; file: string; line: number; tags: strin
 type Suite = { specs?: { id: string; title: string; file: string; line: number; tags?: string[]; tests?: { results?: { duration?: unknown; status?: string }[] }[] }[]; suites?: Suite[] };
 
 const args = process.argv.slice(2);
-const resultsFlag = args.indexOf("--results");
-const resultsFile = resultsFlag === -1 ? undefined : args[resultsFlag + 1];
-if (resultsFlag !== -1 && !resultsFile) {
-  console.error("--results needs the path of a Playwright JSON report.");
-  process.exit(2);
+// The value after a flag, or a stop (exit 2) if it's missing or is another flag.
+function valueOf(flag: string, what: string): string | undefined {
+  const at = args.indexOf(flag);
+  if (at === -1) return undefined;
+  const value = args[at + 1];
+  if (!value || value.startsWith("--")) {
+    console.error(`${flag} needs ${what}.`);
+    process.exit(2);
+  }
+  return value;
 }
-const schemeFlag = args.indexOf("--scheme");
-const schemeFile =
-  schemeFlag === -1 ? fileURLToPath(new URL("../../../context/playwright/tag-scheme.md", import.meta.url)) : resolve(args[schemeFlag + 1] ?? "");
+const resultsFile = valueOf("--results", "the path of a Playwright JSON report");
+const schemeValue = valueOf("--scheme", "the path of a tag scheme page");
+const schemeFile = schemeValue === undefined ? fileURLToPath(new URL("../../../context/playwright/tag-scheme.md", import.meta.url)) : resolve(schemeValue);
 
 // --- The vocabulary, from the scheme page. ---------------------------------------------------
 if (!existsSync(schemeFile)) {
@@ -48,11 +53,21 @@ const scheme = readFileSync(schemeFile, "utf8");
 const dimensions = new Map<string, Set<string>>();
 const suiteTags = new Set<string>();
 const limits = new Map<string, number>();
+const KNOWN_SECTIONS = new Set(["Feature", "Risk", "Read or write", "Layer", "Duration", "Suite"]);
 let section = "";
+let fenced = false;
 for (const line of scheme.split("\n")) {
-  const heading = /^## (?:\d+\. )?([A-Za-z ]+?)(?::| \(|$)/.exec(line);
-  if (heading) {
-    section = heading[1].trim();
+  // Examples in a fenced block (between ``` lines) are never definitions.
+  if (line.trimStart().startsWith("```")) {
+    fenced = !fenced;
+    continue;
+  }
+  if (fenced) continue;
+  // Every level-two heading starts a new section; only the five dimensions and the suite group
+  // define tags, so rows under any other heading (examples, notes) are not part of the vocabulary.
+  if (line.startsWith("## ")) {
+    const heading = /^## (?:\d+\. )?([A-Za-z ]+?)(?::| \(|$)/.exec(line);
+    section = heading && KNOWN_SECTIONS.has(heading[1].trim()) ? heading[1].trim() : "";
     continue;
   }
   if (!section) continue;
@@ -137,10 +152,26 @@ if (resultsFile) {
   // which also tells apart two tests with the same title and line in different groups. A test's
   // time is its longest attempt that wasn't skipped.
   const longest = new Map<string, number | "skipped">();
+  let results = 0;
+  const malformed = (what: string) => {
+    console.error(`${resultsFile} isn't a Playwright JSON report of a run (${what}).`);
+    process.exit(2);
+  };
+  const isObject = (value: unknown) => typeof value === "object" && value !== null && !Array.isArray(value);
+  const listOf = (value: unknown, what: string): unknown[] => {
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) malformed(`${what} isn't a list`);
+    return value as unknown[];
+  };
   const walk = (suite: Suite) => {
-    for (const spec of suite.specs ?? []) {
-      for (const run of spec.tests ?? []) {
-        for (const result of run.results ?? []) {
+    if (!isObject(suite)) malformed("a suite isn't an object");
+    for (const spec of listOf(suite.specs, "a suite's specs") as NonNullable<Suite["specs"]>) {
+      if (!isObject(spec) || typeof spec.id !== "string") malformed("a spec has no id");
+      for (const run of listOf(spec.tests, "a spec's tests") as NonNullable<NonNullable<Suite["specs"]>[number]["tests"]>) {
+        if (!isObject(run)) malformed("a test isn't an object");
+        for (const result of listOf(run.results, "a test's results") as { duration?: unknown; status?: string }[]) {
+          if (!isObject(result)) malformed("a result isn't an object");
+          results += 1;
           if (result.status === "skipped") {
             if (!longest.has(spec.id)) longest.set(spec.id, "skipped");
             continue;
@@ -155,9 +186,10 @@ if (resultsFile) {
         }
       }
     }
-    for (const child of suite.suites ?? []) walk(child);
+    for (const child of listOf(suite.suites, "a suite's suites") as Suite[]) walk(child);
   };
   for (const suite of report.suites as Suite[]) walk(suite);
+  if (results === 0) malformed("it holds no test results");
   for (const test of tests) {
     const found = longest.get(test.id);
     if (found === undefined) test.timing = "missing";

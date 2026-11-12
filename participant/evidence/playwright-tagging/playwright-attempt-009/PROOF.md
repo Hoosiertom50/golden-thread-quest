@@ -48,18 +48,20 @@ My decisions:
   group, so nobody has to guess whether a "feature" tag is a feature or a technique.
 - **Risk comes from my impact scale** from the risk-strategy quest: money wrong or an order lost,
   wrongly kept or the wrong buyer's is high; blocked or misled is medium; cosmetic is low.
-- **Three layers,** so the tests that depend on the orders service (and its API key) can be picked
-  out; cleanup behind the scenes doesn't count.
+- **Three layers,** classifying a test's own setup and checks: whether it works through the screen,
+  the orders service or both. Cleanup behind the scenes doesn't count, and every run still uses the
+  orders service (and its API key) in its run-wide setup and safety net, so a layer tag doesn't mean
+  a test can run without it.
 - **Read or write by what could change,** including setup, cleanup and a broken app: the 7-ticket
   test expects nothing to be saved, but a broken app would save it, so it is `@writes-data`.
 - **Two duration levels, checked against a real run** rather than only written down.
 - **The cleanup proofs are `@risk-low`:** they check the test helper's cleanup, not anything a buyer
-  uses.
+  uses; the scheme's low-risk definition says so.
 
 ## How I chose the duration limits
 
 `@fast` is at most 2 seconds because that leaves room for timing wobble: in the recorded run the
-slowest `@fast` test took 0.78 seconds and most took 0.1 to 0.5, and a test's time shifts with the
+slowest `@fast` test took 0.80 seconds and most took 0.1 to 0.5, and a test's time shifts with the
 tests running beside it. `@slow` is at most 30 seconds because that is Playwright's own limit for
 one test. The one `@slow` test takes about 5 seconds (criterion 6).
 
@@ -126,14 +128,14 @@ tools/tagging-check.ts`: it names each one and ends with FAIL.
    `@writes-data` or `@read-only` (part 1), so `--grep-invert @writes-data` leaves out every test
    that changes saved data.
 6. **Duration tags have stated limits:** the scheme's duration table gives 2 seconds for `@fast` and
-   30 for `@slow`, and the check enforces them against a real run: in part 1 every test was within
-   its limit; in part 3 a planted `@fast` test that took 2.59 seconds was reported as over the 2
-   second limit, and the check failed.
+   30 for `@slow`, and the check enforces them against a real run: in part 1 all 23 timed tests were
+   within their limits (the 4 skipped tests weren't timed); in part 3 a planted `@fast` test that
+   took 2.59 seconds was reported as over the 2 second limit, and the check failed.
 7. **The vocabulary fits on one page:** the scheme is 55 lines.
 
 ## What was tested or validated
 
-- **The tag check** (`logs/tag-check.txt`, 11-12-2026, 12:25 PM): parts 1 to 3 as described under
+- **The tag check** (`logs/tag-check.txt`, 11-12-2026, 12:39 PM): parts 1 to 3 as described under
   the criteria; the whole suite showed 23 passed and 4 skipped, and the real orders file was byte
   for byte the committed one afterwards.
 - **The eight new tests** pass; the `@slow` one takes about 5 seconds, the others well under 1.
@@ -144,9 +146,10 @@ tools/tagging-check.ts`: it names each one and ends with FAIL.
 - **My predictions:** right that the check would find no problems in the real project, that it would
   report all three planted tests by name and fail, and that none of the existing tests is slow; and
   test 5 is `@writes-data`, as I reasoned, because a broken app would save. Wrong that the UI-only
-  test is the slowest: in the full run the slowest was the data-isolation quest's test "cancelling
-  one buyer's order leaves another buyer's order in Your orders", because timings shift with the
-  tests running beside each one.
+  test is the slowest of the existing tests: in the recorded run the slowest existing test was
+  "cancelling one buyer's order leaves another buyer's order in Your orders (isolated)" (0.80
+  seconds) while the UI-only test took 0.44, because timings shift with the tests running beside
+  each one.
 - **This quest has no automatic checker.** The criteria above were checked against the files and the
   log.
 
@@ -173,7 +176,9 @@ tools/tagging-check.ts`: it names each one and ends with FAIL.
   `first-independent-test.spec.ts`, `model-usage.spec.ts`, `brittle.spec.ts`, `stable.spec.ts`,
   `coupled.spec.ts`, `isolated.spec.ts`, `cleanup-proof.spec.ts`, `api-assisted.spec.ts` and
   `ui-only.spec.ts` (and the layout of the smoke test and the cleanup proofs, which had no tags),
-  `README.md` and `tools/project-setup-check.ts`. All their tests still pass.
+  `README.md` and `tools/project-setup-check.ts`. The default run still passes (23 passed, 4
+  skipped: the coupled pair and the cleanup proofs, which only run when asked; the proofs fail on
+  purpose).
 - **One test reads the orders file directly:** the listing test compares the orders service with
   this project's own orders file, so it is skipped when the tests are pointed at another copy of the
   app (`TIXLY_BASE_URL`, which the run-order tool also uses).
