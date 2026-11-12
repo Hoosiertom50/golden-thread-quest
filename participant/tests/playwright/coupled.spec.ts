@@ -17,7 +17,7 @@ test.skip(process.env.TIXLY_COUPLED !== "1", "Coupled on purpose and can leave d
 
 test(
   "a buyer saves an order for Test User and sees it in Your orders (coupled)",
-  { tag: ["@data-coupled", "@risk-medium", "@writes-data", "@fast"] },
+  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-coupled"] },
   async ({ page }) => {
     await page.goto("/review?event=spring-concert&quantity=2");
     await page.getByLabel("Your name", { exact: true }).fill("Test User");
@@ -31,7 +31,7 @@ test(
 
 test(
   "a buyer cancels Test User's order (coupled: relies on the order the test above saved)",
-  { tag: ["@data-coupled", "@risk-medium", "@writes-data", "@fast"] },
+  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-coupled"] },
   async ({ page }) => {
     await page.goto("/orders");
 

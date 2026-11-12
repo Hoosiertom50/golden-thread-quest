@@ -14,7 +14,7 @@ import { expect, test } from "./support/orders-fixture.ts";
 
 test(
   "a buyer cancels an order (API-assisted: API setup, cancel on screen, API check)",
-  { tag: ["@api-assisted", "@risk-medium", "@writes-data", "@fast"] },
+  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast", "@api-assisted"] },
   async ({ page, orders }) => {
     // The orders from before the run, as they are now, before this test changes anything: every one
     // global setup noted must still be there (so a save that wiped them would be caught below).

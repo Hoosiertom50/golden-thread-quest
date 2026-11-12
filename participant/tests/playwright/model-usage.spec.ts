@@ -20,7 +20,7 @@ const EVENT = "Spring Concert";
 
 test(
   "a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@fast"] },
+  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
   async ({ page }) => {
     const events = new EventsScreen(page);
     await events.open();
@@ -37,7 +37,7 @@ test(
 
 test(
   "a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@fast"] },
+  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
   async ({ page }) => {
     const events = new EventsScreen(page);
     await events.open();
@@ -53,7 +53,7 @@ test(
 
 test(
   "a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total",
-  { tag: ["@order-review", "@risk-medium", "@read-only", "@fast"] },
+  { tag: ["@order-review", "@risk-medium", "@read-only", "@layer-ui", "@fast"] },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
 
@@ -70,7 +70,7 @@ test(
 
 test(
   "a review link naming an event that isn't on sale says so instead of showing a total",
-  { tag: ["@order-review", "@risk-medium", "@read-only", "@fast"] },
+  { tag: ["@order-review", "@risk-medium", "@read-only", "@layer-ui", "@fast"] },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
 
@@ -87,7 +87,7 @@ test(
 
 test(
   "a buyer who uses the browser's Back button from the review still sees 3 tickets and $82.50",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@fast"] },
+  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
   async ({ page }) => {
     const events = new EventsScreen(page);
     await events.open();
@@ -103,7 +103,7 @@ test(
 
 test(
   "review links for 1 and for 6 tickets, the smallest and largest orders, show totals of $27.50 and $165.00",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@fast"] },
+  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
 

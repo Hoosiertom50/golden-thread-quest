@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 // 2 tickets -> $55.00 (quantity x (price + fee)).
 test(
   "a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators)",
-  { tag: ["@locator-comparison", "@risk-high", "@read-only", "@fast"] },
+  { tag: ["@events", "@risk-high", "@read-only", "@layer-ui", "@fast", "@locator-comparison"] },
   async ({ page }) => {
     await page.goto("/");
 
