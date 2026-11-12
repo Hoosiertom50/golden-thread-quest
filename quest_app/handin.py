@@ -358,17 +358,40 @@ def _is_housekeeping(path: str) -> bool:
     )
 
 
+# Folders a tool writes and a person never hands in as proof: dependencies and test output.
+# Pilot feedback (PR #27, quest 15): a Playwright project listed about 200 of these files as
+# "named like passwords or keys", which alarmed the participant. They get one quiet line.
+_BUILD_OUTPUT_DIRS = frozenset({
+    "node_modules", "playwright-report", "test-results", "blob-report", "playwright/.cache",
+    ".venv", "venv", "dist", "build", "coverage", "htmlcov", ".pytest_cache", ".mypy_cache",
+    ".ruff_cache", ".cache", ".idea", ".vscode",
+})  # fmt: skip
+
+
+def _is_build_output(path: str) -> bool:
+    return any(part in _BUILD_OUTPUT_DIRS for part in path.split("/")[:-1])
+
+
 def _left_out_note(paths: list[str]) -> list[str]:
     """What hand-in tells the participant about files it would not send."""
-    if not paths:
-        return []
-    return [
-        "Not sent: these files are named like passwords or keys, so they are never handed in, "
-        "and your reviewer will not see them:",
-        *(f"  {path}" for path in paths),
-        "If one of them is proof the quest asks for, take any secret out of it, save it under "
-        "the name the quest's evidence page shows, and run `gtq hand-in` again.",
-    ]
+    build = [path for path in paths if _is_build_output(path)]
+    secretlike = [path for path in paths if not _is_build_output(path)]
+    note: list[str] = []
+    if build:
+        count = len(build)
+        note.append(
+            f"Left out: {count} file{'s' if count != 1 else ''} ignored by Git "
+            "(dependencies and test output). Nothing sensitive; your reviewer does not need them."
+        )
+    if secretlike:
+        note += [
+            "Not sent: these files are named like passwords or keys, so they are never handed in, "
+            "and your reviewer will not see them:",
+            *(f"  {path}" for path in secretlike),
+            "If one of them is proof the quest asks for, take any secret out of it, save it under "
+            "the name the quest's evidence page shows, and run `gtq hand-in` again.",
+        ]
+    return note
 
 
 def _decisions(repo: _Repo, before: str) -> list[str]:
