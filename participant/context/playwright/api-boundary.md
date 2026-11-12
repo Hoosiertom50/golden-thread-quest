@@ -35,8 +35,10 @@ The API is trusted for setup and for checks:
 
 If the review page stopped saving orders, or saved them with the wrong number of tickets, this
 test would still pass: it creates its order through the API and never visits that page. The
-UI-only version (`tests/playwright/ui-only.spec.ts`) walks through those pages and would catch it;
-other tests of the saving pages cover them too.
+UI-only version (`tests/playwright/ui-only.spec.ts`) walks through those pages, so it would catch a
+save that stopped working, but it doesn't check the number of tickets; the save test in
+`tests/playwright/isolated.spec.ts` checks the saved order's tickets and total, so it would catch
+that.
 
 ## The key
 

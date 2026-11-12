@@ -14,10 +14,11 @@ of what each one can and can't see.
 
 - **The API-assisted test** (`tests/playwright/api-assisted.spec.ts`):
   1. Arrange, through the orders service (the API): one order of its own, with a unique name.
-  2. Act, through the screen: on "Your orders", click "Cancel order for <name>" and see "Order for
-     <name> cancelled.".
+  2. Act, through the screen: on "Your orders", click "Cancel order for <name>", see "Order for
+     <name> cancelled." and see the order gone from the list.
   3. Assert, through the API: the order is gone from the orders service, and every order that
-     existed before the run is still there, unchanged.
+     existed before the run is still there, unchanged (checked once before the test saves anything,
+     and again at the end).
 - **The UI-only test** (`tests/playwright/ui-only.spec.ts`): the buyer's whole walk through the
   screen (events page, 2 Spring Concert tickets, review page, a unique name, Save order, See your
   orders, Cancel), checked only by what the screen shows: the "cancelled" message, and the row gone.
@@ -60,7 +61,9 @@ My decisions:
 If the review page stopped saving orders, or saved them with the wrong number of tickets, the
 API-assisted test would still pass: it creates its order through the API and never visits that page
 (criteria 1 and 2: setup through the API, only the cancel on the screen). The UI-only version walks
-through that page and would catch it, and so does the data-isolation quest's save test.
+through that page, so it would catch a save that stopped working, but it doesn't check the number of
+tickets; the data-isolation quest's save test checks the saved order's tickets and total, so it
+would catch that.
 
 ## Reflection: where does the shortcut stop being a faithful test of the user's experience?
 
@@ -128,14 +131,18 @@ and the UI-only test passes.
    to cancel, it is this check that fails ("the cancelled order is gone from the orders service",
    expected false, received true).
 4. **The API-assisted test takes less than half the time of the UI-only version:**
-   `logs/timing-run.txt`, part 1, on this computer, 5 runs of each taking turns: medians 197 ms and
-   444 ms, 44%, under half. Part 2, with a simulated network delaying every answer by 300 ms: 2,328
-   ms and 3,830 ms, 61%, not under half. The reason: the delay costs an API call as much as a page,
-   and the API-assisted test makes about as many requests as the walk it replaces (it adds a
-   creation, two listings and a cleanup); here a page is one small file. On a real site a page
+   `logs/timing-run.txt`, part 1, on this computer, 5 runs of each taking turns: medians 231 ms and
+   443 ms, 52%, not under half. Part 2, with a simulated network delaying every answer by 300 ms:
+   3,140 ms and 4,332 ms, 72%, not under half. So on these numbers the API-assisted test is not
+   under half. Why not: most of its time is the part both versions share (loading "Your orders",
+   clicking Cancel and waiting for the page to show the result, which includes the row disappearing
+   from the list), while the walk the API lets it skip is only two small pages on an app running on
+   this computer; and it adds requests of its own (a listing before, the creation, a listing after
+   and a cleanup). With the simulated network every answer costs the same 300 ms, page or API alike,
+   so those added requests use up most of what skipping the pages saves. On a real site a page
    (styles, scripts, images and its own data requests) costs far more than an API call, so the
    saving grows with each slow page the API lets a test skip. The simulated runs of the UI-only test
-   also vary more (3,359 to 4,625 ms), because its screen checks retry until each slow answer
+   also vary more (3,819 to 4,628 ms), because its screen checks retry until each slow answer
    arrives.
 5. **Breaking the UI behavior makes the API-assisted test fail:** `logs/timing-run.txt`, part 3, the
    broken copy's three changed lines, then the API-assisted test failing at its API check while the
@@ -152,7 +159,7 @@ and the UI-only test passes.
 
 ## What was tested or validated
 
-- **The timing run** (`logs/timing-run.txt`, 11-12-2026, 9:34 AM to 9:35 AM): as described under
+- **The timing run** (`logs/timing-run.txt`, 11-12-2026, 10:07 AM to 10:08 AM): as described under
   criteria 1 and 3 to 6.
 - **The key itself** was tried before any test used it, on a scratch copy of the app: listing the
   orders with no key and with a wrong key gave 401, with the right key the 3 orders, and the "Your
@@ -173,7 +180,7 @@ and the UI-only test passes.
   and the screen looking fine while the API check failed. Wrong on time: I guessed 2 and 6 seconds,
   then 3; the tests took about 0.2 and 0.44 seconds. I expected the simulated network to make the
   API-assisted test come in under half; it made the gap smaller. For the recorded timing I said
-  "about half, not under"; it came out at 44%.
+  "about half, not under"; it came out at 52%.
 - **This quest has no automatic checker.** The criteria above were checked against the files and the
   log.
 

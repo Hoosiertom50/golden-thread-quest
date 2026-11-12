@@ -211,8 +211,15 @@ function fromOwnPage(request) {
   return request.headers["sec-fetch-site"] === "same-origin";
 }
 
-// The key from the environment; without one, only the pages can use the orders service.
+// The key from the environment; without one, only the pages can use the orders service. It must be
+// printable characters with no spaces (the same rule as the tests' helper, support/global-setup.ts):
+// spaces at either end are dropped from a header, so such a key could never match. The message never
+// shows the value.
 const expectedKey = process.env.TIXLY_API_KEY ?? "";
+if (expectedKey !== "" && !/^[\x21-\x7e]{1,256}$/.test(expectedKey)) {
+  console.error("TIXLY_API_KEY must be 1 to 256 printable characters with no spaces or line breaks (its value isn't shown).");
+  process.exit(1);
+}
 const digest = (text) => createHash("sha256").update(text).digest();
 // Compared in a way that takes the same time however much of the key is right, so it can't be
 // guessed one character at a time.

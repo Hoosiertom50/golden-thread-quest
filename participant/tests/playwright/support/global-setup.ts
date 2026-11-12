@@ -45,15 +45,31 @@ export function baseUrl(): string {
 // key (demo-app/server.js); it comes from the environment (TIXLY_API_KEY) and goes only into this
 // header, on these requests from Node. The browser never gets it, so it can't show up in a page,
 // a screenshot or a trace, and nothing here ever prints it. A refusal (401) stops with what to do.
+//
+// The key must be printable characters with no spaces (the same rule as demo-app/server.js), checked
+// before it is put in a header: a space at either end would be dropped from the header and no longer
+// match, and a line break would make the header code fail with the key in its error message. The
+// message here never includes the value.
+// Only a request that is safe to send twice (listing, cancelling) is tried again after a dropped
+// connection; a save is not, since the first one may have been saved before the answer was lost.
+export const KEY_PATTERN = /^[\x21-\x7e]{1,256}$/;
 export async function ask(url: URL, init?: RequestInit): Promise<Response> {
   const key = process.env.TIXLY_API_KEY ?? "";
+  if (key !== "" && !KEY_PATTERN.test(key)) {
+    throw new Error(
+      "TIXLY_API_KEY must be 1 to 256 printable characters with no spaces or line breaks (its value isn't shown). " +
+        "Set a made-up one, for example: export TIXLY_API_KEY=$(openssl rand -hex 16)",
+    );
+  }
   const headers = new Headers(init?.headers);
   if (key !== "") headers.set("x-tixly-api-key", key);
   const options = (): RequestInit => ({ ...init, headers, redirect: "error", signal: AbortSignal.timeout(10_000) });
+  const method = (init?.method ?? "GET").toUpperCase();
   let answer: Response;
   try {
     answer = await fetch(url, options());
-  } catch {
+  } catch (problem) {
+    if (method !== "GET" && method !== "DELETE") throw problem;
     answer = await fetch(url, options());
   }
   if (answer.status === 401) {

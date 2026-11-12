@@ -14,6 +14,7 @@
 
 import { cpSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const target = process.argv[2];
 if (!target) {
@@ -21,7 +22,7 @@ if (!target) {
   process.exit(2);
 }
 const folder = resolve(target);
-const source = new URL("../demo-app", import.meta.url).pathname;
+const source = fileURLToPath(new URL("../demo-app", import.meta.url));
 if (folder === resolve(source) || folder.startsWith(`${resolve(source)}/`)) {
   console.error("The broken copy can't go inside the real demo-app folder.");
   process.exit(2);

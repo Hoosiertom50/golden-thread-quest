@@ -16,15 +16,23 @@ test(
   "a buyer cancels an order (API-assisted: API setup, cancel on screen, API check)",
   { tag: ["@api-assisted", "@risk-medium", "@writes-data", "@fast"] },
   async ({ page, orders }) => {
-    // 1. Arrange, through the API: only the data this test needs.
-    const order = await orders.create({ quantity: 2 });
+    // The orders from before the run, as they are now, before this test changes anything: every one
+    // global setup noted must still be there (so a save that wiped them would be caught below).
     const preexisting = new Set(JSON.parse(process.env.TIXLY_PREEXISTING_IDS ?? "[]") as string[]);
     const realBefore = (await orders.list()).filter((saved) => preexisting.has(saved.id));
+    expect(realBefore.map((saved) => saved.id).sort(), "every order from before the run is there").toEqual([...preexisting].sort());
+
+    // 1. Arrange, through the API: only the data this test needs.
+    const order = await orders.create({ quantity: 2 });
 
     // 2. Act, through the screen: the one behavior under test.
     await page.goto("/orders");
-    await page.getByRole("button", { name: `Cancel order for ${order.name}`, exact: true }).click();
+    const cancel = page.getByRole("button", { name: `Cancel order for ${order.name}`, exact: true });
+    await cancel.click();
+    // What the buyer sees: the message, and the order gone from the list.
     await expect(page.getByText(`Order for ${order.name} cancelled.`, { exact: true })).toBeVisible();
+    await expect(cancel).toHaveCount(0);
+    await expect(page.getByRole("cell", { name: order.name, exact: true })).toHaveCount(0);
 
     // 3. Assert, through the API: really cancelled, and nothing else touched. One listing serves both
     // checks (asked again only while the cancellation hasn't shown up yet).
