@@ -14,9 +14,14 @@
 // Each request reads, changes and writes the whole file in one uninterrupted step (no waiting in
 // between, so no other request can run in the middle), so two tests saving at once through this
 // server can't overwrite each other's orders.
+//
+// Who may use the orders service: the app's own pages, and anything else (tests, tools, scripts)
+// only with the API key. The key is made up for this demo and comes from the environment
+// (TIXLY_API_KEY, read when the server starts); a caller sends it in the X-Tixly-Api-Key header.
+// The server never prints it or sends it back.
 
 import { createServer } from "node:http";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 
 const portSetting = process.env.TIXLY_DEMO_PORT ?? "4173";
@@ -25,6 +30,19 @@ if (!/^[1-9][0-9]{0,4}$/.test(portSetting) || Number(portSetting) > 65535) {
   process.exit(1);
 }
 const port = Number(portSetting);
+
+// A stand-in for a network, off unless asked for: TIXLY_DEMO_DELAY_MS (0 to 1000) holds every answer,
+// pages and orders service alike, for that many milliseconds. On this computer everything answers
+// at once, so timings here would understate what a slow page costs on a real site; the delay is
+// only ever a labelled simulation, used to compare tests (the API-assisted test quest).
+const delaySetting = process.env.TIXLY_DEMO_DELAY_MS ?? "0";
+// At most 1000 ms: a test waits for about ten answers in a row and each check gives a page 5 seconds,
+// so longer delays would make a working app fail the tests' time limits.
+if (!/^[0-9]{1,4}$/.test(delaySetting) || Number(delaySetting) > 1000) {
+  console.error(`TIXLY_DEMO_DELAY_MS must be a whole number from 0 to 1000, not "${delaySetting}"`);
+  process.exit(1);
+}
+const delay = Number(delaySetting);
 const eventsPage = readFileSync(new URL("./index.html", import.meta.url));
 const reviewPage = readFileSync(new URL("./review.html", import.meta.url));
 const ordersPage = readFileSync(new URL("./orders.html", import.meta.url));
@@ -187,7 +205,36 @@ function fromAnotherSite(request) {
   return origin !== undefined && origin !== `http://${request.headers.host}`;
 }
 
+// The app's own pages: the browser itself marks their requests as coming from the same site
+// (Sec-Fetch-Site), which a page's code can't change, so the key never has to reach the browser.
+// (A script on this computer could send that header too: the demo has no buyer login, so the pages'
+// own way in is open by design. The key guards the way in that tests, tools and scripts use.)
+function fromOwnPage(request) {
+  return request.headers["sec-fetch-site"] === "same-origin";
+}
+
+// The key from the environment; without one, only the pages can use the orders service. It must be
+// printable characters with no spaces (the same rule as the tests' helper, support/global-setup.ts):
+// spaces at either end are dropped from a header, so such a key could never match. The message never
+// shows the value.
+const expectedKey = process.env.TIXLY_API_KEY ?? "";
+if (expectedKey !== "" && !/^[\x21-\x7e]{1,256}$/.test(expectedKey)) {
+  console.error("TIXLY_API_KEY must be 1 to 256 printable characters with no spaces or line breaks (its value isn't shown).");
+  process.exit(1);
+}
+const digest = (text) => createHash("sha256").update(text).digest();
+// Compared in a way that takes the same time however much of the key is right, so it can't be
+// guessed one character at a time.
+function hasValidKey(request) {
+  const given = request.headers["x-tixly-api-key"];
+  return expectedKey !== "" && typeof given === "string" && timingSafeEqual(digest(given), digest(expectedKey));
+}
+
 function handleOrders(request, response, path, bodyText) {
+  // Listing too: the list holds buyers' names.
+  if (!fromOwnPage(request) && !hasValidKey(request)) {
+    return send(response, 401, { error: "The orders service needs a valid API key (the X-Tixly-Api-Key header) for requests that don't come from this app's own pages." });
+  }
   if (path === "/api/orders" && request.method === "GET") return send(response, 200, readOrders());
   if ((request.method === "POST" || request.method === "DELETE") && fromAnotherSite(request)) {
     return send(response, 403, { error: "Orders can only be changed from this app." });
@@ -235,6 +282,17 @@ function handleOrders(request, response, path, bodyText) {
 const OWN_HOSTS = new Set([`127.0.0.1:${port}`, `localhost:${port}`, ...(port === 80 ? ["127.0.0.1", "localhost"] : [])]);
 
 createServer((request, response) => {
+  if (delay > 0) setTimeout(() => answer(request, response), delay);
+  else answer(request, response);
+}).listen(port, "127.0.0.1", () => {
+  console.log(`Tixly demo app on http://127.0.0.1:${port}`);
+  if (expectedKey === "") console.log("No TIXLY_API_KEY set: only the app's own pages can use the orders service.");
+  if (delay > 0) console.log(`Simulated network delay: ${delay} ms on every answer.`);
+});
+
+// One request, answered. (A request's body waits unread until it is read below, so the delay
+// above loses nothing.)
+function answer(request, response) {
   if (!OWN_HOSTS.has(request.headers.host ?? "")) {
     response.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
     response.end("This app only answers requests addressed to 127.0.0.1 or localhost.");
@@ -285,6 +343,4 @@ createServer((request, response) => {
     "x-frame-options": "DENY",
   });
   response.end(page);
-}).listen(port, "127.0.0.1", () => {
-  console.log(`Tixly demo app on http://127.0.0.1:${port}`);
-});
+}

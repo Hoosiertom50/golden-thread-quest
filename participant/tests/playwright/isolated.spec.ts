@@ -77,11 +77,13 @@ test(
     const toKeep = await orders.create({ quantity: 3 });
     // This page sees only this test's two orders (the real list from the server, filtered), so the
     // order to keep sits right below the one to cancel however many other tests save at the same time.
+    // The list comes through the orders helper (from Node, with the API key), not by re-sending the
+    // page's own request: re-sent by Playwright, it would no longer count as the page's, and the key
+    // must never be put on a request that belongs to the browser.
     await page.route("**/api/orders", async (route) => {
       if (route.request().method() !== "GET") return route.fallback();
-      const answer = await route.fetch();
-      const all = (await answer.json()) as { id: string }[];
-      await route.fulfill({ response: answer, json: all.filter((order) => order.id === toCancel.id || order.id === toKeep.id) });
+      const all = await orders.list();
+      await route.fulfill({ json: all.filter((order) => order.id === toCancel.id || order.id === toKeep.id) });
     });
     const cancellations: string[] = [];
     page.on("request", (request) => {
