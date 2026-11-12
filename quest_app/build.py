@@ -1107,8 +1107,19 @@ def _evidence_context(
         if entry.attempt and entry.state.id is QuestState.SUBMITTED
         else ()
     )
+    # Not a state change either. This page is a snapshot taken at its build, so a file saved
+    # since then reads "Not detected" until the site is rebuilt. Pilot feedback (PR #27, quest
+    # 15): a participant saw every file as missing for most of a day. One press rebuilds it.
+    refresh = ActionView(
+        id="refresh-page",
+        label="Refresh this page",
+        enabled=service.available,
+        route=routes.action("rebuild", quest.id),
+        reason="Start the local service to refresh, or run `gtq action rebuild` in a terminal.",
+    )
     return {
         "quest": summary,
+        "refresh_action": refresh,
         "attempt_id": entry.attempt.attempt_id if entry.attempt else None,
         "evidence_path": entry.attempt.evidence_path if entry.attempt else None,
         "required_proof": required,

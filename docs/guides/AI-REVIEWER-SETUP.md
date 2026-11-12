@@ -52,6 +52,15 @@ goes to you anyway), `PILOT_AI_SAMPLE_SALT` and `PILOT_AI_MODEL` (default `claud
 - `journalctl --user -u gtq-reviewer -n 50` lists, for each pull request, what was decided and why.
 - To review one now: `python3 ~/.local/share/gtq-reviewer/forge_review.py --pr 27`, or `systemctl --user start gtq-reviewer.service` to sweep.
 
+## A pre-check that never started
+
+GitHub sometimes fails to start the pre-check (`startup_failure`), and nothing labels the hand-in
+ready, so the reviewer never sees it. Each run of the timer also looks for open `pilot/*` pull
+requests whose current commit has no finished pre-check (`tools/precheck_watchdog.py`). It closes
+and reopens such a pull request once, which starts the pre-check again, and sends a phone
+notification. If that does not help it labels the pull request `gtq:needs-human` and notifies once
+more. Anything pushed in the last 10 minutes is left alone.
+
 ## Overruling it
 
 Its decisions are ordinary review records. To change one, record your own decision on the quest

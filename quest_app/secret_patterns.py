@@ -671,6 +671,11 @@ _CODE_EXPRESSION = re.compile(
 )
 
 
+_ENVIRONMENT_READ = re.compile(
+    r"(?:process\.env|import\.meta\.env|Deno\.env)\.[A-Za-z_][A-Za-z0-9_]*!?"
+)
+
+
 def _is_code_identifier(name: str) -> bool:
     """`name` reads as an identifier a programmer wrote, not as a password (round 17 A-E5)."""
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
@@ -835,6 +840,13 @@ def _is_placeholder(value: str, *, allow_call_expression: bool = False) -> bool:
     # api_key)` and `load_api_key(config[` — the real code this repository's own source
     # contains — all still pass.
     if allow_call_expression and _is_code_expression(value.strip()):
+        return True
+    # Reading a credential from the environment is the safe pattern the quests teach
+    # (`const apiKey = process.env.SOME_API_KEY ?? ""`). The unquoted pattern captured
+    # `process.env.SOME_API_KEY` and reported it as a hard-coded value; a participant renamed
+    # the variable to get past it (pilot feedback, PR #27, quest 16). The whole captured value
+    # must be that read and nothing else: a password is not written as an attribute path.
+    if allow_call_expression and _ENVIRONMENT_READ.fullmatch(value.strip()):
         return True
     # Round 17 A-E7: an `UPPER_SNAKE` name that itself contains a credential keyword is the
     # *name* of a credential — an environment variable or a marker this application

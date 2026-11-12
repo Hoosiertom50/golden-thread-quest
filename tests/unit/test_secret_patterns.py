@@ -1307,3 +1307,32 @@ def test_the_mask_ratio_threshold_is_pinned(text: str, found: bool) -> None:
 def test_an_echoed_literal_is_not_a_command_substitution_placeholder() -> None:
     assert scan_text('password="$(echo Sup3rS3cretValue9)"')  # secret-scan: allow
     assert scan_text('password="$(cat /run/secrets/db_password)"') == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'const apiKey = process.env.SOME_API_KEY ?? "";',
+        "const apiKey = process.env.SOME_API_KEY;",
+        'const apiKey = process.env.SOME_API_KEY || "";',
+        "const token = import.meta.env.VITE_API_TOKEN",
+        "const password = Deno.env.DB_PASSWORD",
+        "const apiKey = process.env.SOME_API_KEY!;",
+    ],
+)
+def test_reading_a_credential_from_the_environment_is_not_a_finding(text: str) -> None:
+    """Pilot feedback, PR #27 quest 16: the safe pattern the quests teach was reported as a
+    hard-coded secret, and a participant renamed the variable to get past it."""
+    assert scan_text(text) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'const apiKey = "abcd1234efgh5678ijkl";',  # secret-scan: allow
+        "const apiKey = Sup3rS3cretValue9",  # secret-scan: allow
+        "password = Tr0ub4dor.3xyz.Prod",  # secret-scan: allow
+    ],
+)
+def test_a_hard_coded_credential_is_still_a_finding(text: str) -> None:
+    assert scan_text(text) != []

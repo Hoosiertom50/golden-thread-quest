@@ -24,6 +24,12 @@
 <div class="workbench">
   <div class="stack">
     {{ proof_list(required_proof, 'Required evidence', heading_level=2) }}
+    {# "Not detected" is what the last build found. A file saved since then shows here only
+       after a refresh, and a participant read it as lost work. #}
+    <div class="panel stack" aria-label="Refresh the evidence list">
+      <p class="authority">Saved a file and it still says <strong>Not detected</strong>? This page shows what was there when it was built, <time datetime="{{ build.built_at }}" data-format>{{ build.built_at }}</time>. Refresh it to look again.</p>
+      {{ action_button(refresh_action, url) }}
+    </div>
     {{ proof_list(optional_proof, 'Optional evidence', 'No optional evidence for this quest.', heading_level=2) }}
 
     {% if validators %}
