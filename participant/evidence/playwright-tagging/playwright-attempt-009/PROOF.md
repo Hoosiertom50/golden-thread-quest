@@ -61,7 +61,7 @@ My decisions:
 ## How I chose the duration limits
 
 `@fast` is at most 2 seconds because that leaves room for timing wobble: in the recorded run the
-slowest `@fast` test took 0.80 seconds and most took 0.1 to 0.5, and a test's time shifts with the
+slowest `@fast` test took 0.78 seconds and most took 0.1 to 0.5, and a test's time shifts with the
 tests running beside it. `@slow` is at most 30 seconds because that is Playwright's own limit for
 one test. The one `@slow` test takes about 5 seconds (criterion 6).
 
@@ -135,7 +135,7 @@ tools/tagging-check.ts`: it names each one and ends with FAIL.
 
 ## What was tested or validated
 
-- **The tag check** (`logs/tag-check.txt`, 11-12-2026, 12:39 PM): parts 1 to 3 as described under
+- **The tag check** (`logs/tag-check.txt`, 11-12-2026, 12:49 PM): parts 1 to 3 as described under
   the criteria; the whole suite showed 23 passed and 4 skipped, and the real orders file was byte
   for byte the committed one afterwards.
 - **The eight new tests** pass; the `@slow` one takes about 5 seconds, the others well under 1.
@@ -147,8 +147,8 @@ tools/tagging-check.ts`: it names each one and ends with FAIL.
   report all three planted tests by name and fail, and that none of the existing tests is slow; and
   test 5 is `@writes-data`, as I reasoned, because a broken app would save. Wrong that the UI-only
   test is the slowest of the existing tests: in the recorded run the slowest existing test was
-  "cancelling one buyer's order leaves another buyer's order in Your orders (isolated)" (0.80
-  seconds) while the UI-only test took 0.44, because timings shift with the tests running beside
+  "cancelling one buyer's order leaves another buyer's order in Your orders (isolated)" (0.78
+  seconds) while the UI-only test took 0.42, because timings shift with the tests running beside
   each one.
 - **This quest has no automatic checker.** The criteria above were checked against the files and the
   log.

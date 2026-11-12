@@ -40,6 +40,12 @@ function valueOf(flag: string, what: string): string | undefined {
   }
   return value;
 }
+for (let i = 0; i < args.length; i += 2) {
+  if (args[i] !== "--results" && args[i] !== "--scheme") {
+    console.error(`Unknown argument "${args[i]}". Use: node tools/tagging-check.ts [--results <Playwright JSON report>] [--scheme <tag scheme page>]`);
+    process.exit(2);
+  }
+}
 const resultsFile = valueOf("--results", "the path of a Playwright JSON report");
 const schemeValue = valueOf("--scheme", "the path of a tag scheme page");
 const schemeFile = schemeValue === undefined ? fileURLToPath(new URL("../../../context/playwright/tag-scheme.md", import.meta.url)) : resolve(schemeValue);
@@ -55,14 +61,20 @@ const suiteTags = new Set<string>();
 const limits = new Map<string, number>();
 const KNOWN_SECTIONS = new Set(["Feature", "Risk", "Read or write", "Layer", "Duration", "Suite"]);
 let section = "";
-let fenced = false;
+let fence = ""; // the opening fence (``` or ~~~, possibly longer) while inside a fenced block
 for (const line of scheme.split("\n")) {
-  // Examples in a fenced block (between ``` lines) are never definitions.
-  if (line.trimStart().startsWith("```")) {
-    fenced = !fenced;
+  // Examples in a fenced block are never definitions. A block opens with ``` or ~~~ (or longer)
+  // and closes only with a line of the same character, at least as long and with nothing after it.
+  const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  if (fence === "") {
+    if (marker) {
+      fence = marker[1];
+      continue;
+    }
+  } else {
+    if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length && marker[2].trim() === "") fence = "";
     continue;
   }
-  if (fenced) continue;
   // Every level-two heading starts a new section; only the five dimensions and the suite group
   // define tags, so rows under any other heading (examples, notes) are not part of the vocabulary.
   if (line.startsWith("## ")) {
@@ -71,21 +83,22 @@ for (const line of scheme.split("\n")) {
     continue;
   }
   if (!section) continue;
-  const tags = [...line.matchAll(/`@([a-z0-9-]+)`/g)].map((m) => m[1]);
   // Only the first cell of a table row defines a tag (in every section, the suite group included);
-  // a tag mentioned in prose or in an example is not part of the vocabulary.
+  // a tag mentioned in prose, in another cell or in an example is not part of the vocabulary.
   if (!line.startsWith("| `@")) continue;
+  const definition = /^\| `@([a-z0-9-]+)` \|/.exec(line);
+  if (!definition) {
+    console.error(`The scheme has a row that isn't a proper tag definition (its first cell must be one tag, like \`@fast\`): ${line}`);
+    process.exit(2);
+  }
+  const tag = definition[1];
   if (section === "Suite") {
-    for (const tag of tags.slice(0, 1)) {
-      if ([...dimensions.values()].some((known) => known.has(tag))) {
-        console.error(`The scheme lists @${tag} as a suite tag and in a dimension; each tag must belong to exactly one group.`);
-        process.exit(2);
-      }
-      suiteTags.add(tag);
+    if ([...dimensions.values()].some((known) => known.has(tag)) || suiteTags.has(tag)) {
+      console.error(`The scheme lists @${tag} more than once; each tag must belong to exactly one group.`);
+      process.exit(2);
     }
+    suiteTags.add(tag);
   } else {
-    // The first cell of a table row is the tag it defines.
-    const tag = tags[0];
     if ([...dimensions.values()].some((known) => known.has(tag)) || suiteTags.has(tag)) {
       console.error(`The scheme lists @${tag} more than once; each tag must belong to exactly one dimension.`);
       process.exit(2);
@@ -171,6 +184,9 @@ if (resultsFile) {
         if (!isObject(run)) malformed("a test isn't an object");
         for (const result of listOf(run.results, "a test's results") as { duration?: unknown; status?: string }[]) {
           if (!isObject(result)) malformed("a result isn't an object");
+          if (!["passed", "failed", "timedOut", "skipped", "interrupted"].includes(String(result.status))) {
+            malformed(`a result for "${spec.title}" has no Playwright status (${JSON.stringify(result.status)})`);
+          }
           results += 1;
           if (result.status === "skipped") {
             if (!longest.has(spec.id)) longest.set(spec.id, "skipped");
