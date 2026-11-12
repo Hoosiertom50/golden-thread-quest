@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { ask, baseUrl } from "./support/global-setup.ts";
 import { expect, test } from "./support/orders-fixture.ts";
 import { EventsScreen, OrderReviewScreen } from "./pages/models.ts";
@@ -56,38 +57,41 @@ test(
 );
 
 // @writes-data although nothing should be saved: if the app is broken, a 7-ticket order IS saved.
-// So it carries a unique, run-marked name, and an order saved by mistake is cancelled straight away.
+// So it carries a unique, run-marked name, and an order saved by mistake is noted by that name for the
+// helper to cancel: the helper only takes a name it gave out, never an order from before the run, so
+// a broken answer naming someone else's order can't get that order cancelled.
 test(
   "the orders service refuses an order for 7 tickets",
   { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-api", "@fast"] },
   async ({ orders }) => {
+    const name = orders.uniqueName();
     const answer = await ask(new URL("/api/orders", baseUrl()), {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: orders.uniqueName(), event: "spring-concert", quantity: 7 }),
+      body: JSON.stringify({ name, event: "spring-concert", quantity: 7 }),
     });
-    const body = (await answer.json()) as { id?: string; error?: string };
-    if (answer.status === 201 && body.id) {
-      await ask(new URL(`/api/orders/${encodeURIComponent(body.id)}`, baseUrl()), { method: "DELETE" });
-    }
+    const body = (await answer.json()) as { error?: string };
+    if (answer.status === 201) await orders.trackSavedBy(name);
     expect(answer.status, "a 7-ticket order is refused").toBe(400);
     expect(body.error).toBe("Choose from 1 to 6 tickets.");
   },
 );
 
+// Compared with the orders file itself, not with a list the same service gave earlier: a listing
+// that lost orders would also have lost them from that earlier list. Only the saved orders that
+// aren't test data ("Test User ...") are compared, since tests running at the same time add and
+// cancel their own. It reads this project's own orders file, so it only runs against the app this
+// project starts (not against another copy given by TIXLY_BASE_URL).
 test(
-  "the orders service lists every order from before the run, each with an event and a number of tickets",
+  "the orders service lists every saved order that isn't test data, exactly as saved",
   { tag: ["@saved-orders", "@risk-medium", "@read-only", "@layer-api", "@fast"] },
   async ({ orders }) => {
-    const preexisting = JSON.parse(process.env.TIXLY_PREEXISTING_IDS ?? "[]") as string[];
+    test.skip(process.env.TIXLY_BASE_URL !== undefined, "compares with this project's own orders file, which another copy of the app doesn't use");
+    const saved = JSON.parse(readFileSync(new URL("./demo-app/data/orders.json", import.meta.url), "utf8")) as { name: string }[];
+    const real = saved.filter((order) => !order.name.startsWith("Test User"));
+    expect(real.length, "the orders file has saved orders that aren't test data").toBeGreaterThan(0);
     const listed = await orders.list();
-    for (const id of preexisting) {
-      const order = listed.find((saved) => saved.id === id);
-      expect(order, `order ${id} from before the run is listed`).toBeDefined();
-      expect(order?.event).toBe("spring-concert");
-      expect(order?.quantity).toBeGreaterThanOrEqual(1);
-      expect(order?.quantity).toBeLessThanOrEqual(6);
-    }
+    for (const order of real) expect(listed).toContainEqual(order);
   },
 );
 

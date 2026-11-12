@@ -25,8 +25,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-type Test = { title: string; file: string; line: number; tags: string[]; duration?: number; status?: string };
-type Suite = { specs?: { title: string; file: string; line: number; tags?: string[]; tests: { results?: { duration: number; status: string }[] }[] }[]; suites?: Suite[] };
+type Test = { id: string; title: string; file: string; line: number; tags: string[]; duration?: number; timing?: "timed" | "skipped" | "missing" };
+type Suite = { specs?: { id: string; title: string; file: string; line: number; tags?: string[]; tests?: { results?: { duration?: unknown; status?: string }[] }[] }[]; suites?: Suite[] };
 
 const args = process.argv.slice(2);
 const resultsFlag = args.indexOf("--results");
@@ -57,15 +57,18 @@ for (const line of scheme.split("\n")) {
   }
   if (!section) continue;
   const tags = [...line.matchAll(/`@([a-z0-9-]+)`/g)].map((m) => m[1]);
+  // Only the first cell of a table row defines a tag (in every section, the suite group included);
+  // a tag mentioned in prose or in an example is not part of the vocabulary.
+  if (!line.startsWith("| `@")) continue;
   if (section === "Suite") {
-    for (const tag of tags) {
+    for (const tag of tags.slice(0, 1)) {
       if ([...dimensions.values()].some((known) => known.has(tag))) {
         console.error(`The scheme lists @${tag} as a suite tag and in a dimension; each tag must belong to exactly one group.`);
         process.exit(2);
       }
       suiteTags.add(tag);
     }
-  } else if (line.startsWith("| `@")) {
+  } else {
     // The first cell of a table row is the tag it defines.
     const tag = tags[0];
     if ([...dimensions.values()].some((known) => known.has(tag)) || suiteTags.has(tag)) {
@@ -94,13 +97,19 @@ if (unlimited.length > 0) {
 }
 
 // --- The tests, from Playwright. ---------------------------------------------------------------
-const listed = spawnSync("npx", ["playwright", "test", "--list", "--reporter=json"], { encoding: "utf8" });
+// Report-location settings left in the shell would send the listing to a file instead of stdout,
+// possibly over the very report being checked, so they are cleared for this one command.
+const listEnv = { ...process.env };
+delete listEnv.PLAYWRIGHT_JSON_OUTPUT_FILE;
+delete listEnv.PLAYWRIGHT_JSON_OUTPUT_DIR;
+delete listEnv.PLAYWRIGHT_JSON_OUTPUT_NAME;
+const listed = spawnSync("npx", ["playwright", "test", "--list", "--reporter=json"], { encoding: "utf8", env: listEnv });
 if (listed.error || listed.status !== 0) {
   console.error(`Couldn't list the tests:\n${listed.error ? listed.error.message : `${listed.stdout ?? ""}${listed.stderr ?? ""}`}`);
   process.exit(2);
 }
 const collect = (suite: Suite, into: Test[]) => {
-  for (const spec of suite.specs ?? []) into.push({ title: spec.title, file: spec.file, line: spec.line, tags: spec.tags ?? [] });
+  for (const spec of suite.specs ?? []) into.push({ id: spec.id, title: spec.title, file: spec.file, line: spec.line, tags: spec.tags ?? [] });
   for (const child of suite.suites ?? []) collect(child, into);
 };
 const tests: Test[] = [];
@@ -113,18 +122,47 @@ if (resultsFile) {
     console.error(`No Playwright report at ${resultsFile}.`);
     process.exit(2);
   }
-  const ran: Test[] = [];
+  let report: { suites?: unknown };
+  try {
+    report = JSON.parse(readFileSync(resultsFile, "utf8"));
+  } catch {
+    console.error(`${resultsFile} isn't a JSON file.`);
+    process.exit(2);
+  }
+  if (!Array.isArray(report?.suites) || report.suites.length === 0) {
+    console.error(`${resultsFile} isn't a Playwright JSON report of a run (it has no test suites).`);
+    process.exit(2);
+  }
+  // Every attempt of every test in the report (repeats and retries alike), by the spec's own id,
+  // which also tells apart two tests with the same title and line in different groups. A test's
+  // time is its longest attempt that wasn't skipped.
+  const longest = new Map<string, number | "skipped">();
   const walk = (suite: Suite) => {
     for (const spec of suite.specs ?? []) {
-      const result = spec.tests[0]?.results?.at(-1);
-      ran.push({ title: spec.title, file: spec.file, line: spec.line, tags: [], duration: result?.duration, status: result?.status });
+      for (const run of spec.tests ?? []) {
+        for (const result of run.results ?? []) {
+          if (result.status === "skipped") {
+            if (!longest.has(spec.id)) longest.set(spec.id, "skipped");
+            continue;
+          }
+          const duration = result.duration;
+          if (typeof duration !== "number" || !Number.isFinite(duration) || duration < 0) {
+            console.error(`${resultsFile} has a result for "${spec.title}" without a proper duration (${JSON.stringify(duration)}).`);
+            process.exit(2);
+          }
+          const known = longest.get(spec.id);
+          longest.set(spec.id, typeof known === "number" ? Math.max(known, duration) : duration);
+        }
+      }
     }
     for (const child of suite.suites ?? []) walk(child);
   };
-  for (const suite of (JSON.parse(readFileSync(resultsFile, "utf8")).suites ?? []) as Suite[]) walk(suite);
+  for (const suite of report.suites as Suite[]) walk(suite);
   for (const test of tests) {
-    const match = ran.find((r) => r.file === test.file && r.line === test.line && r.title === test.title);
-    if (match) Object.assign(test, { duration: match.duration, status: match.status });
+    const found = longest.get(test.id);
+    if (found === undefined) test.timing = "missing";
+    else if (found === "skipped") test.timing = "skipped";
+    else Object.assign(test, { timing: "timed", duration: found });
   }
 }
 
@@ -148,8 +186,10 @@ for (const test of tests) {
   const durationTag = test.tags.find((tag) => allTags.get(tag) === "Duration");
   if (resultsFile && durationTag) {
     const limit = limits.get(durationTag) ?? 0;
-    if (test.duration === undefined || test.status === "skipped") {
-      timed.push(`  not run, so not timed: ${where}`);
+    if (test.timing === "skipped") {
+      timed.push(`  skipped in that run, so not timed: ${where}`);
+    } else if (test.timing !== "timed" || test.duration === undefined) {
+      timed.push(`  not in that report, so not timed: ${where}`);
     } else if (test.duration > limit * 1000) {
       issues.push(`took ${(test.duration / 1000).toFixed(2)} s, over the ${limit} s limit of @${durationTag}`);
     } else {
@@ -168,6 +208,10 @@ if (resultsFile) {
   console.log(`\nDurations (from ${resultsFile.split("/").pop()}):`);
   for (const line of timed) console.log(line);
 }
-console.log(problems === 0 ? `\nPASS: all ${tests.length} tests carry one tag from each dimension and only tags from the scheme${resultsFile ? ", and none ran over its duration limit" : ""}.`
+const count = (kind: Test["timing"]) => tests.filter((test) => test.timing === kind).length;
+const coverage = resultsFile
+  ? `, and none of the ${count("timed")} timed tests ran over its duration limit (${count("skipped")} skipped and ${count("missing")} not in the report, so not timed)`
+  : "";
+console.log(problems === 0 ? `\nPASS: all ${tests.length} tests carry one tag from each dimension and only tags from the scheme${coverage}.`
   : `\nFAIL: ${problems} problem(s) in the tests above.`);
 process.exit(problems === 0 ? 0 : 1);

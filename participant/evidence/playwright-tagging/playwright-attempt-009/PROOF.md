@@ -20,10 +20,10 @@ runs against the local Tixly demo app with made-up data; nothing is sent anywher
 - **Eight new tests** (`tests/playwright/tagged.spec.ts`), chosen so every tag in the scheme is used
   at least once: the Tixly name on the events page (`@risk-low`), the events-page total for 3
   tickets, the review-page total for 4, a review link for an event not on sale, the orders service
-  refusing a 7-ticket order (`@layer-api`, `@writes-data`), the orders service listing every order
-  from before the run (`@layer-api`, `@read-only`), an API-made order's total on "Your orders"
-  (`@layer-mixed`), and cancelling on a slow connection (`@slow`: the test slows the orders
-  service's answers in the browser to about 1.5 seconds each).
+  refusing a 7-ticket order (`@layer-api`, `@writes-data`), the orders service listing every saved
+  order that isn't test data exactly as it is in the orders file (`@layer-api`, `@read-only`), an
+  API-made order's total on "Your orders" (`@layer-mixed`), and cancelling on a slow connection
+  (`@slow`: the test slows the orders service's answers in the browser to about 1.5 seconds each).
 - **Every existing test re-tagged** to the scheme: all 19, so all 27 tests in the project follow it.
   The smoke test and the two cleanup proofs had no tags at all; every test gained a layer tag; the
   save and cancel tests went from `@risk-medium` to `@risk-high`; and `@ticket-total` became
@@ -33,7 +33,10 @@ runs against the local Tixly demo app with made-up data; nothing is sent anywher
   Playwright (`npx playwright test --list`), so every test counts, including those normally skipped.
   It reports by name and file a dimension with no tag or more than one, more than one suite tag, and
   any tag not in the scheme. Given a Playwright JSON report of a real run, it also names every test
-  that took longer than its duration tag allows. It ends with PASS or FAIL.
+  that took longer than its duration tag allows: each test's longest attempt (repeats and retries
+  alike), matched by Playwright's own id for the test, and a PASS says how many tests were timed and
+  how many were skipped or missing from the report. A report that isn't a Playwright run report
+  stops the check. It ends with PASS or FAIL.
 - **The README and setup check** describe the tags, the new tests and the check, and track the 2 new
   project files (36 instead of 34).
 
@@ -56,7 +59,7 @@ My decisions:
 ## How I chose the duration limits
 
 `@fast` is at most 2 seconds because that leaves room for timing wobble: in the recorded run the
-slowest `@fast` test took 0.81 seconds and most took 0.1 to 0.5, and a test's time shifts with the
+slowest `@fast` test took 0.78 seconds and most took 0.1 to 0.5, and a test's time shifts with the
 tests running beside it. `@slow` is at most 30 seconds because that is Playwright's own limit for
 one test. The one `@slow` test takes about 5 seconds (criterion 6).
 
@@ -130,7 +133,7 @@ tools/tagging-check.ts`: it names each one and ends with FAIL.
 
 ## What was tested or validated
 
-- **The tag check** (`logs/tag-check.txt`, 11-12-2026, 12:12 PM): parts 1 to 3 as described under
+- **The tag check** (`logs/tag-check.txt`, 11-12-2026, 12:25 PM): parts 1 to 3 as described under
   the criteria; the whole suite showed 23 passed and 4 skipped, and the real orders file was byte
   for byte the committed one afterwards.
 - **The eight new tests** pass; the `@slow` one takes about 5 seconds, the others well under 1.
@@ -171,6 +174,9 @@ tools/tagging-check.ts`: it names each one and ends with FAIL.
   `coupled.spec.ts`, `isolated.spec.ts`, `cleanup-proof.spec.ts`, `api-assisted.spec.ts` and
   `ui-only.spec.ts` (and the layout of the smoke test and the cleanup proofs, which had no tags),
   `README.md` and `tools/project-setup-check.ts`. All their tests still pass.
+- **One test reads the orders file directly:** the listing test compares the orders service with
+  this project's own orders file, so it is skipped when the tests are pointed at another copy of the
+  app (`TIXLY_BASE_URL`, which the run-order tool also uses).
 - **One browser (Chromium).**
 
 ## Sensitive values
