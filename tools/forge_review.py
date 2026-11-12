@@ -32,6 +32,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import precheck_watchdog
+
 REPO = "beekeeper-lab/golden-thread-quest"
 PLAIN = ("PATH", "HOME", "LANG", "USER", "XDG_CONFIG_HOME", "XDG_STATE_HOME")
 # Lets `git fetch` in the clone use the machine's GitHub login, so a private repository works.
@@ -191,6 +194,15 @@ def _alert_once(state: Path, failed: list[int]) -> None:
     path.write_text(json.dumps(sorted(seen | set(failed))), encoding="utf-8")
 
 
+def _notify(state: Path, message: str) -> None:
+    url = os.environ.get("NTFY_URL")
+    if url:
+        _run(
+            ["curl", "-fsS", "-H", "Title: Pilot pre-check", "-d", message, url],
+            cwd=state, env=_env(), timeout=30,
+        )  # fmt: skip
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", default=REPO)
@@ -270,6 +282,17 @@ def main(argv: list[str]) -> int:
                 _show(swept)
                 if swept.returncode != 0:
                     failed.append(0)
+            if not args.pr:
+                # A pre-check that GitHub failed to start leaves a hand-in waiting with no
+                # label for this reviewer to find. Look for those and start them again.
+                try:
+                    restarted = precheck_watchdog.sweep(
+                        args.repo, state, lambda text: _notify(state, text)
+                    )
+                    if restarted:
+                        print(f"pre-check restarted or escalated for {restarted}")
+                except Exception as exc:  # the watchdog must never stop the review sweep
+                    print(f"pre-check watchdog: {type(exc).__name__}: {exc}")
             if failed:
                 print(f"did not complete: {failed}")
                 _alert_once(state, failed)
