@@ -1,5 +1,5 @@
 Execution run: the single-tag selection, the intersection, the union and the exclusion run through the selection tool, the empty selection refused, and plain Playwright on that empty selection.
-Started: 11-13-2026 09:26:34 AM
+Started: 11-13-2026 09:34:44 AM
 Node v22.23.3, Playwright 1.63.0, browser: Chromium
 Application: the local Tixly demo app (made-up data, 127.0.0.1 only), started by Playwright when tests run.
 Credential: the orders service's API key, a new made-up random value for this recording, set in the
@@ -10,7 +10,7 @@ marked "Recording script:" are notes written by the script that recorded this lo
 the handed-in tools).
 
 --- Selection every-change, listed, checked and run
-Recorded: 11-13-2026 09:26:38 AM
+Recorded: 11-13-2026 09:34:48 AM
 Folder: participant/tests/playwright
 Command: node tools/select.ts every-change
 Exit code: 0
@@ -50,12 +50,12 @@ The listing matches the 26 expected tests.
 Running them now:
 Running 26 tests using 6 workers
   4 skipped
-  22 passed (2.4s)
+  22 passed (2.5s)
 Selection "every-change": 26 listed: 22 passed, 0 failed, 4 skipped, 0 not run.
 Every listed test is accounted for (it ran or was skipped), and nothing else ran.
 
 --- Selection safe-pipeline, listed, checked and run
-Recorded: 11-13-2026 09:26:42 AM
+Recorded: 11-13-2026 09:34:52 AM
 Folder: participant/tests/playwright
 Command: node tools/select.ts safe-pipeline
 Exit code: 0
@@ -88,7 +88,7 @@ Selection "safe-pipeline": 15 listed: 15 passed, 0 failed, 0 skipped, 0 not run.
 Every listed test is accounted for (it ran or was skipped), and nothing else ran.
 
 --- Selection before-saving, listed, checked and run
-Recorded: 11-13-2026 09:26:46 AM
+Recorded: 11-13-2026 09:34:56 AM
 Folder: participant/tests/playwright
 Command: node tools/select.ts before-saving
 Exit code: 0
@@ -115,12 +115,12 @@ Listed (14), without running:
 The listing matches the 14 expected tests.
 Running them now:
 Running 14 tests using 6 workers
-  14 passed (2.0s)
+  14 passed (2.1s)
 Selection "before-saving": 14 listed: 14 passed, 0 failed, 0 skipped, 0 not run.
 Every listed test is accounted for (it ran or was skipped), and nothing else ran.
 
 --- Selection shared-environment, listed, checked and run
-Recorded: 11-13-2026 09:26:49 AM
+Recorded: 11-13-2026 09:35:00 AM
 Folder: participant/tests/playwright
 Command: node tools/select.ts shared-environment
 Exit code: 0
@@ -148,14 +148,14 @@ Listed (15), without running:
 The listing matches the 15 expected tests.
 Running them now:
 Running 15 tests using 6 workers
-  15 passed (2.1s)
+  15 passed (2.0s)
 Selection "shared-environment": 15 listed: 15 passed, 0 failed, 0 skipped, 0 not run.
 Every listed test is accounted for (it ran or was skipped), and nothing else ran.
 
 Recording script: the per-test lines (✓ and the skipped -) are left out above; each run's summary and the tool's own count remain.
 
 --- Selection slow-read-only (matches nothing), through the tool
-Recorded: 11-13-2026 09:26:51 AM
+Recorded: 11-13-2026 09:35:01 AM
 Folder: participant/tests/playwright
 Command: node tools/select.ts slow-read-only
 Exit code: 1
@@ -168,7 +168,7 @@ Listed (0), without running:
 ERROR: selection "slow-read-only" matched no tests, so nothing was run. An empty selection is never a pass.
 
 --- The same empty selection with plain Playwright (default settings)
-Recorded: 11-13-2026 09:26:51 AM
+Recorded: 11-13-2026 09:35:02 AM
 Folder: participant/tests/playwright
 Command: npx playwright test --grep '^(?=.*(?<![A-Za-z0-9_@-])@slow(?![A-Za-z0-9_-]))(?=.*(?<![A-Za-z0-9_@-])@read-only(?![A-Za-z0-9_-]))'
 Exit code: 1
@@ -176,7 +176,7 @@ Exit code: 1
 Error: No tests found
 
 --- The same empty selection with plain Playwright and --pass-with-no-tests
-Recorded: 11-13-2026 09:26:52 AM
+Recorded: 11-13-2026 09:35:02 AM
 Folder: participant/tests/playwright
 Command: npx playwright test --pass-with-no-tests --grep '^(?=.*(?<![A-Za-z0-9_@-])@slow(?![A-Za-z0-9_-]))(?=.*(?<![A-Za-z0-9_@-])@read-only(?![A-Za-z0-9_-]))'
 Exit code: 0
@@ -186,4 +186,4 @@ Recording script: plain Playwright reports the empty selection as an error by de
 Recording script: demo-app/data/orders.json afterwards is byte for byte the committed file (the three real orders): yes
 Recording script: the key's actual value in the full output of every command this recording ran (16: the 14 recorded above and the 2 version checks in the headers): found in 0
 Recording script: the repository's credential scan of both logs: secret-scan: 2 files scanned, 0 finding(s)
-Finished: 11-13-2026 09:26:52 AM
+Finished: 11-13-2026 09:35:02 AM

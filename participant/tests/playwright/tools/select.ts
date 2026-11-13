@@ -186,14 +186,18 @@ const list = (extra: string[]) => {
   return answer;
 };
 
-// A word starting with "@" in a test's title (or a group's) is a tag to Playwright's --grep too, so it
-// could pull a test into a selection it doesn't belong to. The tag scheme forbids it; this enforces it,
-// on every test, before any selection is made.
+// A word starting with "@" in a test's title, a group's title or a test file's path is a tag to
+// Playwright's --grep too (it matches against all three), so it could pull a test into a selection it
+// doesn't belong to. The tag scheme forbids it in titles; this enforces it, and for file paths, on
+// every test, before any selection is made.
 const everything = list([]);
 const titled: string[] = [];
 const walkTitles = (suite: Suite & { title?: string }, depth: number) => {
   if (depth > 0 && suite.title?.includes("@")) titled.push(`group "${suite.title}"`);
-  for (const spec of suite.specs ?? []) if (spec.title.includes("@")) titled.push(`${spec.file} › ${spec.title}`);
+  for (const spec of suite.specs ?? []) {
+    if (spec.file.includes("@")) titled.push(`file ${spec.file}`);
+    if (spec.title.includes("@")) titled.push(`${spec.file} › ${spec.title}`);
+  }
   for (const child of (suite.suites ?? []) as (Suite & { title?: string })[]) walkTitles(child, depth + 1);
 };
 try {
@@ -203,7 +207,7 @@ try {
   process.exit(2);
 }
 if (titled.length > 0) {
-  console.error(`These titles contain "@", which Playwright would read as a tag, so no selection is made until they are renamed:\n  ${titled.join("\n  ")}`);
+  console.error(`These titles or file paths contain "@", which Playwright would read as a tag, so no selection is made until they are renamed:\n  ${[...new Set(titled)].join("\n  ")}`);
   process.exit(2);
 }
 
@@ -223,8 +227,20 @@ if (listingErrors.length > 0) {
   process.exit(2);
 }
 const listed = specsOf(listing.stdout).map((spec) => `${spec.file} › ${spec.title}`);
-// A listing that failed is only an empty selection when Playwright's sole complaint is "No tests
-// found" and it listed nothing; a failed process with tests in its list is never trusted.
+// A listing that failed is only an empty selection when Playwright said "No tests found" and listed
+// nothing; a failed process with tests in its list, or one that listed nothing without saying why, is
+// never trusted.
+const saidNoTests = (() => {
+  try {
+    return ((JSON.parse(listing.stdout).errors ?? []) as { message?: string }[]).some((error) => /^Error: No tests found/.test((error.message ?? "").trim()));
+  } catch {
+    return false;
+  }
+})();
+if (listing.status !== 0 && listed.length === 0 && !saidNoTests) {
+  console.error(`Playwright's listing failed (exit ${listing.status}) without saying it found no tests:\n${listing.stderr}`);
+  process.exit(2);
+}
 if (listing.status !== 0 && listed.length > 0) {
   console.error(`Playwright's listing ended with an error (exit ${listing.status}), so it isn't trusted:\n${listing.stderr}`);
   process.exit(2);
@@ -270,8 +286,10 @@ rmSync(folder, { recursive: true, force: true });
 // setup fails before any test starts).
 const counts = { passed: 0, failed: 0, skipped: 0, "not run": 0 };
 const outcome = new Map<string, keyof typeof counts>();
+const ranTwice: string[] = [];
 for (const spec of ranSpecs) {
   const status = spec.tests?.[0]?.results?.at(-1)?.status;
+  if (outcome.has(`${spec.file} › ${spec.title}`)) ranTwice.push(`${spec.file} › ${spec.title}`);
   outcome.set(`${spec.file} › ${spec.title}`,
     status === undefined ? "not run" : status === "passed" ? "passed" : status === "skipped" ? "skipped" : "failed");
 }
@@ -279,7 +297,8 @@ for (const test of listed) counts[outcome.get(test) ?? "not run"]++;
 const unexpected = [...outcome.keys()].filter((test) => !listed.includes(test));
 console.log(`\nSelection "${name}": ${listed.length} listed: ${counts.passed} passed, ${counts.failed} failed, ${counts.skipped} skipped, ${counts["not run"]} not run.`);
 if (unexpected.length > 0) console.log(`WARNING: tests that weren't listed appeared in the run:\n  ${unexpected.join("\n  ")}`);
-const accounted = counts["not run"] === 0 && unexpected.length === 0;
+if (ranTwice.length > 0) console.log(`WARNING: the run had more than one test named:\n  ${[...new Set(ranTwice)].join("\n  ")}`);
+const accounted = counts["not run"] === 0 && unexpected.length === 0 && ranTwice.length === 0;
 console.log(accounted ? "Every listed test is accounted for (it ran or was skipped), and nothing else ran."
   : "WARNING: not every listed test ran or was skipped as listed.");
 process.exit(run.status === 0 && accounted ? 0 : 1);

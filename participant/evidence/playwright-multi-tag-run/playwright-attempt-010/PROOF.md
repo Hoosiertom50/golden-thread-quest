@@ -20,10 +20,11 @@ Everything runs against the local Tixly demo app with made-up data; nothing is s
   command it becomes, lists the tests Playwright would choose without running anything, compares
   that list with the table, and stops if they differ or if nothing matched; only then it runs
   exactly those tests and accounts for every listed test (passed, failed, skipped or not run),
-  checking that nothing else ran. Before any selection it refuses to go on if a test's title
-  contains "@", which Playwright would read as a tag. `--list-only` stops after the check.
-  Expressions use whole tags joined by `and`, `or` and `not`; each tag must be in the tag scheme,
-  and is matched only as a whole tag, never as part of a longer tag or of a word in a title.
+  checking that nothing else ran. Before any selection it refuses to go on if a test's title, a
+  group's title or a test file's path contains "@", since Playwright's `--grep` matches against all
+  three and would read it as a tag. `--list-only` stops after the check. Expressions use whole tags
+  joined by `and`, `or` and `not`; each tag must be in the tag scheme, and is matched only as a
+  whole tag, never as part of a longer tag or of a word in a title.
 - **The README and setup check** describe the selections and the tool and track the new tool (37
   project files instead of 36).
 
@@ -106,8 +107,8 @@ reports that the selection matched no tests and exits with an error, without run
 
 ## What was tested or validated
 
-- **The list run** (`logs/list-run.txt`, 11-13-2026, 9:26 AM) and **the execution run**
-  (`logs/execution-run.txt`, 11-13-2026, 9:26 AM to 9:26 AM): as described under the criteria; the
+- **The list run** (`logs/list-run.txt`, 11-13-2026, 9:34 AM) and **the execution run**
+  (`logs/execution-run.txt`, 11-13-2026, 9:34 AM to 9:35 AM): as described under the criteria; the
   real orders file was byte for byte the committed one afterwards, the demo app's key appeared in
   the full output of none of the 16 commands the recording ran (the 14 in the logs and the 2 version
   checks in their headers), and the repository's credential scan of both logs found 0.
