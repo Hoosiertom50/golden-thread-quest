@@ -19,9 +19,11 @@ Everything runs against the local Tixly demo app with made-up data; nothing is s
   the selection from the table, prints its name, purpose, expression and the exact Playwright
   command it becomes, lists the tests Playwright would choose without running anything, compares
   that list with the table, and stops if they differ or if nothing matched; only then it runs
-  exactly those tests and checks that what ran is what was listed. `--list-only` stops after the
-  check. Expressions use whole tags joined by `and`, `or` and `not`; each tag must be in the tag
-  scheme, and is matched only as a whole tag, never as part of a longer tag or of a word in a title.
+  exactly those tests and accounts for every listed test (passed, failed, skipped or not run),
+  checking that nothing else ran. Before any selection it refuses to go on if a test's title
+  contains "@", which Playwright would read as a tag. `--list-only` stops after the check.
+  Expressions use whole tags joined by `and`, `or` and `not`; each tag must be in the tag scheme,
+  and is matched only as a whole tag, never as part of a longer tag or of a word in a title.
 - **The README and setup check** describe the selections and the tool and track the new tool (37
   project files instead of 36).
 
@@ -41,8 +43,8 @@ My decisions:
 I listed each selection first and matched it to the table (criteria 5 and 6). The tool lists what
 Playwright would choose without running anything, compares it with the exact tests the table
 expects, and refuses to run on any difference, on a test listed twice, or on an empty result
-(criterion 7). Only when the listing matches does it run, and afterwards it checks that what ran is
-exactly what was listed.
+(criterion 7). Only when the listing matches does it run, and afterwards it accounts for every
+listed test and checks that nothing else ran.
 
 ## Reflection: what happens in your pipeline if a selection quietly matches zero tests?
 
@@ -95,7 +97,7 @@ reports that the selection matched no tests and exits with an error, without run
    @writes-data`): 15 listed, none of them a write test, matching the table, and 15 ran and passed.
 5. **The list of selected tests is checked before execution:** every run in `logs/execution-run.txt`
    shows the listing and "The listing matches the N expected tests." before "Running them now", and
-   ends with "What ran is exactly what was listed."
+   ends with "Every listed test is accounted for (it ran or was skipped), and nothing else ran."
 6. **The listed set matches the expected set in the table:** `logs/list-run.txt`, all six non-empty
    selections: "The listing matches the N expected tests."
 7. **A selection matching no test is reported, not treated as a pass:** `slow-read-only` is refused
@@ -104,10 +106,11 @@ reports that the selection matched no tests and exits with an error, without run
 
 ## What was tested or validated
 
-- **The list run** (`logs/list-run.txt`, 11-13-2026, 9:14 AM) and **the execution run**
-  (`logs/execution-run.txt`, 11-13-2026, 9:14 AM to 9:14 AM): as described under the criteria; the
+- **The list run** (`logs/list-run.txt`, 11-13-2026, 9:26 AM) and **the execution run**
+  (`logs/execution-run.txt`, 11-13-2026, 9:26 AM to 9:26 AM): as described under the criteria; the
   real orders file was byte for byte the committed one afterwards, the demo app's key appeared in
-  none of the 16 command outputs, and the repository's credential scan of both logs found 0.
+  the full output of none of the 16 commands the recording ran (the 14 in the logs and the 2 version
+  checks in their headers), and the repository's credential scan of both logs found 0.
 - **Plain Playwright on the empty selection** (`logs/execution-run.txt`): "Error: No tests found",
   exit 1, by default; with `--pass-with-no-tests`, exit 0. The tool refuses it either way.
 - **Whole-tag matching was checked by hand first:** the whole-tag pattern for `@slow` listed only

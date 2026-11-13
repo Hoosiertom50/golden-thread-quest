@@ -69,10 +69,18 @@ if (!expression || !purpose || listStart === -1) {
   console.error(`The "${name}" section needs an Expression, a Purpose and an Expected tests list.`);
   process.exit(2);
 }
+// Every "  - " item after the heading, blank lines between items included; the list ends at the
+// first line that is neither an item nor blank.
 const expected: string[] = [];
 for (const line of section.slice(listStart + 1)) {
+  if (line.trim() === "") continue;
   if (!line.startsWith("  - ")) break;
   if (line.trim() !== "- none") expected.push(line.slice(4).trim());
+}
+const writtenTwice = expected.filter((test, n) => expected.indexOf(test) !== n);
+if (writtenTwice.length > 0) {
+  console.error(`The "${name}" section lists a test more than once: ${[...new Set(writtenTwice)].join("; ")}.`);
+  process.exit(2);
 }
 
 // --- The expression, into Playwright's --grep and --grep-invert. ------------------------------------
@@ -169,11 +177,37 @@ const specsOf = (json: string): Spec[] => {
     process.exit(2);
   }
 };
-const listing = spawnSync("npx", ["playwright", "test", "--list", "--reporter=json", ...selectArgs], { encoding: "utf8", env });
-if (listing.error || (listing.status !== 0 && !listing.stdout)) {
-  console.error(`Couldn't list the tests: ${listing.error ? listing.error.message : listing.stderr}`);
+const list = (extra: string[]) => {
+  const answer = spawnSync("npx", ["playwright", "test", "--list", "--reporter=json", ...extra], { encoding: "utf8", env });
+  if (answer.error || answer.stdout === "") {
+    console.error(`Couldn't list the tests: ${answer.error ? answer.error.message : answer.stderr}`);
+    process.exit(2);
+  }
+  return answer;
+};
+
+// A word starting with "@" in a test's title (or a group's) is a tag to Playwright's --grep too, so it
+// could pull a test into a selection it doesn't belong to. The tag scheme forbids it; this enforces it,
+// on every test, before any selection is made.
+const everything = list([]);
+const titled: string[] = [];
+const walkTitles = (suite: Suite & { title?: string }, depth: number) => {
+  if (depth > 0 && suite.title?.includes("@")) titled.push(`group "${suite.title}"`);
+  for (const spec of suite.specs ?? []) if (spec.title.includes("@")) titled.push(`${spec.file} › ${spec.title}`);
+  for (const child of (suite.suites ?? []) as (Suite & { title?: string })[]) walkTitles(child, depth + 1);
+};
+try {
+  for (const suite of (JSON.parse(everything.stdout).suites ?? []) as Suite[]) walkTitles(suite, 0);
+} catch {
+  console.error("Couldn't read Playwright's list of all tests.");
   process.exit(2);
 }
+if (titled.length > 0) {
+  console.error(`These titles contain "@", which Playwright would read as a tag, so no selection is made until they are renamed:\n  ${titled.join("\n  ")}`);
+  process.exit(2);
+}
+
+const listing = list(selectArgs);
 // Playwright reports an empty selection as the error "No tests found"; any other error (a broken
 // configuration, a test file that doesn't load) means the tests couldn't be listed at all, which is
 // not the same as a selection that matched nothing.
@@ -189,6 +223,12 @@ if (listingErrors.length > 0) {
   process.exit(2);
 }
 const listed = specsOf(listing.stdout).map((spec) => `${spec.file} › ${spec.title}`);
+// A listing that failed is only an empty selection when Playwright's sole complaint is "No tests
+// found" and it listed nothing; a failed process with tests in its list is never trusted.
+if (listing.status !== 0 && listed.length > 0) {
+  console.error(`Playwright's listing ended with an error (exit ${listing.status}), so it isn't trusted:\n${listing.stderr}`);
+  process.exit(2);
+}
 console.log(`Listed (${listed.length}), without running:`);
 for (const test of listed) console.log(`  ${test}`);
 
@@ -198,9 +238,10 @@ if (listed.length === 0) {
   process.exit(1);
 }
 const missing = expected.filter((test) => !listed.includes(test));
+const countsDiffer = expected.length !== listed.length;
 const extra = listed.filter((test) => !expected.includes(test));
 const doubled = listed.filter((test, n) => listed.indexOf(test) !== n);
-if (missing.length + extra.length + doubled.length > 0) {
+if (missing.length + extra.length + doubled.length > 0 || countsDiffer) {
   console.log(`\nMISMATCH: the listing doesn't match the ${expected.length} expected tests in selections.md, so nothing was run.`);
   for (const test of missing) console.log(`  expected but not listed: ${test}`);
   for (const test of extra) console.log(`  listed but not expected: ${test}`);
@@ -218,17 +259,27 @@ const run = spawnSync("npx", ["playwright", "test", "--reporter=list,json", ...s
   stdio: ["ignore", "inherit", "inherit"],
   env: { ...env, PLAYWRIGHT_JSON_OUTPUT_FILE: report },
 });
+if (run.error) {
+  rmSync(folder, { recursive: true, force: true });
+  console.error(`Couldn't start the run: ${run.error.message}`);
+  process.exit(2);
+}
 const ranSpecs = existsSync(report) ? specsOf(readFileSync(report, "utf8")) : [];
 rmSync(folder, { recursive: true, force: true });
-const ran = ranSpecs.map((spec) => `${spec.file} › ${spec.title}`);
-const counts = { passed: 0, failed: 0, skipped: 0 };
+// Each listed test's outcome: passed, failed, skipped, or not run at all (no result, as when the run's
+// setup fails before any test starts).
+const counts = { passed: 0, failed: 0, skipped: 0, "not run": 0 };
+const outcome = new Map<string, keyof typeof counts>();
 for (const spec of ranSpecs) {
   const status = spec.tests?.[0]?.results?.at(-1)?.status;
-  if (status === "passed") counts.passed++;
-  else if (status === "skipped") counts.skipped++;
-  else counts.failed++;
+  outcome.set(`${spec.file} › ${spec.title}`,
+    status === undefined ? "not run" : status === "passed" ? "passed" : status === "skipped" ? "skipped" : "failed");
 }
-const sameSet = ran.length === listed.length && listed.every((test) => ran.includes(test));
-console.log(`\nSelection "${name}": ${listed.length} listed; ran ${counts.passed + counts.failed} (${counts.passed} passed, ${counts.failed} failed), ${counts.skipped} skipped.`);
-console.log(sameSet ? "What ran is exactly what was listed." : "WARNING: what ran differs from what was listed.");
-process.exit(run.status === 0 && sameSet ? 0 : 1);
+for (const test of listed) counts[outcome.get(test) ?? "not run"]++;
+const unexpected = [...outcome.keys()].filter((test) => !listed.includes(test));
+console.log(`\nSelection "${name}": ${listed.length} listed: ${counts.passed} passed, ${counts.failed} failed, ${counts.skipped} skipped, ${counts["not run"]} not run.`);
+if (unexpected.length > 0) console.log(`WARNING: tests that weren't listed appeared in the run:\n  ${unexpected.join("\n  ")}`);
+const accounted = counts["not run"] === 0 && unexpected.length === 0;
+console.log(accounted ? "Every listed test is accounted for (it ran or was skipped), and nothing else ran."
+  : "WARNING: not every listed test ran or was skipped as listed.");
+process.exit(run.status === 0 && accounted ? 0 : 1);
