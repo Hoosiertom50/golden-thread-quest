@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>The Golden Thread Quest: Introduction</title>
+<style>
+@page { size: Letter; margin: 0.5in 0.65in; }
+:root { --ink:#27303a; --muted:#5d6672; --line:#ded8cc; --gold:#c18b28; --teal:#3b8e86; --bg:#f7f4ec; }
+* { box-sizing: border-box; }
+body { font: 9.6pt/1.38 "DejaVu Sans", Helvetica, Arial, sans-serif; color: var(--ink); margin: 0; }
+h1 { font-size: 26pt; line-height: 1.1; margin: 0 0 4pt; }
+h2 { font-size: 12pt; margin: 11pt 0 4pt; break-after: avoid; padding-bottom: 3pt; border-bottom: 2px solid var(--gold); }
+h3 { font-size: 10.5pt; margin: 0 0 2pt; }
+p { margin: 0 0 7pt; }
+.kicker { text-transform: uppercase; letter-spacing: .12em; font-size: 8.5pt; color: var(--teal); font-weight: bold; }
+.tag { font-size: 13pt; color: var(--muted); margin-bottom: 10pt; }
+.thread { background: var(--bg); border-left: 4px solid var(--gold); padding: 8pt 12pt; font-weight: bold; margin: 10pt 0; }
+.cols { display: flex; gap: 14pt; }
+.cols > div { flex: 1; }
+.card { border: 1px solid var(--line); border-radius: 4pt; padding: 7pt 9pt; }
+tr { break-inside: avoid; } table { border-collapse: collapse; width: 100%; font-size: 9.5pt; }
+th, td { text-align: left; padding: 2.5pt 6pt; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--bg); }
+td.n { text-align: right; white-space: nowrap; }
+img { width: 100%; border: 1px solid var(--line); border-radius: 4pt; }
+ul { margin: 0 0 7pt; padding-left: 16pt; } li { margin-bottom: 2pt; }
+.pb { break-before: page; }
+.status { border: 1px solid var(--line); background: var(--bg); padding: 8pt 12pt; font-size: 9.5pt; }
+.foot { margin-top: 12pt; font-size: 8.5pt; color: var(--muted); }
+</style></head><body>
+
+<p class="kicker">The AI Context Engineer Journey</p>
+<h1>The Golden Thread Quest</h1>
+<p class="tag">From human intent to verified delivery.</p>
+
+<p>Most delivery problems start before code and surface after it. A decision made in a meeting never becomes a clear requirement. A test passes, but nobody can show which requirement it proves. The Golden Thread Quest is a self-paced training program that teaches people to close that gap, using AI agents as working tools and real files as proof.</p>
+
+<div class="thread">Conversation → requirement → work item → implementation → test → evidence → outcome</div>
+
+<p>Participants learn the two ends of that thread. The <b>intent end</b> turns stakeholder conversations into structured, traceable work. The <b>validation end</b> checks delivered behavior against that intent and keeps evidence a reviewer can trust.</p>
+
+<h2>Who it is for</h2>
+<div class="cols">
+<div class="card"><h3>Participants</h3>Business analysts, manual testers, Scrum facilitators, QA professionals and technical analysts who want practical agentic workflows. No Git knowledge is needed for the pilot.</div>
+<div class="card"><h3>Reviewers</h3>Mentors, facilitators and program owners who read the evidence and decide whether a quest is verified.</div>
+<div class="card"><h3>Program owners</h3>People who need to know who has built real skill, and who can add or change curriculum without a developer.</div>
+</div>
+
+<h2>What makes it different</h2>
+<ul>
+<li><b>Evidence, not checkboxes.</b> A participant hands in repository artifacts, reproducible steps and validator results. A checked box is only a claim.</li>
+<li><b>Verified means a person said so.</b> Claimed, locally checked, submitted, needs-changes and verified are separate states. Only a reviewer's approval produces verified completion.</li>
+<li><b>Local-first.</b> The application runs on the participant's own machine, bound to localhost. Their work stays in ordinary files in their own Git repository. The application reads and checks it, and does not own it.</li>
+<li><b>Safe by design.</b> The application never writes to Jira, GitHub or Trello. In those quests the participant builds the write with a preview, confirmation, duplicate check and sandbox limit, and a reviewer inspects it.</li>
+<li><b>Professional tone.</b> It reads like a field guide for a consulting team, not a game.</li>
+</ul>
+
+<h2>The curriculum: 128 quests, nine regions</h2>
+<table>
+<tr><th>Region</th><th class="n">Quests</th><th>What it teaches</th></tr>
+<tr><td>Base Camp</td><td class="n">9</td><td>A safe workspace: ownership, secrets, previews, audit logs, recovery</td></tr>
+<tr><td>BA Ruins</td><td class="n">13</td><td>Meetings to work items: transcripts, decisions, ambiguity, stories, slicing</td></tr>
+<tr><td>Scrum Village</td><td class="n">9</td><td>Stand-ups, sprint health, scope change, retrospectives, release notes</td></tr>
+<tr><td>Context Library</td><td class="n">12</td><td>Trustworthy local context: freshness, dependencies, decisions, traceability</td></tr>
+<tr><td>Playwright Labyrinth</td><td class="n">20</td><td>Risk-based testing, maintainable Playwright tests, triage, defect reports</td></tr>
+<tr><td>Jira Jungle</td><td class="n">23</td><td>Reading and, in a sandbox, writing Jira with an agent</td></tr>
+<tr><td>GitHub Caverns</td><td class="n">18</td><td>The same for GitHub issues and pull requests</td></tr>
+<tr><td>Trello Islands</td><td class="n">17</td><td>The same for Trello boards and cards</td></tr>
+<tr><td>Trap Cards</td><td class="n">7</td><td>Adversarial cases: stale context, contradictions, injected instructions, false repairs</td></tr>
+</table>
+
+
+<h2>How a participant works</h2>
+<div class="cols">
+<div>
+<ol style="padding-left:16pt;margin:0">
+<li><b>Pick.</b> The home page recommends the next quest. Quests unlock as their prerequisites are verified.</li>
+<li><b>Build.</b> Read what the quest asks for, then produce real files in your own repository.</li>
+<li><b>Check.</b> The application runs the objective checks locally and shows what passed.</li>
+<li><b>Hand in.</b> One command sends the work to a reviewer.</li>
+<li><b>Get reviewed.</b> The reviewer approves it or asks for changes with reasons. Approval is what earns verified credit.</li>
+</ol>
+<p style="margin-top:8pt">The Quest Map shows every region and how many of its quests a reviewer has verified.</p>
+</div>
+<div><img src="quest-map.png" alt="The Quest Map: nine regions drawn as an atlas"></div>
+</div>
+
+<h2>What a program gets</h2>
+<ul>
+<li>Participants who leave with a body of reviewed work, not a certificate of attendance.</li>
+<li>Reviewers who see exactly what was required, what was submitted and what the checks found.</li>
+<li>Curriculum that is plain Markdown and YAML. Add a valid quest file and the catalog, map, filters and search update with no UI code change.</li>
+<li>Updates from the upstream curriculum that do not overwrite a participant's work.</li>
+</ul>
+
+<h2>Where it stands</h2>
+<div class="status">
+<b>Pilot release 0.3.1. Not for general use.</b> The engine is built and passed its release checklist on a clean clone, covering the participant, reviewer, maintainer and failure flows in a real browser. All 128 quests are written and have been read by independent audit passes. They have not yet been worked through by a full cohort. The installed Cowork app, the primary target, has not yet been tested. Interfaces and content can change during the pilot, and no upgrade path is promised to the first general release.
+</div>
+
+<h2>Next step</h2>
+<p>Join the pilot. A participant pastes one setup line, runs <b>gtq start</b> to open the application, and begins with Base Camp. A business analyst can start with the transcript quest, and a tester with the first independent Playwright test.</p>
+
+<p class="foot">Source: github.com/beekeeper-lab/golden-thread-quest. Setup guide: docs/guides/PILOT.md. Figures are from README.md at release 0.3.1.</p>
+</body></html>
