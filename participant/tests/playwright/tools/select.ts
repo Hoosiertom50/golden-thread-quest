@@ -142,13 +142,15 @@ while (i < words.length) {
   }
 }
 if (include.length + exclude.length === 0) fail("it's empty");
-// A tag only as a whole tag: not inside a longer tag, and not part of another word.
-const whole = (t: string) => `(?<![A-Za-z0-9_@-])@${t}(?![A-Za-z0-9_-])`;
+// A tag only as a whole tag: Playwright's --grep sees the file, the titles and the tags separated by
+// spaces, so a tag must have a space (or the start or end) on both sides. "@fast" doesn't match
+// "@fast-lane", "@fast.extra", "@fast:nightly" or "x@fast".
+const whole = (t: string) => `(?<!\\S)@${t}(?!\\S)`;
 const grep =
   include.length === 0 ? undefined
   : include.length === 1 ? whole(include[0])
   : joiner === "or" ? include.map(whole).join("|")
-  : `^${include.map((t) => `(?=.*${whole(t)})`).join("")}`;
+  : `^${include.map((t) => `(?=[\\s\\S]*${whole(t)})`).join("")}`; // [\s\S]* also crosses a line break
 const grepInvert = exclude.length === 0 ? undefined : exclude.map(whole).join("|");
 const selectArgs = [...(grep ? ["--grep", grep] : []), ...(grepInvert ? ["--grep-invert", grepInvert] : [])];
 const shown = `npx playwright test ${selectArgs.map((arg) => (arg.startsWith("--") ? arg : `'${arg}'`)).join(" ")}`;

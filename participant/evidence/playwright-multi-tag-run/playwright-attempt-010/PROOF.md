@@ -107,8 +107,8 @@ reports that the selection matched no tests and exits with an error, without run
 
 ## What was tested or validated
 
-- **The list run** (`logs/list-run.txt`, 11-13-2026, 9:34 AM) and **the execution run**
-  (`logs/execution-run.txt`, 11-13-2026, 9:34 AM to 9:35 AM): as described under the criteria; the
+- **The list run** (`logs/list-run.txt`, 11-13-2026, 9:39 AM) and **the execution run**
+  (`logs/execution-run.txt`, 11-13-2026, 9:40 AM to 9:40 AM): as described under the criteria; the
   real orders file was byte for byte the committed one afterwards, the demo app's key appeared in
   the full output of none of the 16 commands the recording ran (the 14 in the logs and the 2 version
   checks in their headers), and the repository's credential scan of both logs found 0.
