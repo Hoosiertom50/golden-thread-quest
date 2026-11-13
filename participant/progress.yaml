@@ -174,4 +174,13 @@ attempts:
   evidence_path: participant/evidence/playwright-tagging/playwright-attempt-009
   submission_id: submission-20261112195048-6f8626
   review_id: review-20261112200012-d3519e
-updated_at: '2026-11-12T20:00:12Z'
+- attempt_id: playwright-attempt-010
+  quest_id: playwright-multi-tag-run
+  quest_version: 1
+  content_hash: sha256:dbd3c718991cc34b5be15037a0a30b2cddf94b8cd17e261be0d0a08736dbf8f5
+  state: submitted
+  started_at: '2026-11-13T13:57:28Z'
+  updated_at: '2026-11-13T14:52:37Z'
+  evidence_path: participant/evidence/playwright-multi-tag-run/playwright-attempt-010
+  submission_id: submission-20261113145237-02e46f
+updated_at: '2026-11-13T14:52:37Z'

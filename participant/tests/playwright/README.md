@@ -85,6 +85,20 @@ From a fresh copy of the repository:
    over its limit. Without `--results` it checks the tags only. Don't write `@` in a test's title:
    Playwright counts any `@word` in a title as a tag too.
 
+   **Selections.** `context/playwright/selections.md` (in `participant/`) names seven tag
+   selections, each with an expression in plain words (`@fast and @read-only`, `@events or
+   @order-review`, `not @writes-data`), its purpose and the exact tests it should choose. Run one
+   with the selection tool, which prints the Playwright command it builds, lists the tests without
+   running them, compares them with the table, and runs them only if they match; a selection that
+   matches no test is always an error, never a pass:
+
+   ```
+   node tools/select.ts safe-pipeline
+   node tools/select.ts safe-pipeline --list-only
+   ```
+
+   Tags are matched only as whole tags, so a selection for `@risk` would never pick up `@risk-high`.
+
    **Brittle and stable locators.** `brittle.spec.ts` finds things by how the page is built
    (positions, generated names, a path); `stable.spec.ts` checks the same thing by what a user
    sees. Both pass on the demo app. `demo-app-redesigned/` is a copy of the demo app with the same

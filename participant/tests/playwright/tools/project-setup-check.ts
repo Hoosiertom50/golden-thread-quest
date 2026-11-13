@@ -89,6 +89,7 @@ const MUST_NOT_BE_IGNORED: string[] = [
   "tools/data-isolation-check.ts",
   "tools/break-cancel.ts",
   "tools/tagging-check.ts",
+  "tools/select.ts",
   ".gitignore",
   ".env.example",
 ];
