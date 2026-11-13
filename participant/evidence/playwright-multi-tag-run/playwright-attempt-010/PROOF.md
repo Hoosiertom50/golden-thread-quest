@@ -123,6 +123,17 @@ reports that the selection matched no tests and exits with an error, without run
   Playwright treats an empty selection as a pass: by default it reports an error; it only passes
   with `--pass-with-no-tests`.
 - **The setup check passes** with 37 project files and no credential found.
+- **Reviews:** my own review before the AI review made the tool tell a selection that matched
+  nothing apart from a listing that failed, and read the scheme's tags the same way as the tag
+  check. Then an AI code review (Copilot) on a practice pull request, 4 rounds, every finding
+  reproduced before it was fixed and both logs recorded again after each code change; the 4th round
+  reported no open issues. It found real problems: a test file named like a tag
+  (`@read-only.spec.ts`) let a write test into `safe-pipeline`, because Playwright's `--grep` also
+  reads file paths; an `@` in a test's title could pull it into a selection; a tag followed by
+  punctuation (`@fast.extra`) counted as `@fast`; an "and" selection missed a test inside a group
+  whose title has a line break; the table was read only up to a blank line, and a test written twice
+  in it passed; and a failed listing or a run whose tests never started could look like an empty
+  selection or a plain mismatch.
 - **This quest has no automatic checker.** The criteria above were checked against the files and the
   two logs.
 
@@ -144,6 +155,10 @@ reports that the selection matched no tests and exits with an error, without run
   same; the tool reports a test listed twice rather than guess.
 - **A selection is only as safe as the tags:** `shared-environment` leaves out write tests by their
   `@writes-data` tag, so a write test tagged `@read-only` by mistake would be included.
+- **The check for `@` in titles and file paths uses a first listing of every test.** If that listing
+  fails, the check can't see every title; the selection's own listing then fails too (it loads the
+  same files), and the tool stops on a failed listing, so it can't report success. The last review
+  round asked a person to keep an eye on this.
 - **One browser (Chromium).**
 
 ## Sensitive values
