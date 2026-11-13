@@ -15,6 +15,7 @@ p { margin: 0 0 7pt; }
 .thread { background: var(--bg); border-left: 4px solid var(--gold); padding: 8pt 12pt; font-weight: bold; margin: 10pt 0; }
 .cols { display: flex; gap: 14pt; }
 .cols > div { flex: 1; }
+.docs td:first-child { white-space: nowrap; font-size: 8.5pt; }
 .card { border: 1px solid var(--line); border-radius: 4pt; padding: 7pt 9pt; }
 tr { break-inside: avoid; } table { border-collapse: collapse; width: 100%; font-size: 9.5pt; }
 th, td { text-align: left; padding: 2.5pt 6pt; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -96,8 +97,32 @@ ul { margin: 0 0 7pt; padding-left: 16pt; } li { margin-bottom: 2pt; }
 <b>Pilot release 0.3.1. Not for general use.</b> The engine is built and passed its release checklist on a clean clone, covering the participant, reviewer, maintainer and failure flows in a real browser. All 128 quests are written and have been read by independent audit passes. They have not yet been worked through by a full cohort. The installed Cowork app, the primary target, has not yet been tested. Interfaces and content can change during the pilot, and no upgrade path is promised to the first general release.
 </div>
 
-<h2>Next step</h2>
-<p>Join the pilot. A participant pastes one setup line, runs <b>gtq start</b> to open the application, and begins with Base Camp. A business analyst can start with the transcript quest, and a tester with the first independent Playwright test.</p>
+<h2 class="pb">Get started</h2>
+<p><b>Repository:</b> https://github.com/beekeeper-lab/golden-thread-quest</p>
+<div class="cols" style="gap:18pt">
+<div style="flex:1.1">
+<p><b>You need:</b> a Mac or Linux computer (Windows via WSL Ubuntu), a free GitHub account and about ten minutes. No Git or coding skill is required. Use made-up material only, because your work is stored on GitHub.</p>
+<ol style="padding-left:16pt;margin:0">
+<li>Open a terminal and paste this one line:
+<div class="card" style="font:8pt/1.3 'DejaVu Sans Mono',monospace;word-break:break-all;margin:3pt 0 5pt">curl -fsSL https://raw.githubusercontent.com/beekeeper-lab/golden-thread-quest/v0.3.1/install.sh | bash</div></li>
+<li>Answer its prompts. It asks before installing anything and signs you in to GitHub.</li>
+<li>The application opens in your browser. Start with <b>Ingest a Meeting Transcript</b> (BA Ruins), then <b>Establish a Safe Local Quest Repository</b> (Base Camp).</li>
+<li>Later, run <b>gtq start</b> to reopen it, <b>gtq hand-in</b> to send work for review and <b>gtq get-review</b> to bring the review back.</li>
+</ol>
+</div>
+<div>
+<p><b>Documentation</b> (all in the repository)</p>
+<table class="docs">
+<tr><td>docs/guides/PILOT.md</td><td>Pilot setup, first quest, hand-in</td></tr>
+<tr><td>docs/USER-GUIDE.md</td><td>Everything a participant needs</td></tr>
+<tr><td>docs/guides/REVIEWER.md</td><td>Deciding what is verified</td></tr>
+<tr><td>docs/guides/PILOT-LEAD.md</td><td>Running a pilot</td></tr>
+<tr><td>docs/CONTENT-AUTHORING-GUIDE.md</td><td>Writing a quest</td></tr>
+<tr><td>docs/SETUP.md</td><td>Manual install, troubleshooting</td></tr>
+<tr><td>docs/RELEASE-NOTES.md</td><td>Known limitations</td></tr>
+</table>
+</div>
+</div>
 
-<p class="foot">Source: github.com/beekeeper-lab/golden-thread-quest. Setup guide: docs/guides/PILOT.md. Figures are from README.md at release 0.3.1.</p>
+<p class="foot">Figures are from README.md at release 0.3.1.</p>
 </body></html>
