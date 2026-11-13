@@ -178,9 +178,10 @@ attempts:
   quest_id: playwright-multi-tag-run
   quest_version: 1
   content_hash: sha256:dbd3c718991cc34b5be15037a0a30b2cddf94b8cd17e261be0d0a08736dbf8f5
-  state: submitted
+  state: verified
   started_at: '2026-11-13T13:57:28Z'
-  updated_at: '2026-11-13T14:52:37Z'
+  updated_at: '2026-11-13T20:26:31Z'
   evidence_path: participant/evidence/playwright-multi-tag-run/playwright-attempt-010
   submission_id: submission-20261113145237-02e46f
-updated_at: '2026-11-13T14:52:37Z'
+  review_id: review-20261113202631-35fcaf
+updated_at: '2026-11-13T20:26:31Z'
