@@ -7,39 +7,28 @@
 //   node tools/copy-failure-bundle.ts <the test's folder in test-results> <a new or empty folder>
 //
 // What it changes in the copy:
-//   - In every text file, and in every text member of trace.zip, the home-folder address (for example
-//     /Users/<name>) becomes ~, so the bundle doesn't show the computer's user name.
+//   - In every text file, and in every text member of trace.zip (UTF-8 or UTF-16), the home-folder
+//     address (for example /Users/<name>) becomes ~, so the bundle doesn't show the computer's user
+//     name: as it is, URL-encoded (as in file:///Users/Jane%20Doe/…) or escaped as in JSON.
 //   - Inside trace.zip, src/ holds a copy of each test file named by the sha1 of its full address; the
 //     trace viewer finds a file's source by that name. Each one is renamed to the sha1 of the
 //     shortened address, so the viewer's Source tab still works (and the old name, which could
 //     confirm a guessed user name, is gone).
 // Images (the screenshot, the trace's page snapshots) are copied as they are: check them by eye.
-// It reports how many places it changed, never the addresses themselves. Then scan the copy:
+// It reports how many places it changed, never the addresses themselves, and shows the home folder
+// as ~ in every path it prints. If it fails part-way, it says so and the partial copy should be
+// deleted. Then scan the copy:
 //   node tools/failure-evidence-check.ts <the copy>
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import { asText, readZip, writeZip } from "./zip-lite.ts";
+import { decodeText, encodeText, readZip, writeZip } from "./zip-lite.ts";
 
 const [from, to] = process.argv.slice(2);
 if (!from || !to) {
   console.error("Usage: node tools/copy-failure-bundle.ts <the test's folder in test-results> <a new or empty folder>");
-  process.exit(2);
-}
-const source = resolve(from);
-const target = resolve(to);
-if (!existsSync(join(source, "trace.zip"))) {
-  console.error(`${from} has no trace.zip: give the folder of one failing test, inside test-results/.`);
-  process.exit(2);
-}
-if (target === source || target.startsWith(`${source}/`) || source.startsWith(`${target}/`)) {
-  console.error("The copy and the original can't be inside each other.");
-  process.exit(2);
-}
-if (existsSync(target) && readdirSync(target).length > 0) {
-  console.error(`${to} isn't empty; give a new or empty folder, so nothing there is overwritten.`);
   process.exit(2);
 }
 
@@ -48,21 +37,65 @@ if (home.length < 2) {
   console.error("Couldn't tell which folder is the home folder, so nothing would be hidden.");
   process.exit(1);
 }
+// The home-folder address in every form it could be stored in: as it is, URL-encoded as in a file
+// address (file:///Users/Jane%20Doe/…), fully URL-encoded, and escaped as in JSON. Longest first, so
+// a longer form is replaced before a shorter one inside it.
+const homeForms = [...new Set([home, encodeURI(home), encodeURIComponent(home), JSON.stringify(home).slice(1, -1)])].sort(
+  (a, b) => b.length - a.length,
+);
 const sha1 = (text: string) => createHash("sha1").update(text).digest("hex");
-const shorten = (text: string) => text.replaceAll(home, "~");
-const places = (text: string) => text.split(home).length - 1;
+const shorten = (text: string) => homeForms.reduce((out, form) => out.replaceAll(form, "~"), text);
+const places = (text: string) => homeForms.reduce((count, form) => count + text.split(form).length - 1, 0);
+// What this tool prints: paths relative to where it runs, with the home folder shown as ~.
+const shownPath = (path: string) => shorten(relative(process.cwd(), path).startsWith("..") ? path : relative(process.cwd(), path));
+
+const source = resolve(from);
+const target = resolve(to);
+if (!existsSync(join(source, "trace.zip"))) {
+  console.error(`${shownPath(source)} has no trace.zip: give the folder of one failing test, inside test-results/.`);
+  process.exit(2);
+}
+if (target === source || target.startsWith(`${source}/`) || source.startsWith(`${target}/`)) {
+  console.error("The copy and the original can't be inside each other.");
+  process.exit(2);
+}
+if (existsSync(target) && readdirSync(target).length > 0) {
+  console.error(`${shownPath(target)} isn't empty; give a new or empty folder, so nothing there is overwritten.`);
+  process.exit(2);
+}
 
 let changed = 0;
 const report: string[] = [];
 
+// Every full file address in the trace's records that starts in the home folder. They are read from
+// the JSON the trace is made of (each member is JSON, or one JSON record per line), so an address
+// with spaces or brackets in it is taken whole.
+function homeAddresses(text: string): string[] {
+  const addresses: string[] = [];
+  const walk = (node: unknown) => {
+    if (typeof node === "string") {
+      if (node.startsWith(`${home}/`)) addresses.push(node);
+    } else if (Array.isArray(node)) node.forEach(walk);
+    else if (node !== null && typeof node === "object") Object.values(node).forEach(walk);
+  };
+  for (const chunk of [text, ...text.split("\n")]) {
+    try {
+      walk(JSON.parse(chunk));
+    } catch {
+      // Not JSON.
+    }
+  }
+  return addresses;
+}
+
 function copyTrace(zip: Buffer): Buffer {
   const entries = readZip(zip);
-  // Every full address in the trace that starts in the home folder, by the sha1 the viewer uses.
+  // The trace viewer finds a file's source under src/ by the sha1 of its full address: map each old
+  // name to the sha1 of the shortened address.
   const renames = new Map<string, string>();
-  const addressPattern = new RegExp(`${home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^"\\s:)]*`, "g");
   for (const { data } of entries) {
-    const text = asText(data);
-    for (const address of text?.match(addressPattern) ?? []) renames.set(sha1(address), sha1(shorten(address)));
+    const decoded = decodeText(data);
+    for (const address of decoded ? homeAddresses(decoded.text) : []) renames.set(sha1(address), sha1(shorten(address)));
   }
   let members = 0;
   let renamed = 0;
@@ -73,11 +106,11 @@ function copyTrace(zip: Buffer): Buffer {
       newName = `src/${renames.get(sourceFile[1])}${sourceFile[2] ?? ""}`;
       renamed++;
     }
-    const text = asText(data);
-    if (text === null || places(text) === 0) return { name: newName, data };
+    const decoded = decodeText(data);
+    if (decoded === null || places(decoded.text) === 0) return { name: newName, data };
     members++;
-    changed += places(text);
-    return { name: newName, data: Buffer.from(shorten(text), "utf8") };
+    changed += places(decoded.text);
+    return { name: newName, data: encodeText(shorten(decoded.text), decoded.encoding) };
   });
   report.push(`  trace.zip: ${members} member(s) changed, ${renamed} source file(s) renamed in src/`);
   return writeZip(copied);
@@ -93,26 +126,31 @@ function copy(from: string, to: string): void {
       continue;
     }
     const data = readFileSync(path);
-    const shown = relative(source, path);
+    const shown = shorten(relative(source, path));
     if (name.endsWith(".zip")) {
       writeFileSync(out, copyTrace(data));
       continue;
     }
-    const text = asText(data);
-    if (text === null) {
+    const decoded = decodeText(data);
+    if (decoded === null) {
       writeFileSync(out, data);
       report.push(`  ${shown}: copied as it is (not text: check it by eye)`);
       continue;
     }
-    const count = places(text);
+    const count = places(decoded.text);
     changed += count;
-    writeFileSync(out, shorten(text));
+    writeFileSync(out, count > 0 ? encodeText(shorten(decoded.text), decoded.encoding) : data);
     if (count > 0) report.push(`  ${shown}: ${count} place(s) changed`);
   }
 }
 
-copy(source, target);
-const shownPath = (path: string) => (relative(process.cwd(), path).startsWith("..") ? path : relative(process.cwd(), path));
+try {
+  copy(source, target);
+} catch (error) {
+  console.error(`Couldn't copy the bundle: ${shorten(error instanceof Error ? error.message : String(error))}`);
+  console.error(`Part of it may have been written to ${shownPath(target)}; delete that folder before trying again.`);
+  process.exit(1);
+}
 console.log(`Copied ${shownPath(source)} to ${shownPath(target)}.`);
 console.log(`The home-folder address was replaced with ~ in ${changed} place(s):`);
 for (const line of report) console.log(line);

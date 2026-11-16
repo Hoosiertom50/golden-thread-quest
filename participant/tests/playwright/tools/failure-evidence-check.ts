@@ -4,31 +4,35 @@
 //   node tools/failure-evidence-check.ts <bundle folder>              scan the bundle
 //   node tools/failure-evidence-check.ts --self-test <bundle folder>  prove the scan finds planted fakes
 //
-// SCAN: reads every file in the folder and every member of every .zip in it (trace.zip), and looks
-// for:
-//   - the run's actual API key, as it is, URL-encoded or base64-encoded;
-//   - the shapes of secrets: a bearer token, a JSON web token, an Authorization, Cookie, Set-Cookie or
-//     API-key header with a value, a password, secret, token or key given a value, a private key,
-//     a password inside an address (user:password@), and the prefixes of well-known token kinds;
-//   - the computer's home-folder address, which shows its user name (a personal detail, not a secret:
-//     the bundle is meant to have it replaced with ~ by tools/copy-failure-bundle.ts).
-// Each finding is reported as file (and zip member), line and kind, never the value, so the report
-// itself can be shared. Files that aren't text (the screenshot, the trace's page images) are still
-// searched for the key and the home-folder address, and are listed to be checked by eye for
-// personal data. Exit 0 when nothing is found, 1 when something is, 2 when it couldn't check.
+// SCAN: reads every file in the folder and every member of every .zip in it (trace.zip), and their
+// names too, and looks for:
+//   - the run's actual API key: as it is, URL-encoded, base64-encoded or escaped as in JSON;
+//   - the shapes of secrets: a bearer token, a JSON web token, an Authorization, Cookie, Set-Cookie
+//     or API-key header with any value (as text, "Cookie: …", or as JSON, in either order and over
+//     several lines), a password, secret, token or key given any value however short, a private
+//     key, a password inside an address (user:password@), and the prefixes of well-known token kinds;
+//   - the computer's home-folder address, which shows its user name (a personal detail, not a
+//     secret: the bundle is meant to have it replaced with ~ by tools/copy-failure-bundle.ts), as it
+//     is, URL-encoded or escaped as in JSON.
+// Text is read as UTF-8 or UTF-16. Each finding is reported as file (and zip member), line and kind,
+// never the value; every name and path it prints has the key and the home-folder address hidden,
+// so the report itself can be shared. Files that aren't text (the screenshot, the trace's page
+// images) are still searched for the key and the home-folder address, byte for byte in UTF-8 and
+// UTF-16, and are listed to be checked by eye for personal data. A zip it can't fully read stops the
+// check. Exit 0 when nothing is found, 1 when something is, 2 when it couldn't check everything.
 //
 // SELF-TEST: copies the bundle to a new temporary folder, plants three fake values there (a made-up
 // bearer token in console.txt, a made-up session cookie inside trace.zip, and the run's API key in
 // error.txt), scans the copy and passes only if each one is found at the exact file and line where it
 // was planted and nothing else is found. The fakes are made up at random each time, so none is ever
-// written into a file that could be committed. The temporary copy is deleted afterwards; the bundle
-// itself is only read.
+// written into a file that could be committed. The temporary copy is deleted afterwards, whatever
+// happens; the bundle itself is only read.
 
 import { randomBytes } from "node:crypto";
 import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import { asText, readZip, writeZip } from "./zip-lite.ts";
+import { decodeText, readZip, writeZip } from "./zip-lite.ts";
 
 type Finding = { place: string; line: number | null; kind: string };
 
@@ -50,28 +54,74 @@ if (home.length < 2) {
   process.exit(2);
 }
 
+const jsonEscaped = (value: string) => JSON.stringify(value).slice(1, -1);
+const unique = (values: string[]) => [...new Set(values)];
+const keyForms = unique([apiKey, encodeURIComponent(apiKey), Buffer.from(apiKey).toString("base64"), jsonEscaped(apiKey)]);
+const homeForms = unique([home, encodeURI(home), encodeURIComponent(home), jsonEscaped(home)]);
+
 // The exact values this run must never leave behind, in the forms they could be stored in.
 const exactValues: [string, string][] = [
-  [apiKey, "the run's API key"],
-  [encodeURIComponent(apiKey), "the run's API key (URL-encoded)"],
-  [Buffer.from(apiKey).toString("base64"), "the run's API key (base64)"],
-  [home, "the home-folder address (shows the user name)"],
-  [encodeURIComponent(home), "the home-folder address (URL-encoded)"],
+  ...keyForms.map((form): [string, string] => [form, "the run's API key"]),
+  ...homeForms.map((form): [string, string] => [form, "the home-folder address (shows the user name)"]),
 ];
 
-// The shapes of secrets. Each is tested on one line at a time.
+// Anything printed: the key and the home-folder address hidden, longest form first.
+function safe(text: string): string {
+  let out = text;
+  for (const form of [...keyForms].sort((a, b) => b.length - a.length)) out = out.replaceAll(form, "<the API key>");
+  for (const form of [...homeForms].sort((a, b) => b.length - a.length)) out = out.replaceAll(form, "~");
+  return out;
+}
+
+// Header names that carry credentials, and names that, given any value, are a credential.
+const HEADER = "authorization|proxy-authorization|cookie|set-cookie|x-[a-z0-9-]*(?:api-key|token|secret)";
+const ASSIGNED =
+  "password|passwd|pwd|secret|client[_-]?secret|token|access[_-]?token|refresh[_-]?token|api[_-]?key|access[_-]?key|session[_-]?id";
+const isHeaderName = (name: string) => new RegExp(`^(?:${HEADER})$`, "i").test(name);
+const isAssignedName = (name: string) => new RegExp(`^(?:${ASSIGNED})$`, "i").test(name);
+// A value: anything not empty, quoted or not (a quote, then a character that isn't the closing quote).
+const VALUE = `(?:"[^"\\s]|'[^'\\s]|[^\\s"'\`,;(){}\\[\\]])`;
+
+// The shapes of secrets, tested on one line at a time.
 const shapes: [RegExp, string][] = [
   [/\bbearer\s+[A-Za-z0-9._~+/-]{8,}/i, "a bearer token"],
   [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/, "a JSON web token"],
-  // A header written as text ("Cookie: ...") or as Playwright stores it ({"name":"Cookie","value":"..."}).
-  [/\b(authorization|proxy-authorization|cookie|set-cookie|x-[a-z-]*(api-key|token|secret))\s*:\s*\S/i, "a credential header with a value"],
-  [/"name"\s*:\s*"(authorization|proxy-authorization|cookie|set-cookie|x-[a-z-]*(api-key|token|secret))"\s*,\s*"value"\s*:\s*"[^"]/i, "a credential header with a value"],
-  [/\b(password|passwd|secret|token|api[_-]?key|access[_-]?key|session[_-]?id)["']?\s*[:=]\s*["']?[A-Za-z0-9+/_.~-]{8,}/i, "a password, secret, token or key with a value"],
+  // "Cookie: …", "cookie=…" or "Cookie":"…" (a JSON key).
+  [new RegExp(`\\b(?:${HEADER})["']?\\s*[:=]\\s*${VALUE}`, "i"), "a credential header with a value"],
+  // Playwright's {"name":"Cookie","value":"…"}, in either order, on one line.
+  [new RegExp(`"name"\\s*:\\s*"(?:${HEADER})"\\s*,\\s*"value"\\s*:\\s*"[^"]`, "i"), "a credential header with a value"],
+  [new RegExp(`"value"\\s*:\\s*"[^"]+"\\s*,\\s*"name"\\s*:\\s*"(?:${HEADER})"`, "i"), "a credential header with a value"],
+  [new RegExp(`\\b(?:${ASSIGNED})["']?\\s*[:=]\\s*${VALUE}`, "i"), "a password, secret, token or key with a value"],
   // Built from two parts so this file doesn't itself look like a private key to a credential scanner.
   [new RegExp(["-----BEGIN[A-Z ]*PRIVATE", "KEY-----"].join(" ")), "a private key"],
   [/[a-z][a-z0-9+.-]*:\/\/[^\s/:@"']+:[^\s/@"']+@/i, "a password inside an address"],
   [/\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{20,})/, "a well-known token kind"],
 ];
+
+// JSON structure, whatever its order or line breaks: a {name, value} pair naming a credential header,
+// or a key naming a header or a credential, with a value that isn't empty. Reported on the line where
+// the value is.
+function scanJson(value: unknown, text: string, place: string, found: Finding[]): void {
+  const lineOf = (needle: unknown) => {
+    const at = text.indexOf(JSON.stringify(needle));
+    return at < 0 ? 1 : text.slice(0, at).split("\n").length;
+  };
+  const filled = (v: unknown) => (typeof v === "string" && v.trim() !== "") || typeof v === "number";
+  const walk = (node: unknown) => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (node === null || typeof node !== "object") return;
+    const record = node as Record<string, unknown>;
+    if (typeof record.name === "string" && isHeaderName(record.name) && filled(record.value)) {
+      found.push({ place, line: lineOf(record.value), kind: "a credential header with a value" });
+    }
+    for (const [key, v] of Object.entries(record)) {
+      if (filled(v) && isHeaderName(key)) found.push({ place, line: lineOf(v), kind: "a credential header with a value" });
+      else if (filled(v) && isAssignedName(key)) found.push({ place, line: lineOf(v), kind: "a password, secret, token or key with a value" });
+      walk(v);
+    }
+  };
+  walk(value);
+}
 
 function scanText(text: string, place: string, found: Finding[]): void {
   text.split(/\r?\n/).forEach((line, index) => {
@@ -80,91 +130,115 @@ function scanText(text: string, place: string, found: Finding[]): void {
     for (const [shape, kind] of shapes) if (shape.test(line)) kinds.add(kind);
     for (const kind of kinds) found.push({ place, line: index + 1, kind });
   });
+  // The whole text as one JSON document (it may span lines), or each line as one (JSON Lines).
+  try {
+    scanJson(JSON.parse(text), text, place, found);
+  } catch {
+    for (const line of text.split(/\r?\n/)) {
+      try {
+        scanJson(JSON.parse(line), text, place, found);
+      } catch {
+        // Not JSON: the line-by-line shapes above cover it.
+      }
+    }
+  }
 }
 
 // Not text: no lines to report, but the exact values are still looked for, byte for byte.
 function scanBytes(data: Buffer, place: string, found: Finding[], byEye: string[]): void {
-  for (const [value, kind] of exactValues) if (data.includes(Buffer.from(value))) found.push({ place, line: null, kind });
+  for (const [value, kind] of exactValues) {
+    if (data.includes(Buffer.from(value, "utf8")) || data.includes(Buffer.from(value, "utf16le"))) found.push({ place, line: null, kind });
+  }
   byEye.push(place);
 }
 
-function scanFile(data: Buffer, place: string, found: Finding[], byEye: string[], counts: { files: number; members: number }): void {
-  if (place.endsWith(".zip")) {
-    for (const member of readZip(data)) {
-      counts.members++;
-      const memberPlace = `${place} › ${member.name}`;
-      const text = asText(member.data);
-      if (text === null) scanBytes(member.data, memberPlace, found, byEye);
-      else scanText(text, memberPlace, found);
-    }
-    return;
-  }
-  const text = asText(data);
-  if (text === null) scanBytes(data, place, found, byEye);
-  else scanText(text, place, found);
+// A name (a file's path in the bundle or a zip member's) is checked for the exact values too.
+function scanName(name: string, place: string, found: Finding[]): void {
+  const kinds = new Set(exactValues.filter(([value]) => name.includes(value)).map(([, kind]) => `${kind}, in a name`));
+  for (const kind of kinds) found.push({ place, line: null, kind });
 }
 
-function scan(folder: string): { found: Finding[]; byEye: string[]; counts: { files: number; members: number } } {
-  const found: Finding[] = [];
-  const byEye: string[] = [];
-  const counts = { files: 0, members: 0 };
+function scanContent(data: Buffer, place: string, found: Finding[], byEye: string[]): void {
+  const decoded = decodeText(data);
+  if (decoded === null) scanBytes(data, place, found, byEye);
+  else scanText(decoded.text, place, found);
+}
+
+type Scan = { found: Finding[]; byEye: string[]; counts: { files: number; members: number } };
+
+function scan(folder: string): Scan {
+  const result: Scan = { found: [], byEye: [], counts: { files: 0, members: 0 } };
   const walk = (dir: string) => {
     for (const name of readdirSync(dir).sort()) {
       const path = join(dir, name);
-      if (statSync(path).isDirectory()) walk(path);
-      else {
-        counts.files++;
-        scanFile(readFileSync(path), relative(folder, path), found, byEye, counts);
+      const place = relative(folder, path);
+      scanName(place, place, result.found);
+      if (statSync(path).isDirectory()) {
+        walk(path);
+        continue;
+      }
+      result.counts.files++;
+      const data = readFileSync(path);
+      if (!name.endsWith(".zip")) {
+        scanContent(data, place, result.found, result.byEye);
+        continue;
+      }
+      for (const member of readZip(data)) {
+        result.counts.members++;
+        const memberPlace = `${place} › ${member.name}`;
+        scanName(member.name, memberPlace, result.found);
+        scanContent(member.data, memberPlace, result.found, result.byEye);
       }
     }
   };
   walk(folder);
-  return { found, byEye, counts };
+  return result;
 }
 
-const shown = (f: Finding) => `${f.place}${f.line === null ? "" : `:${f.line}`}  ${f.kind}`;
+const shown = (f: Finding) => safe(`${f.place}${f.line === null ? "" : `:${f.line}`}  ${f.kind}`);
+const message = (error: unknown) => safe(error instanceof Error ? error.message : String(error));
 
 const folder = resolve(folderArg);
+const folderShown = safe(folderArg);
 try {
   if (!statSync(folder).isDirectory()) throw new Error("not a folder");
 } catch {
-  console.error(`${folderArg} isn't a folder.`);
+  console.error(`${folderShown} isn't a folder.`);
   process.exit(2);
 }
 
-// A file the check can't read (a damaged zip, say) stops it with exit 2: never a silent pass.
-function scanOrStop(target: string): ReturnType<typeof scan> {
+if (!selfTest) {
+  let result: Scan;
   try {
-    return scan(target);
+    result = scan(folder);
   } catch (error) {
-    console.error(`Couldn't check everything: ${error instanceof Error ? error.message : String(error)}`);
+    // A file the check can't read (a damaged zip, say) is never a silent pass.
+    console.error(`Couldn't check everything: ${message(error)}`);
     process.exit(2);
   }
-}
-
-if (!selfTest) {
-  const { found, byEye, counts } = scanOrStop(folder);
-  console.log(`Scanned ${counts.files} file(s) in ${folderArg}, including ${counts.members} member(s) inside zip files.`);
+  const { found, byEye, counts } = result;
+  console.log(`Scanned ${counts.files} file(s) in ${folderShown}, including ${counts.members} member(s) inside zip files.`);
   if (found.length === 0) console.log("Found: nothing (no API key, no token, cookie or credential, no home-folder address).");
   else {
     console.log(`Found ${found.length} thing(s) (file:line and kind; the values are never shown):`);
     for (const f of found) console.log(`  ${shown(f)}`);
   }
   console.log("Not text, so check these by eye for personal data:");
-  for (const place of byEye) console.log(`  ${place}`);
+  for (const place of byEye) console.log(`  ${safe(place)}`);
   console.log(found.length === 0 ? "PASS" : "FAIL");
   process.exit(found.length === 0 ? 0 : 1);
 }
 
-// SELF-TEST.
+// SELF-TEST. Everything happens inside try/finally, so the temporary copy (which holds the planted
+// values, the run's key among them) is deleted whatever goes wrong.
 const copy = mkdtempSync(join(tmpdir(), "failure-evidence-self-test-"));
-let passed = false;
+let exitCode = 1;
 try {
   cpSync(folder, copy, { recursive: true });
   const fake = () => randomBytes(16).toString("hex");
   const planted: { place: string; line: number; kind: string; value: string }[] = [];
 
-  // Adds one line to the end of a text file in the copy and notes its line number.
+  // Adds one line to the end of a text, and gives its line number.
   const appendLine = (text: string, line: string) => {
     const body = text.endsWith("\n") || text === "" ? text : `${text}\n`;
     return { text: `${body}${line}\n`, line: body.split("\n").length };
@@ -191,13 +265,13 @@ try {
   writeFileSync(errorPath, errorAdded.text);
   planted.push({ place: "error.txt", line: errorAdded.line, kind: "the run's API key", value: apiKey });
 
-  const { found } = scanOrStop(copy);
-  console.log(`Self-test on a temporary copy of ${folderArg}: planted ${planted.length} fake value(s).`);
+  const { found } = scan(copy);
+  console.log(`Self-test on a temporary copy of ${folderShown}: planted ${planted.length} fake value(s).`);
   let allFound = true;
   for (const p of planted) {
     const hit = found.some((f) => f.place === p.place && f.line === p.line && f.kind === p.kind);
     allFound &&= hit;
-    console.log(`  ${hit ? "found    " : "MISSED   "} ${p.place}:${p.line}  ${p.kind}`);
+    console.log(`  ${hit ? "found    " : "MISSED   "} ${safe(`${p.place}:${p.line}  ${p.kind}`)}`);
   }
   const extra = found.filter((f) => !planted.some((p) => p.place === f.place && p.line === f.line));
   for (const f of extra) console.log(`  ALSO FOUND ${shown(f)}`);
@@ -205,9 +279,13 @@ try {
   const printed = found.map(shown).join("\n");
   const leaked = planted.some((p) => printed.includes(p.value));
   if (leaked) console.log("  The report showed a planted value.");
-  passed = allFound && extra.length === 0 && !leaked;
+  const passed = allFound && extra.length === 0 && !leaked;
   console.log(passed ? "PASS: every planted value was found at its file and line, and no value was shown." : "FAIL");
+  exitCode = passed ? 0 : 1;
+} catch (error) {
+  console.error(`Couldn't run the self-test: ${message(error)}`);
+  exitCode = 2;
 } finally {
   rmSync(copy, { recursive: true, force: true });
 }
-process.exit(passed ? 0 : 1);
+process.exit(exitCode);

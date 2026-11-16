@@ -9,8 +9,8 @@ export { expect } from "./orders-fixture.ts";
 // test that uses it, it notes while the test runs:
 //   - the page's console: every message the page's code writes (errors, warnings, logs) and every
 //     error the page doesn't catch;
-//   - the requests that went wrong: any answer of 400 or more (with the start of its body), and any
-//     request that got no answer at all.
+//   - the requests that went wrong: any answer of 400 or more (with the start of its body, if it
+//     arrives within 2 seconds), and any request that got no answer at all.
 // If the test passes, the notes are dropped and nothing is written. If it fails, three small text
 // files go into the test's own results folder, next to Playwright's trace and screenshot:
 //   console.txt, failed-requests.txt and error.txt (the error message, the test's name and its file).
@@ -24,6 +24,9 @@ export { expect } from "./orders-fixture.ts";
 // (tools/failure-evidence-check.ts), because this is a safety net, not a guarantee.
 
 const BODY_LIMIT = 300;
+// An error answer whose body never finishes would keep the recorder waiting; after this long, the
+// line is written without the body.
+const BODY_WAIT_MS = 2000;
 
 // Seconds since the test started, so the console and the requests can be lined up with each other.
 function clock(started: number): string {
@@ -68,15 +71,18 @@ export const test = base.extend<{ failureEvidence: void }>({
       page.on("response", (response) => {
         if (response.status() < 400) return;
         const line = `${clock(started)} ${response.request().method()} ${where(response.url())} -> ${response.status()} ${response.statusText()}`;
-        requestLines.push(
-          response
-            .text()
-            .then((body) => {
-              const start = body.slice(0, BODY_LIMIT).replace(/\s+/g, " ").trim();
-              return `${line}\n    body: ${start}${body.length > BODY_LIMIT ? " …(cut)" : ""}`;
-            })
-            .catch(() => `${line}\n    body: (couldn't be read)`),
-        );
+        const body = response
+          .text()
+          .then((text) => {
+            const start = text.slice(0, BODY_LIMIT).replace(/\s+/g, " ").trim();
+            return `${line}\n    body: ${start}${text.length > BODY_LIMIT ? " …(cut)" : ""}`;
+          })
+          .catch(() => `${line}\n    body: (couldn't be read)`);
+        let timer: NodeJS.Timeout | undefined;
+        const waited = new Promise<string>((done) => {
+          timer = setTimeout(() => done(`${line}\n    body: (not complete after ${BODY_WAIT_MS / 1000} s)`), BODY_WAIT_MS);
+        });
+        requestLines.push(Promise.race([body, waited]).finally(() => clearTimeout(timer)));
       });
       page.on("requestfailed", (request) => {
         requestLines.push(
