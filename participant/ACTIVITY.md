@@ -115,3 +115,8 @@ Every change this application made to your files, newest last.
 - `2026-11-13T14:52:37Z` playwright-multi-tag-run: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-13T14:52:37Z` Submitted playwright-multi-tag-run for review as submission-20261113145237-02e46f.
 - `2026-11-13T20:26:31Z` Review of playwright-multi-tag-run: approved by Claude (automated reviewer).
+- `2026-11-16T13:58:27Z` Started playwright-failure-evidence as attempt playwright-attempt-011.
+- `2026-11-16T15:48:49Z` playwright-failure-evidence: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-16T15:49:07Z` playwright-failure-evidence: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-16T15:49:45Z` playwright-failure-evidence: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-16T15:49:45Z` Submitted playwright-failure-evidence for review as submission-20261116154945-c585f4.
