@@ -25,9 +25,10 @@
 // personal data. A zip it can't fully read stops the check. Exit 0 when nothing is found, 1 when
 // something is, 2 when it couldn't check everything.
 //
-// SELF-TEST: copies the bundle to a new temporary folder, plants three fake values there (a made-up
-// bearer token in console.txt, a made-up session cookie inside trace.zip, and the run's API key in
-// error.txt), scans the copy and passes only if each one is found at the exact file and line where it
+// SELF-TEST: copies the bundle to a new temporary folder, first scans the untouched copy (it must be
+// clean, or nothing is planted and the self-test fails), then plants three fake values there (a
+// made-up bearer token in console.txt, a made-up session cookie inside trace.zip, and the run's API
+// key in error.txt), scans the copy and passes only if each one is found at the exact file and line where it
 // was planted and nothing else is found. The fakes are made up at random each time, so none is ever
 // written into a file that could be committed. The temporary copy is deleted afterwards, whatever
 // happens; the bundle itself is only read.
@@ -260,12 +261,30 @@ function copyAsFiles(from: string, to: string): void {
   }
 }
 
+// Ends the self-test early with an exit code, after the temporary copy is deleted.
+class SelfTestStop extends Error {
+  code: number;
+  constructor(code: number) {
+    super("self-test stopped");
+    this.code = code;
+  }
+}
+
 // SELF-TEST. Everything happens inside try/finally, so the temporary copy (which holds the planted
 // values, the run's key among them) is deleted whatever goes wrong.
 const copy = mkdtempSync(join(tmpdir(), "failure-evidence-self-test-"));
 let exitCode = 1;
 try {
   copyAsFiles(folder, copy);
+  // First the untouched copy must be clean: planting rewrites trace.zip (without its comments and
+  // extra fields), so a value already in the bundle could otherwise be lost before the scan.
+  const baseline = scan(copy);
+  if (baseline.found.length > 0) {
+    console.log(`Self-test on a temporary copy of ${folderShown}: the bundle itself isn't clean, so nothing was planted.`);
+    for (const f of baseline.found) console.log(`  ALREADY THERE ${shown(f)}`);
+    console.log("FAIL: run the scan without --self-test, and fix the bundle first.");
+    throw new SelfTestStop(1);
+  }
   const fake = () => randomBytes(16).toString("hex");
   const planted: { place: string; line: number; kind: string; value: string }[] = [];
 
@@ -314,8 +333,11 @@ try {
   console.log(passed ? "PASS: every planted value was found at its file and line, and no value was shown." : "FAIL");
   exitCode = passed ? 0 : 1;
 } catch (error) {
-  console.error(`Couldn't run the self-test: ${message(error)}`);
-  exitCode = 2;
+  if (error instanceof SelfTestStop) exitCode = error.code;
+  else {
+    console.error(`Couldn't run the self-test: ${message(error)}`);
+    exitCode = 2;
+  }
 } finally {
   rmSync(copy, { recursive: true, force: true });
 }

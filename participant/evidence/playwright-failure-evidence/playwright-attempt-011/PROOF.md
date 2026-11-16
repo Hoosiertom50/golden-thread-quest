@@ -169,7 +169,20 @@ npx playwright show-trace /tmp/bundle/trace.zip
   screenshot on failure, and its trace records the console and network too).
 - **The check is a safety net, not a guarantee:** it finds the exact key and the shapes of common
   secrets; a secret in an unusual shape could get past it. Pictures are only searched for the key
-  and the home-folder address, so they are checked by eye.
+  and the home-folder address, so they are checked by eye. The self-test proves the scan finds
+  planted values (and refuses to plant into a bundle that isn't clean); the plain scan is what
+  shows the bundle is clean.
+- **Known gaps, listed rather than fixed:** three rounds of AI code review found 32 ways a
+  hand-made file could get past the tools (12, 9 and 11); I reproduced each, fixed the 21 from the
+  first two rounds and the self-test one from the third, and stopped there, as these got further
+  from anything this project produces. Ten remain, each reproduced with made-up values: a Set-Cookie header written as a list;
+  the key as big-endian UTF-16 inside a binary file; a credential written in a file's name; a zip
+  named in capitals (`TRACE.ZIP`), which isn't opened; a readable credential in binary zip
+  metadata; JSON after a prefix on a line (`body: {…}`), whose escaped values aren't decoded; bytes
+  in a zip that no record covers; a number over 400 digits, which drops its JSON line from the
+  decoded check; the home-folder address with lower-case percent escapes (`%2f`); and a destination
+  folder that is a link into the source, which the copy step follows and copies into until the path
+  is too long.
 - **The original bundle in `test-results/` still holds the home-folder address**; it stays on this
   computer, is ignored by Git and is emptied by the next run. Only the copy is handed in.
 - **The failure is planted and happens every time;** the scenario's "fails once, passes on retry"
