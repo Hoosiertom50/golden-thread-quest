@@ -2,18 +2,27 @@
 // step (copy-failure-bundle.ts) and the check (failure-evidence-check.ts) can look inside a trace
 // without another package or a system tool. It understands what Playwright writes: files stored as
 // they are (method 0) or compressed (method 8, "deflate"). Anything else (an encrypted member,
-// another compression, a zip over 4 GB) is refused with an error rather than skipped, so a check can
-// never quietly miss a member it couldn't read.
+// another compression, a zip over 4 GB, a damaged or ambiguous directory, a wrong checksum, a name in
+// an older encoding, headers that disagree) is refused with an error rather than skipped, so a check
+// can never quietly miss a member it couldn't read.
 
 import { crc32, deflateRawSync, inflateRawSync } from "node:zlib";
 
 export type ZipEntry = { name: string; data: Buffer };
+// Everything a zip holds besides its members' names and contents: the archive's comment, and each
+// member's comment and extra fields (Playwright's traces carry a 9-byte timestamp per member). Not
+// needed to read a member, but a value could hide there, so the check scans it too.
+export type ZipMetadata = { where: string; data: Buffer };
 
 const END_OF_DIRECTORY = 0x06054b50;
 const DIRECTORY_ENTRY = 0x02014b50;
 const LOCAL_HEADER = 0x04034b50;
 
 export function readZip(zip: Buffer): ZipEntry[] {
+  return readZipWithMetadata(zip).entries;
+}
+
+export function readZipWithMetadata(zip: Buffer): { entries: ZipEntry[]; metadata: ZipMetadata[] } {
   if (zip.length < 22) throw new Error("not a zip file (too short)");
   // The end-of-directory record is the last thing in the file: 22 bytes plus its comment. Every
   // place that could hold one is checked, and exactly one must fit (its comment ends the file, it
@@ -45,6 +54,9 @@ export function readZip(zip: Buffer): ZipEntry[] {
   if (count === 0xffff || at === 0xffffffff) throw new Error("a zip over 4 GB or with 65,535+ members isn't supported");
 
   const entries: ZipEntry[] = [];
+  const metadata: ZipMetadata[] = [];
+  const archiveComment = zip.subarray(end + 22);
+  if (archiveComment.length > 0) metadata.push({ where: "the archive's comment", data: archiveComment });
   for (let i = 0; i < count; i++) {
     if (at + 46 > directoryEnd || zip.readUInt32LE(at) !== DIRECTORY_ENTRY) {
       throw new Error(`damaged zip: directory entry ${i + 1} not found`);
@@ -59,7 +71,22 @@ export function readZip(zip: Buffer): ZipEntry[] {
     const commentLength = zip.readUInt16LE(at + 32);
     const local = zip.readUInt32LE(at + 42);
     const nameBytes = zip.subarray(at + 46, at + 46 + nameLength);
-    const name = nameBytes.toString("utf8");
+    // A name marked UTF-8 must be valid UTF-8; an unmarked one (an older encoding) must be plain
+    // ASCII, which reads the same in every encoding. Anything else is refused, so a name is never
+    // silently changed.
+    let name: string;
+    if (flags & 0x800) {
+      try {
+        name = new TextDecoder("utf-8", { fatal: true }).decode(nameBytes);
+      } catch {
+        throw new Error(`damaged zip: member ${i + 1}'s name isn't valid UTF-8`);
+      }
+    } else if (nameBytes.every((byte) => byte < 0x80)) name = nameBytes.toString("ascii");
+    else throw new Error(`member ${i + 1}'s name uses an older encoding, which isn't supported`);
+    const extra = zip.subarray(at + 46 + nameLength, at + 46 + nameLength + extraLength);
+    const comment = zip.subarray(at + 46 + nameLength + extraLength, at + 46 + nameLength + extraLength + commentLength);
+    if (extra.length > 0) metadata.push({ where: `${name}'s extra fields`, data: extra });
+    if (comment.length > 0) metadata.push({ where: `${name}'s comment`, data: comment });
     at += 46 + nameLength + extraLength + commentLength;
     if (at > directoryEnd) throw new Error(`damaged zip: directory entry ${i + 1} runs past the directory`);
 
@@ -68,11 +95,17 @@ export function readZip(zip: Buffer): ZipEntry[] {
       throw new Error(`${name}: members over 4 GB aren't supported`);
     }
     if (local + 30 > zip.length || zip.readUInt32LE(local) !== LOCAL_HEADER) throw new Error(`${name}: damaged zip (no local header)`);
+    // The local header must agree with the directory on how the member is stored.
+    if (zip.readUInt16LE(local + 6) !== flags || zip.readUInt16LE(local + 8) !== method) {
+      throw new Error(`${name}: damaged zip (the local header and the directory disagree on how it is stored)`);
+    }
     const localNameLength = zip.readUInt16LE(local + 26);
     if (!zip.subarray(local + 30, local + 30 + localNameLength).equals(nameBytes)) {
       throw new Error(`${name}: damaged zip (the local header names another file)`);
     }
-    const start = local + 30 + localNameLength + zip.readUInt16LE(local + 28);
+    const localExtra = zip.subarray(local + 30 + localNameLength, local + 30 + localNameLength + zip.readUInt16LE(local + 28));
+    if (localExtra.length > 0) metadata.push({ where: `${name}'s local extra fields`, data: localExtra });
+    const start = local + 30 + localNameLength + localExtra.length;
     if (start + packedSize > zip.length) throw new Error(`${name}: damaged zip (cut short)`);
     const packed = zip.subarray(start, start + packedSize);
     let data: Buffer;
@@ -84,7 +117,7 @@ export function readZip(zip: Buffer): ZipEntry[] {
     entries.push({ name, data });
   }
   if (at !== directoryEnd) throw new Error("damaged zip: the directory holds more than its member count says");
-  return entries;
+  return { entries, metadata };
 }
 
 export function writeZip(entries: ZipEntry[]): Buffer {

@@ -6,20 +6,24 @@
 //
 // SCAN: reads every file in the folder and every member of every .zip in it (trace.zip), and their
 // names too, and looks for:
-//   - the run's actual API key: as it is, URL-encoded, base64-encoded or escaped as in JSON;
+//   - the run's actual API key: as it is, URL-encoded, base64-encoded or escaped as in JSON (a key
+//     as short as the project allows matches ordinary text often, so expect more findings);
 //   - the shapes of secrets: a bearer token, a JSON web token, an Authorization, Cookie, Set-Cookie
 //     or API-key header with any value (as text, "Cookie: …", or as JSON, in either order and over
-//     several lines), a password, secret, token or key given any value however short, a private
-//     key, a password inside an address (user:password@), and the prefixes of well-known token kinds;
+//     several lines), a cookie record with a value (as in a browser's saved cookies), a password,
+//     secret, token or key given any value however short, a private key, a password inside an
+//     address (user:password@), and the prefixes of well-known token kinds;
 //   - the computer's home-folder address, which shows its user name (a personal detail, not a
 //     secret: the bundle is meant to have it replaced with ~ by tools/copy-failure-bundle.ts), as it
 //     is, URL-encoded or escaped as in JSON.
-// Text is read as UTF-8 or UTF-16. Each finding is reported as file (and zip member), line and kind,
-// never the value; every name and path it prints has the key and the home-folder address hidden,
-// so the report itself can be shared. Files that aren't text (the screenshot, the trace's page
-// images) are still searched for the key and the home-folder address, byte for byte in UTF-8 and
-// UTF-16, and are listed to be checked by eye for personal data. A zip it can't fully read stops the
-// check. Exit 0 when nothing is found, 1 when something is, 2 when it couldn't check everything.
+// Text is read as UTF-8 or UTF-16, and JSON strings are also checked as their real values, after
+// escapes such as \u0061. The zip's comments and extra fields are scanned too. Each finding is
+// reported as file (and zip member), line and kind, never the value; every name and path it prints
+// has the key and the home-folder address hidden, so the report itself can be shared. Files that
+// aren't text (the screenshot, the trace's page images) are still searched for the key and the
+// home-folder address, byte for byte in UTF-8 and UTF-16, and are listed to be checked by eye for
+// personal data. A zip it can't fully read stops the check. Exit 0 when nothing is found, 1 when
+// something is, 2 when it couldn't check everything.
 //
 // SELF-TEST: copies the bundle to a new temporary folder, plants three fake values there (a made-up
 // bearer token in console.txt, a made-up session cookie inside trace.zip, and the run's API key in
@@ -29,10 +33,11 @@
 // happens; the bundle itself is only read.
 
 import { randomBytes } from "node:crypto";
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import { decodeText, readZip, writeZip } from "./zip-lite.ts";
+import { type JsonNode, jsonDocuments, jsonStrings } from "./json-places.ts";
+import { decodeText, readZip, readZipWithMetadata, writeZip } from "./zip-lite.ts";
 
 type Finding = { place: string; line: number | null; kind: string };
 
@@ -44,8 +49,9 @@ if (!folderArg || args.length !== (selfTest ? 2 : 1)) {
   process.exit(2);
 }
 const apiKey = process.env.TIXLY_API_KEY ?? "";
-if (!/^[\x21-\x7e]{8,256}$/.test(apiKey)) {
-  console.error("TIXLY_API_KEY must hold the run's API key (8 to 256 visible characters), so the scan can look for it.");
+// The same rule as the demo app and the tests (1 to 256 visible characters, no spaces).
+if (!/^[\x21-\x7e]{1,256}$/.test(apiKey)) {
+  console.error("TIXLY_API_KEY must hold the run's API key (1 to 256 visible characters, no spaces), so the scan can look for it.");
   process.exit(2);
 }
 const home = homedir();
@@ -98,58 +104,62 @@ const shapes: [RegExp, string][] = [
   [/\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{20,})/, "a well-known token kind"],
 ];
 
-// JSON structure, whatever its order or line breaks: a {name, value} pair naming a credential header,
-// or a key naming a header or a credential, with a value that isn't empty. Reported on the line where
-// the value is.
-function scanJson(value: unknown, text: string, place: string, found: Finding[]): void {
-  const lineOf = (needle: unknown) => {
-    const at = text.indexOf(JSON.stringify(needle));
-    return at < 0 ? 1 : text.slice(0, at).split("\n").length;
-  };
-  const filled = (v: unknown) => (typeof v === "string" && v.trim() !== "") || typeof v === "number";
-  const walk = (node: unknown) => {
-    if (Array.isArray(node)) return node.forEach(walk);
-    if (node === null || typeof node !== "object") return;
-    const record = node as Record<string, unknown>;
-    if (typeof record.name === "string" && isHeaderName(record.name) && filled(record.value)) {
-      found.push({ place, line: lineOf(record.value), kind: "a credential header with a value" });
+// The line a position in a text is on.
+const lineAt = (text: string, position: number) => text.slice(0, position).split("\n").length;
+
+// One piece of text (a line, or a JSON string's real value) against the exact values and the shapes.
+function kindsIn(piece: string): Set<string> {
+  const kinds = new Set<string>();
+  for (const [value, kind] of exactValues) if (piece.includes(value)) kinds.add(kind);
+  for (const [shape, kind] of shapes) if (shape.test(piece)) kinds.add(kind);
+  return kinds;
+}
+
+// JSON, whatever its order, line breaks or escapes. Every string's real value (after escapes such as
+// \u0061) is checked like a line; and a {name, value} pair naming a credential header, a key naming a
+// header or a credential, or a cookie record ({name, value} with a domain, path or expiry, as in a
+// browser's saved cookies), with a value that isn't empty, is reported. Each finding is reported on
+// the line where it is in the text.
+function scanJson(node: JsonNode, offset: number, text: string, place: string, found: Finding[]): void {
+  const at = (n: JsonNode) => lineAt(text, offset + n.start);
+  for (const s of jsonStrings(node)) for (const kind of kindsIn(s.value)) found.push({ place, line: at(s), kind });
+  const filled = (v: JsonNode | undefined) =>
+    v !== undefined && ((v.kind === "string" && v.value.trim() !== "") || (v.kind === "other" && typeof v.value === "number"));
+  const walk = (n: JsonNode) => {
+    if (n.kind === "array") return n.items.forEach(walk);
+    if (n.kind !== "object") return;
+    const field = (key: string) => n.entries.find((e) => e.key.value.toLowerCase() === key)?.value;
+    const name = field("name");
+    const value = field("value");
+    if (name?.kind === "string" && filled(value)) {
+      if (isHeaderName(name.value)) found.push({ place, line: at(value!), kind: "a credential header with a value" });
+      else if (name.value !== "" && ["domain", "path", "expires", "httponly", "samesite"].some((k) => field(k) !== undefined)) {
+        found.push({ place, line: at(value!), kind: "a cookie with a value" });
+      }
     }
-    for (const [key, v] of Object.entries(record)) {
-      if (filled(v) && isHeaderName(key)) found.push({ place, line: lineOf(v), kind: "a credential header with a value" });
-      else if (filled(v) && isAssignedName(key)) found.push({ place, line: lineOf(v), kind: "a password, secret, token or key with a value" });
+    for (const { key, value: v } of n.entries) {
+      if (filled(v) && isHeaderName(key.value)) found.push({ place, line: at(v), kind: "a credential header with a value" });
+      else if (filled(v) && isAssignedName(key.value)) found.push({ place, line: at(v), kind: "a password, secret, token or key with a value" });
       walk(v);
     }
   };
-  walk(value);
+  walk(node);
 }
 
 function scanText(text: string, place: string, found: Finding[]): void {
   text.split(/\r?\n/).forEach((line, index) => {
-    const kinds = new Set<string>();
-    for (const [value, kind] of exactValues) if (line.includes(value)) kinds.add(kind);
-    for (const [shape, kind] of shapes) if (shape.test(line)) kinds.add(kind);
-    for (const kind of kinds) found.push({ place, line: index + 1, kind });
+    for (const kind of kindsIn(line)) found.push({ place, line: index + 1, kind });
   });
   // The whole text as one JSON document (it may span lines), or each line as one (JSON Lines).
-  try {
-    scanJson(JSON.parse(text), text, place, found);
-  } catch {
-    for (const line of text.split(/\r?\n/)) {
-      try {
-        scanJson(JSON.parse(line), text, place, found);
-      } catch {
-        // Not JSON: the line-by-line shapes above cover it.
-      }
-    }
-  }
+  for (const { node, offset } of jsonDocuments(text)) scanJson(node, offset, text, place, found);
 }
 
 // Not text: no lines to report, but the exact values are still looked for, byte for byte.
-function scanBytes(data: Buffer, place: string, found: Finding[], byEye: string[]): void {
+function scanBytes(data: Buffer, place: string, found: Finding[], byEye: string[] | null): void {
   for (const [value, kind] of exactValues) {
     if (data.includes(Buffer.from(value, "utf8")) || data.includes(Buffer.from(value, "utf16le"))) found.push({ place, line: null, kind });
   }
-  byEye.push(place);
+  byEye?.push(place);
 }
 
 // A name (a file's path in the bundle or a zip member's) is checked for the exact values too.
@@ -158,7 +168,7 @@ function scanName(name: string, place: string, found: Finding[]): void {
   for (const kind of kinds) found.push({ place, line: null, kind });
 }
 
-function scanContent(data: Buffer, place: string, found: Finding[], byEye: string[]): void {
+function scanContent(data: Buffer, place: string, found: Finding[], byEye: string[] | null): void {
   const decoded = decodeText(data);
   if (decoded === null) scanBytes(data, place, found, byEye);
   else scanText(decoded.text, place, found);
@@ -183,15 +193,24 @@ function scan(folder: string): Scan {
         scanContent(data, place, result.found, result.byEye);
         continue;
       }
-      for (const member of readZip(data)) {
+      const { entries, metadata } = readZipWithMetadata(data);
+      for (const member of entries) {
         result.counts.members++;
         const memberPlace = `${place} › ${member.name}`;
         scanName(member.name, memberPlace, result.found);
         scanContent(member.data, memberPlace, result.found, result.byEye);
       }
+      // Comments and extra fields: not pictures, so not listed to be checked by eye.
+      for (const { where, data: bytes } of metadata) scanContent(bytes, `${place} › ${where}`, result.found, null);
     }
   };
   walk(folder);
+  // One finding per place, line and kind (a line can match both as text and as JSON).
+  const seen = new Set<string>();
+  result.found = result.found.filter((f) => {
+    const id = `${f.place}\u0000${f.line}\u0000${f.kind}`;
+    return seen.has(id) ? false : (seen.add(id), true);
+  });
   return result;
 }
 
@@ -229,12 +248,24 @@ if (!selfTest) {
   process.exit(found.length === 0 ? 0 : 1);
 }
 
+// Copies a folder so that every link becomes a plain file holding what it points to (Node's cpSync
+// keeps links inside a folder as links even with dereference), so planting a value in the copy never
+// writes through a link to a file outside it.
+function copyAsFiles(from: string, to: string): void {
+  mkdirSync(to, { recursive: true });
+  for (const name of readdirSync(from)) {
+    const path = join(from, name);
+    if (statSync(path).isDirectory()) copyAsFiles(path, join(to, name));
+    else writeFileSync(join(to, name), readFileSync(path));
+  }
+}
+
 // SELF-TEST. Everything happens inside try/finally, so the temporary copy (which holds the planted
 // values, the run's key among them) is deleted whatever goes wrong.
 const copy = mkdtempSync(join(tmpdir(), "failure-evidence-self-test-"));
 let exitCode = 1;
 try {
-  cpSync(folder, copy, { recursive: true });
+  copyAsFiles(folder, copy);
   const fake = () => randomBytes(16).toString("hex");
   const planted: { place: string; line: number; kind: string; value: string }[] = [];
 

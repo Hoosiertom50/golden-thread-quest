@@ -43,12 +43,13 @@ folder, with made-up data; nothing is sent anywhere.
   file, line and kind, never the value. `--self-test` plants three fresh fake values in a temporary
   copy and passes only if each is found at the exact file and line. Pictures can't be read, so they
   are listed to be checked by eye.
-- **A small zip reader and writer** (`tests/playwright/tools/zip-lite.ts`) for the two tools above,
+- **A small zip reader and writer** (`tests/playwright/tools/zip-lite.ts`) and **a JSON reader that
+  keeps where each string is** (`tests/playwright/tools/json-places.ts`), for the two tools above,
   with no extra package. A zip it can't fully read stops the check with an error instead of being
   skipped.
 - **The diagnosis** (`context/playwright/diagnosis.md`), from the bundle alone.
 - **The README and setup check** describe the evidence configuration and the tools, and track the
-  seven new files (44 project files instead of 37).
+  eight new files (45 project files instead of 37).
 
 My decisions:
 
@@ -85,7 +86,7 @@ All paths are under `participant/`; the attempt folder is
 | The recorder | `tests/playwright/support/evidence-fixture.ts` |
 | The failing test | `tests/playwright/evidence-tests/orders-list.evidence.ts` |
 | The broken copy | `tests/playwright/tools/break-orders-list.ts` |
-| The copy step, the check, the zip reader | `tests/playwright/tools/copy-failure-bundle.ts`, `failure-evidence-check.ts`, `zip-lite.ts` |
+| The copy step, the check, the zip and JSON readers | `tests/playwright/tools/copy-failure-bundle.ts`, `failure-evidence-check.ts`, `zip-lite.ts`, `json-places.ts` |
 | The bundle | `<attempt>/failure-bundle/` |
 | The passing and failing runs | `<attempt>/logs/passing-run.txt`, `<attempt>/logs/failing-run.txt` |
 | Copying the bundle out | `<attempt>/logs/copy-bundle.txt` |

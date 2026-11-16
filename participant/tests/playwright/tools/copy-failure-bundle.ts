@@ -9,7 +9,8 @@
 // What it changes in the copy:
 //   - In every text file, and in every text member of trace.zip (UTF-8 or UTF-16), the home-folder
 //     address (for example /Users/<name>) becomes ~, so the bundle doesn't show the computer's user
-//     name: as it is, URL-encoded (as in file:///Users/Jane%20Doe/…) or escaped as in JSON.
+//     name: as it is, URL-encoded (as in file:///Users/Jane%20Doe/…), or inside a JSON string
+//     however it is escaped.
 //   - Inside trace.zip, src/ holds a copy of each test file named by the sha1 of its full address; the
 //     trace viewer finds a file's source by that name. Each one is renamed to the sha1 of the
 //     shortened address, so the viewer's Source tab still works (and the old name, which could
@@ -24,6 +25,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative, resolve } from "node:path";
+import { jsonDocuments, jsonStrings } from "./json-places.ts";
 import { decodeText, encodeText, readZip, writeZip } from "./zip-lite.ts";
 
 const [from, to] = process.argv.slice(2);
@@ -67,25 +69,33 @@ if (existsSync(target) && readdirSync(target).length > 0) {
 let changed = 0;
 const report: string[] = [];
 
-// Every full file address in the trace's records that starts in the home folder. They are read from
-// the JSON the trace is made of (each member is JSON, or one JSON record per line), so an address
-// with spaces or brackets in it is taken whole.
-function homeAddresses(text: string): string[] {
-  const addresses: string[] = [];
-  const walk = (node: unknown) => {
-    if (typeof node === "string") {
-      if (node.startsWith(`${home}/`)) addresses.push(node);
-    } else if (Array.isArray(node)) node.forEach(walk);
-    else if (node !== null && typeof node === "object") Object.values(node).forEach(walk);
-  };
-  for (const chunk of [text, ...text.split("\n")]) {
-    try {
-      walk(JSON.parse(chunk));
-    } catch {
-      // Not JSON.
+// A text with the home-folder address replaced, and how many places changed. In JSON (the whole text,
+// or each line), every string is read as its real value, whatever its escapes (\/ or \u002f), and
+// rewritten if that value holds the address; the rest of the text is then shortened as it is.
+function shortenText(text: string): { text: string; count: number } {
+  let count = 0;
+  const edits: { start: number; end: number; with: string }[] = [];
+  for (const { node, offset } of jsonDocuments(text)) {
+    for (const s of jsonStrings(node)) {
+      const n = places(s.value);
+      if (n === 0) continue;
+      count += n;
+      edits.push({ start: offset + s.start, end: offset + s.end, with: JSON.stringify(shorten(s.value)) });
     }
   }
-  return addresses;
+  let out = text;
+  for (const edit of edits.sort((a, b) => b.start - a.start)) out = `${out.slice(0, edit.start)}${edit.with}${out.slice(edit.end)}`;
+  count += places(out);
+  return { text: shorten(out), count };
+}
+
+// Every full file address in the trace's records that starts in the home folder, read from its JSON
+// as real values, so an address with spaces, brackets or escapes in it is taken whole.
+function homeAddresses(text: string): string[] {
+  return jsonDocuments(text)
+    .flatMap(({ node }) => jsonStrings(node))
+    .map((s) => s.value)
+    .filter((value) => value.startsWith(`${home}/`));
 }
 
 function copyTrace(zip: Buffer): Buffer {
@@ -107,10 +117,12 @@ function copyTrace(zip: Buffer): Buffer {
       renamed++;
     }
     const decoded = decodeText(data);
-    if (decoded === null || places(decoded.text) === 0) return { name: newName, data };
+    if (decoded === null) return { name: newName, data };
+    const shortened = shortenText(decoded.text);
+    if (shortened.count === 0) return { name: newName, data };
     members++;
-    changed += places(decoded.text);
-    return { name: newName, data: encodeText(shorten(decoded.text), decoded.encoding) };
+    changed += shortened.count;
+    return { name: newName, data: encodeText(shortened.text, decoded.encoding) };
   });
   report.push(`  trace.zip: ${members} member(s) changed, ${renamed} source file(s) renamed in src/`);
   return writeZip(copied);
@@ -137,10 +149,10 @@ function copy(from: string, to: string): void {
       report.push(`  ${shown}: copied as it is (not text: check it by eye)`);
       continue;
     }
-    const count = places(decoded.text);
-    changed += count;
-    writeFileSync(out, count > 0 ? encodeText(shorten(decoded.text), decoded.encoding) : data);
-    if (count > 0) report.push(`  ${shown}: ${count} place(s) changed`);
+    const shortened = shortenText(decoded.text);
+    changed += shortened.count;
+    writeFileSync(out, shortened.count > 0 ? encodeText(shortened.text, decoded.encoding) : data);
+    if (shortened.count > 0) report.push(`  ${shown}: ${shortened.count} place(s) changed`);
   }
 }
 
