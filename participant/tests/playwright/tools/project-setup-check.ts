@@ -90,6 +90,13 @@ const MUST_NOT_BE_IGNORED: string[] = [
   "tools/break-cancel.ts",
   "tools/tagging-check.ts",
   "tools/select.ts",
+  "evidence.config.ts",
+  "evidence-tests/orders-list.evidence.ts",
+  "support/evidence-fixture.ts",
+  "tools/break-orders-list.ts",
+  "tools/copy-failure-bundle.ts",
+  "tools/failure-evidence-check.ts",
+  "tools/zip-lite.ts",
   ".gitignore",
   ".env.example",
 ];

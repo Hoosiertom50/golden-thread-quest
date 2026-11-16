@@ -171,6 +171,34 @@ From a fresh copy of the repository:
    right. `TIXLY_DEMO_DELAY_MS=300` (0 to 1000) makes the demo app wait that long before every
    answer, a stand-in for a network when timing the two tests; it is off unless set.
 
+   **Evidence on failure.** `evidence.config.ts` runs the test in `evidence-tests/` (named
+   `*.evidence.ts`, so the normal run never picks it up) and keeps evidence only when a test fails:
+   a trace, a screenshot, and, from `support/evidence-fixture.ts`, the page's console
+   (`console.txt`), the requests that went wrong (`failed-requests.txt`) and the error
+   (`error.txt`). A passing test keeps nothing. Everything lasts until the next run, which empties
+   `test-results/`. To see a failure, make a broken copy where the orders list answers 500 to the
+   Your orders page, start it, and run against it (with the same `TIXLY_API_KEY`):
+
+   ```
+   npx playwright test --config evidence.config.ts
+   node tools/break-orders-list.ts /tmp/tixly-broken-list
+   TIXLY_DEMO_PORT=4192 node /tmp/tixly-broken-list/server.js
+   ```
+
+   then, in a second terminal,
+   `TIXLY_BASE_URL=http://127.0.0.1:4192 npx playwright test --config evidence.config.ts`. To keep
+   a failing test's evidence, copy it out with the home-folder address replaced by `~`, then scan
+   the copy for the API key, tokens, cookies and credentials (`--self-test` proves the scan finds
+   planted fake values):
+
+   ```
+   node tools/copy-failure-bundle.ts test-results/<the failing test's folder> /tmp/tixly-bundle
+   node tools/failure-evidence-check.ts /tmp/tixly-bundle
+   node tools/failure-evidence-check.ts --self-test /tmp/tixly-bundle
+   ```
+
+   Check the screenshot and the trace's pictures by eye: the scan can't read pictures.
+
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
    repository for credentials. This step also needs the repository's Python environment
    (`.venv`), which you have once the quest app is set up as the repository's main README
