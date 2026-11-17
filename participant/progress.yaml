@@ -198,9 +198,10 @@ attempts:
   quest_id: playwright-success-evidence
   quest_version: 1
   content_hash: sha256:d159e7b2ead1177ef99035b6883d1ad5f01fe061b0bd6567f6400be08782a917
-  state: submitted
+  state: verified
   started_at: '2026-11-17T13:55:20Z'
-  updated_at: '2026-11-17T16:23:14Z'
+  updated_at: '2026-11-17T16:34:49Z'
   evidence_path: participant/evidence/playwright-success-evidence/playwright-attempt-012
   submission_id: submission-20261117162314-94f998
-updated_at: '2026-11-17T16:23:14Z'
+  review_id: review-20261117163449-122517
+updated_at: '2026-11-17T16:34:49Z'
