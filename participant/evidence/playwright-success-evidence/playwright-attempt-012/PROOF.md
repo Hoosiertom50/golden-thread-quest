@@ -111,7 +111,7 @@ node tools/personal-data-check.ts --self-test <attempt>/validated
 
 ## What was tested or validated
 
-All recorded on 11-17-2026 at 10:58 AM, at commit f73dcd7 with the quest-20 files uncommitted.
+All recorded on 11-17-2026 at 11:07 AM, at commit f73dcd7 with the quest-20 files uncommitted.
 
 - **Passing run** (`validated/run-output.txt`): 1 passed. One item captured (the order total, shown
   $165.00, expected $165.00); three steps not captured, each navigation (criteria 1 and 2).

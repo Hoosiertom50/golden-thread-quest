@@ -119,8 +119,10 @@ function jsonDocumentsOf(text: string): { node: JsonNode; offset: number }[] {
   }
   return documents;
 }
-// A path as it may be printed: any name found in it replaced with <name>.
-const shown = (path: string) => patterns.reduce((text, [pattern]) => text.replace(pattern, "<name>"), path);
+// A path as it may be printed: any name found in it replaced with <name>. Longer names go first, so
+// a name inside another ("Lopez" in "Maria Lopez") can't leave part of the longer one showing.
+const redactions = [...patterns].sort(([a], [b]) => b.source.length - a.source.length);
+const shown = (path: string) => redactions.reduce((text, [pattern]) => text.replace(pattern, "<name>"), path);
 
 function scan(root: string): { found: Finding[]; byEye: string[]; files: number } {
   const found: Finding[] = [];

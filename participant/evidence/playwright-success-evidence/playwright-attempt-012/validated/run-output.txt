@@ -1,5 +1,5 @@
 # Passing run: meaningful-evidence.spec.ts against the working demo app
-# Recorded 11-17-2026 10:58:15 AM on branch pilot/tom at commit f73dcd7 (with uncommitted quest-20 files).
+# Recorded 11-17-2026 11:07:15 AM on branch pilot/tom at commit f73dcd7 (with uncommitted quest-20 files).
 # The API key was a made-up value, new for this recording; it is not shown. The home folder is shown as ~.
 
 $ npx playwright test meaningful-evidence.spec.ts
@@ -10,7 +10,7 @@ Captured (proof): order total, shown $165.00, expected $165.00 -> order-total.pn
 Not captured: opening the review page (navigation)
 Not captured: the page heading (navigation)
 Not captured: the event name and ticket count (navigation: shown in the proof's picture)
-  ✓  1 [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast (425ms)
+  ✓  1 [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast (397ms)
 
   1 passed (1.1s)
 (exit 0)
