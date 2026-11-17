@@ -238,13 +238,21 @@ try {
       exitCode = 1;
     } else {
       const hex = () => randomBytes(4).toString("hex");
-      // Each planted value alone on its line, with no other words a name could match; line 1 is a
-      // line with nothing to find. Each line must be found by its own rule, so one rule can't stand
+      // Each planted value alone on its line, with no other words a name could match; line 1 is
+      // left empty, with nothing to find. Each line must be found by its own rule, so one rule can't stand
       // in for another (a broken "Maria Lopez" rule isn't covered by a buyer named "Lopez").
-      const lines = ["#"];
+      const lines = [""];
       const expected: Finding[] = [];
-      // A file name with no words in it either (a buyer named "By" or "Test" would match words).
-      const plantFile = "1.txt";
+      // A new file whose name no rule matches (a buyer named "By" or "1" would match a name such as
+      // "planted-by-self-test.txt" or "1.txt"), and that isn't in the copy already.
+      // Random letters-and-digits names; a few tries are plenty, and the self-test stops if none is
+      // free (it never loops without end).
+      let plantFile = "";
+      for (let tries = 0; tries < 20 && !plantFile; tries++) {
+        const name = `${hex()}${hex()}`;
+        if (matches(name).length === 0 && !lstatSync(join(copy, name), { throwIfNoEntry: false })) plantFile = name;
+      }
+      if (!plantFile) throw new Stop("Couldn't find a free file name for the planted names that no rule matches.");
       const plant = (text: string, kind: string, rule: number) => {
         lines.push(text);
         expected.push({ file: plantFile, line: lines.length, kind, rule });

@@ -1,5 +1,5 @@
 # Contrast run: the same test, with the rule broken (a copy of the app whose total leaves out the fee)
-# Recorded 11-17-2026 10:44:27 AM on branch pilot/tom at commit f73dcd7 (with uncommitted quest-20 files).
+# Recorded 11-17-2026 10:58:17 AM on branch pilot/tom at commit f73dcd7 (with uncommitted quest-20 files).
 # The API key was a made-up value, new for this recording; it is not shown. The home folder is shown as ~.
 
 ## 1. The broken copy
@@ -19,7 +19,7 @@ Captured (proof): order total, shown $150.00, expected $165.00 -> order-total.pn
 Not captured: opening the review page (navigation)
 Not captured: the page heading (navigation)
 Not captured: the event name and ticket count (navigation: shown in the proof's picture)
-  ✘  1 [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast (243ms)
+  ✘  1 [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast (240ms)
 
 
   1) [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast 
@@ -85,18 +85,18 @@ test-results/ after the run:
   Expected total: $165.00   (($25.00 + $2.50) x 6)
   Shown total: $150.00
   Result: RULE BROKEN
-  Captured: 11-17-2026 10:44:29 AM, right before the check
+  Captured: 11-17-2026 10:58:19 AM, right before the check
   (its picture is saved beside this log as contrast-order-total.png)
 
 ## 4. Compared with the passing run's evidence (validated/order-total.txt)
   5,7c5,7
   < Shown total: $165.00
   < Result: rule held
-  < Captured: 11-17-2026 10:44:27 AM, right before the check
+  < Captured: 11-17-2026 10:58:17 AM, right before the check
   ---
   > Shown total: $150.00
   > Result: RULE BROKEN
-  > Captured: 11-17-2026 10:44:29 AM, right before the check
+  > Captured: 11-17-2026 10:58:19 AM, right before the check
 
 ## 5. Scan of validated/ for credentials and the home-folder address (quest 19's check)
 $ node tools/failure-evidence-check.ts <attempt>/validated
@@ -118,11 +118,11 @@ PASS: no buyer's name found.
 $ node tools/personal-data-check.ts --self-test <attempt>/validated
 Planted every saved buyer's name (3), a made-up Test User name and a made-up bare qa- marker, one per line, in a temporary copy.
 Checked 4 file(s) for 3 saved buyer name(s) and the test-name shape.
-  FOUND a saved buyer's name: 1.txt, line 2
-  FOUND a saved buyer's name: 1.txt, line 3
-  FOUND a saved buyer's name: 1.txt, line 4
-  FOUND a test order's name (Test User qa-…): 1.txt, line 5
-  FOUND a test order's run-marked name (qa-…): 1.txt, line 6
+  FOUND a saved buyer's name: d885cd482b533a41, line 2
+  FOUND a saved buyer's name: d885cd482b533a41, line 3
+  FOUND a saved buyer's name: d885cd482b533a41, line 4
+  FOUND a test order's name (Test User qa-…): d885cd482b533a41, line 5
+  FOUND a test order's run-marked name (qa-…): d885cd482b533a41, line 6
   Not text, check by eye: order-total.png
 PASS: all 5 planted names were found, each at its line by its own rule, and nothing else.
 (exit 0)
