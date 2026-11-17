@@ -342,9 +342,19 @@ def _left_out_note(paths: list[str]) -> list[str]:
 def _decisions(repo: _Repo, before: str) -> list[str]:
     """One line per review record the pull brought in, from the record itself."""
     changed = repo.git("diff", "--name-only", f"{before}..HEAD", "--", PARTICIPANT_DIR)
+    return _decision_lines(repo, changed.stdout.splitlines())
+
+
+def _recorded_decisions(repo: _Repo) -> list[str]:
+    """One line per review record already in the participant's copy."""
+    found = sorted((repo.root / PARTICIPANT_DIR).rglob("review.yaml"))
+    return _decision_lines(repo, [str(path.relative_to(repo.root)) for path in found])
+
+
+def _decision_lines(repo: _Repo, paths: list[str]) -> list[str]:
     words = {"approved": "Verified", "needs_changes": "Needs changes", "rejected": "Rejected"}
     lines = []
-    for path in changed.stdout.splitlines():
+    for path in paths:
         if not path.endswith("/review.yaml"):
             continue
         try:
@@ -378,6 +388,12 @@ def get_review(repo_root: Path, runner: Runner = run_command) -> Outcome:
         return Outcome(NOTHING_HANDED_IN)
     after = repo.git("rev-parse", "HEAD").stdout.strip()
     if after == before:
+        recorded = _recorded_decisions(repo)
+        if recorded:
+            return Outcome(
+                "No new review. The review you have is already recorded in your copy.",
+                [*recorded, "A new decision appears here once your reviewer posts it in Slack."],
+            )
         return Outcome(
             "No review yet. Your reviewer posts in Slack when it is ready; run this again then."
         )

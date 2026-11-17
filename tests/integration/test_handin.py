@@ -234,7 +234,9 @@ def test_an_edit_after_hand_in_is_combined_with_the_review(world: dict[str, Path
     assert f"{EVIDENCE}/review.yaml" in on_github
     in_step = git(participant, "rev-list", "--count", "origin/pilot/alice...HEAD")
     assert in_step == "0"
-    assert get_review(participant, runner=gh).headline.startswith("No review yet")
+    again = get_review(participant, runner=gh)
+    assert "already recorded in your copy" in again.headline
+    assert f"{QUEST}: Needs changes" in again.details
 
 
 def test_a_real_conflict_changes_nothing(world: dict[str, Path]) -> None:
