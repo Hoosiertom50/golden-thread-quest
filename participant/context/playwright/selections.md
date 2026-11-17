@@ -5,15 +5,16 @@ exists, and lists exactly the tests it should choose. `tests/playwright/tools/se
 a selection from this page, lists what Playwright would choose without running anything, compares
 that with the tests below, and runs them only if the two match; a selection that matches no test is
 always an error. Expressions use whole tags joined by `and`, `or` and `not`. Tests are named
-`<file> › <title>`. Decisions by Tom Carter; wording drafted with Claude (Claude Code), 11-13-2026.
+`<file> › <title>`. Decisions by Tom Carter; wording drafted with Claude (Claude Code), 11-13-2026. On 11-17-2026 the success-evidence quest's
+test (`meaningful-evidence.spec.ts`) was added to the five selections its tags match.
 
 | Name | Expression | Kind | Tests |
 |---|---|---|---|
-| `every-change` | `@fast` | single tag | 26 |
-| `safe-pipeline` | `@fast and @read-only` | intersection | 15 |
-| `before-saving` | `@events or @order-review` | union | 14 |
-| `shared-environment` | `not @writes-data` | exclusion | 15 |
-| `high-risk-safe` | `@risk-high and not @writes-data` | intersection with exclusion | 10 |
+| `every-change` | `@fast` | single tag | 27 |
+| `safe-pipeline` | `@fast and @read-only` | intersection | 16 |
+| `before-saving` | `@events or @order-review` | union | 15 |
+| `shared-environment` | `not @writes-data` | exclusion | 16 |
+| `high-risk-safe` | `@risk-high and not @writes-data` | intersection with exclusion | 11 |
 | `orders-service` | `@saved-orders and @layer-api` | intersection | 3 |
 | `slow-read-only` | `@slow and @read-only` | matches nothing | 0 |
 
@@ -21,7 +22,7 @@ always an error. Expressions use whole tags joined by `and`, `or` and `not`. Tes
 
 - **Expression:** `@fast`
 - **Purpose:** Quick feedback on every change: every test that takes at most 2 seconds.
-- **Expected tests (26):**
+- **Expected tests (27):**
   - api-assisted.spec.ts › a buyer cancels an order (API-assisted: API setup, cancel on screen, API check)
   - brittle.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators)
   - cleanup-proof.spec.ts › proof 1: a test that fails after creating its order still has it cancelled by its cleanup
@@ -32,6 +33,7 @@ always an error. Expressions use whole tags joined by `and`, `or` and `not`. Tes
   - isolated.spec.ts › a buyer saves an order and sees it in Your orders (isolated)
   - isolated.spec.ts › a buyer cancels their own order (isolated: makes the order it cancels)
   - isolated.spec.ts › cancelling one buyer's order leaves another buyer's order in Your orders (isolated)
+  - meaningful-evidence.spec.ts › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00
   - model-usage.spec.ts › a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00
   - model-usage.spec.ts › a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00
   - model-usage.spec.ts › a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total
@@ -53,9 +55,10 @@ always an error. Expressions use whole tags joined by `and`, `or` and `not`. Tes
 
 - **Expression:** `@fast and @read-only`
 - **Purpose:** The quest's scenario: a pipeline step that runs only fast checks that never change saved data.
-- **Expected tests (15):**
+- **Expected tests (16):**
   - brittle.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators)
   - first-independent-test.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket
+  - meaningful-evidence.spec.ts › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00
   - model-usage.spec.ts › a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00
   - model-usage.spec.ts › a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00
   - model-usage.spec.ts › a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total
@@ -74,9 +77,10 @@ always an error. Expressions use whole tags joined by `and`, `or` and `not`. Tes
 
 - **Expression:** `@events or @order-review`
 - **Purpose:** Everything a buyer sees before saving an order: the events page and the review page.
-- **Expected tests (14):**
+- **Expected tests (15):**
   - brittle.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators)
   - first-independent-test.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket
+  - meaningful-evidence.spec.ts › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00
   - model-usage.spec.ts › a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00
   - model-usage.spec.ts › a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00
   - model-usage.spec.ts › a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total
@@ -94,9 +98,10 @@ always an error. Expressions use whole tags joined by `and`, `or` and `not`. Tes
 
 - **Expression:** `not @writes-data`
 - **Purpose:** Safe to run where other people's data lives: every test that doesn't change saved data.
-- **Expected tests (15):**
+- **Expected tests (16):**
   - brittle.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators)
   - first-independent-test.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket
+  - meaningful-evidence.spec.ts › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00
   - model-usage.spec.ts › a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00
   - model-usage.spec.ts › a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00
   - model-usage.spec.ts › a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total
@@ -115,9 +120,10 @@ always an error. Expressions use whole tags joined by `and`, `or` and `not`. Tes
 
 - **Expression:** `@risk-high and not @writes-data`
 - **Purpose:** The money checks that can run anywhere: high-risk tests that don't change saved data.
-- **Expected tests (10):**
+- **Expected tests (11):**
   - brittle.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (brittle locators)
   - first-independent-test.spec.ts › a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket
+  - meaningful-evidence.spec.ts › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00
   - model-usage.spec.ts › a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00
   - model-usage.spec.ts › a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00
   - model-usage.spec.ts › a buyer who uses the browser's Back button from the review still sees 3 tickets and $82.50
