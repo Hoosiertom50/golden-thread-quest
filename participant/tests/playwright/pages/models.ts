@@ -81,6 +81,11 @@ export class OrderReviewScreen {
     return this.page.getByRole("heading", { name: "Review your order", exact: true });
   }
 
+  // The whole order summary (event, tickets and total), without the name box below it.
+  summary(): Locator {
+    return this.page.getByRole("table", { name: "Order summary", exact: true });
+  }
+
   // One line of the order summary, found by its row heading ("Event", "Tickets" or "Total").
   private summaryValue(rowHeading: string): Locator {
     return this.page

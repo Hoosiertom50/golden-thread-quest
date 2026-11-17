@@ -121,3 +121,8 @@ Every change this application made to your files, newest last.
 - `2026-11-16T15:49:45Z` playwright-failure-evidence: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-16T15:49:45Z` Submitted playwright-failure-evidence for review as submission-20261116154945-c585f4.
 - `2026-11-16T15:51:42Z` Review of playwright-failure-evidence: approved by Claude (automated reviewer).
+- `2026-11-17T13:55:20Z` Started playwright-success-evidence as attempt playwright-attempt-012.
+- `2026-11-17T16:22:47Z` playwright-success-evidence: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-17T16:22:59Z` playwright-success-evidence: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-17T16:23:14Z` playwright-success-evidence: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-17T16:23:14Z` Submitted playwright-success-evidence for review as submission-20261117162314-94f998.
