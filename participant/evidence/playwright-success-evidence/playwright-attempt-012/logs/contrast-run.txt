@@ -1,5 +1,5 @@
 # Contrast run: the same test, with the rule broken (a copy of the app whose total leaves out the fee)
-# Recorded 11-17-2026 10:11:23 AM on branch pilot/tom at commit f73dcd7 (with uncommitted quest-20 files).
+# Recorded 11-17-2026 10:28:53 AM on branch pilot/tom at commit f73dcd7 (with uncommitted quest-20 files).
 # The API key was a made-up value, new for this recording; it is not shown. The home folder is shown as ~.
 
 ## 1. The broken copy
@@ -19,10 +19,10 @@ Captured (proof): order total, shown $150.00, expected $165.00 -> order-total.pn
 Not captured: opening the review page (navigation)
 Not captured: the page heading (navigation)
 Not captured: the event name and ticket count (navigation: shown in the proof's picture)
-  ✘  1 [chromium] › meaningful-evidence.spec.ts:29:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast (5.3s)
+  ✘  1 [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast (5.3s)
 
 
-  1) [chromium] › meaningful-evidence.spec.ts:29:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast 
+  1) [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast 
 
     Error: expect(locator).toHaveText(expected) failed
 
@@ -38,14 +38,14 @@ Not captured: the event name and ticket count (navigation: shown in the proof's 
            - unexpected value "$150.00"
 
 
-      79 |     console.log(`Captured (proof): order total, shown ${shown}, expected ${expected} -> order-total.png, order-total.txt`);
-      80 |     for (const step of notCaptured) console.log(`Not captured: ${step}`);
-    > 81 |     await expect(total).toHaveText(expected);
+      84 |     console.log(`Captured (proof): order total, shown ${shown}, expected ${expected} -> order-total.png, order-total.txt`);
+      85 |     for (const step of notCaptured) console.log(`Not captured: ${step}`);
+    > 86 |     await expect(total).toHaveText(expected);
          |                         ^
-      82 |   },
-      83 | );
-      84 |
-        at ~/golden-thread-quest/participant/tests/playwright/meaningful-evidence.spec.ts:81:25
+      87 |   },
+      88 | );
+      89 |
+        at ~/golden-thread-quest/participant/tests/playwright/meaningful-evidence.spec.ts:86:25
 
     attachment #1: proof: order summary (image/png) ────────────────────────────────────────────────
     test-results/meaningful-evidence-the-re-94451-ts-is-ticket-fee-x-6-165-00-chromium/attachments/proof-order-summary-f87db5ac8b128b5ee0307eeba935f4cc7cf67bc6.png
@@ -70,7 +70,7 @@ Not captured: the event name and ticket count (navigation: shown in the proof's 
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
   1 failed
-    [chromium] › meaningful-evidence.spec.ts:29:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast 
+    [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast 
 (exit 1: expected 1, the total check fails)
 
 test-results/ after the run:
@@ -92,18 +92,18 @@ test-results/ after the run:
   Expected total: $165.00   (($25.00 + $2.50) x 6)
   Shown total: $150.00
   Result: RULE BROKEN
-  Captured: 11-17-2026 10:11:25 AM, right before the check
+  Captured: 11-17-2026 10:28:55 AM, right before the check
   (its picture is saved beside this log as contrast-order-total.png)
 
 ## 4. Compared with the passing run's evidence (validated/order-total.txt)
   5,7c5,7
   < Shown total: $165.00
   < Result: rule held
-  < Captured: 11-17-2026 10:11:23 AM, right before the check
+  < Captured: 11-17-2026 10:28:53 AM, right before the check
   ---
   > Shown total: $150.00
   > Result: RULE BROKEN
-  > Captured: 11-17-2026 10:11:25 AM, right before the check
+  > Captured: 11-17-2026 10:28:55 AM, right before the check
 
 ## 5. Scan of validated/ for credentials and the home-folder address (quest 19's check)
 $ node tools/failure-evidence-check.ts <attempt>/validated
@@ -121,12 +121,15 @@ Checked 3 file(s) for 3 saved buyer name(s) and the test-name shape.
 PASS: no buyer's name found.
 (exit 0)
 
-## 7. Self-test of the name check: two names planted in a temporary copy of validated/, each must be found
+## 7. Self-test of the name check: every saved name, a Test User name and a bare marker planted in a temporary copy of validated/, each must be found
 $ node tools/personal-data-check.ts --self-test <attempt>/validated
-Planted a saved buyer's name (line 2) and a made-up Test User name (line 3) in a temporary copy.
+Planted every saved buyer's name (3), a made-up Test User name and a made-up bare qa- marker, one per line, in a temporary copy.
 Checked 4 file(s) for 3 saved buyer name(s) and the test-name shape.
   FOUND a saved buyer's name: planted-by-self-test.txt, line 2
-  FOUND a test order's name (Test User qa-…): planted-by-self-test.txt, line 3
+  FOUND a saved buyer's name: planted-by-self-test.txt, line 3
+  FOUND a saved buyer's name: planted-by-self-test.txt, line 4
+  FOUND a test order's name (Test User qa-…): planted-by-self-test.txt, line 5
+  FOUND a test order's run-marked name (qa-…): planted-by-self-test.txt, line 6
   Not text, check by eye: order-total.png
-PASS: both planted names were found, at the right lines, and nothing else.
+PASS: all 5 planted names were found, each at its line and as its kind, and nothing else.
 (exit 0)

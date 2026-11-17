@@ -15,6 +15,11 @@ import { OrderReviewScreen } from "./pages/models.ts";
 //   - order-total.png: a picture of the order summary only (event, tickets, total), not the name box;
 //   - order-total.txt: the rule, the values the check used, the value shown, and whether the rule held.
 // The test never types a name, so no buyer's name can appear in the evidence.
+//
+// One exception, on purpose: when any check fails, navigation or proof, Playwright also keeps its own
+// failure evidence (a screenshot of the whole page, a trace and error-context.md), as
+// playwright.config.ts asks for every test. That is evidence for diagnosing a failure, not proof that
+// a rule held, and a passing run keeps none of it.
 
 const EVENT_ID = "spring-concert";
 const QUANTITY = 6;

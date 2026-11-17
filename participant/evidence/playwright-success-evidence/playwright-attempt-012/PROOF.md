@@ -22,18 +22,25 @@ One rule means one piece of evidence (criterion 1).
 | The heading "Review your order" is visible | NAVIGATION | none |
 | Event is Spring Concert, Tickets is 6 | NAVIGATION (the order the rule is applied to) | none of its own; both show in the proof's picture and are written in its values file |
 | The total is shown (any value) | a wait before the proof | none |
-| **The total is $165.00** (`expect(total).toHaveText(expected)`, line 81) | **PROOF** | **`order-total.png` + `order-total.txt`** |
+| **The total is $165.00** (`expect(total).toHaveText(expected)`, line 86) | **PROOF** | **`order-total.png` + `order-total.txt`** |
 
 Only the total check proves the rule. The others only show the test reached the right page with the
 right order: they would pass just the same if the total were wrong. So navigation produces no
 evidence (criterion 2), and the run's output says so, one "Not captured" line per navigation step.
 
+One exception, on purpose: when any check fails, navigation or proof, Playwright also keeps its own
+failure evidence (a screenshot of the whole page, a trace and `error-context.md`), because the
+project's `playwright.config.ts` asks for that for every test (quest 19). That is for diagnosing a
+failure, not proof that a rule held; a passing run keeps none of it (`validated/run-output.txt`
+lists what the passing run left).
+
 **The evidence (Tom's choice: a picture of the summary plus a values file).**
 
 - `order-total.png`: a picture of the order summary table only (Event, Tickets, Total), not the
   "Your name" box below it.
-- `order-total.txt`: the rule, the event and tickets as the page showed them, the expected total with its working
-  (($25.00 + $2.50) × 6), the total shown, whether the rule held, and when it was captured.
+- `order-total.txt`: the rule, the event and tickets as the page showed them, the expected total
+  with its working (($25.00 + $2.50) × 6), the total shown, whether the rule held, and when it was
+  captured.
 
 Together they show the specific value the rule is about (criterion 4), and a reader can tell what
 was checked and whether it held without opening the test (criterion 7). Both are also attached to the
@@ -51,8 +58,14 @@ The real demo app is only read.
 **The scan (criterion 6).** Quest 19's `tools/failure-evidence-check.ts`, unchanged, looks for keys,
 tokens, cookies and the home-folder address. A new `tools/personal-data-check.ts` looks for buyers'
 names (Tom's choice): every name saved in the demo app's orders, read when it runs, and the shape the
-tests give their own orders ("Test User qa-…"). It reports file and line, never the name, and its
-self-test plants a saved name and a made-up Test User name in a temporary copy and must find both.
+tests give their own orders ("Test User qa-…", or just its "qa-…" marker). It also checks JSON
+strings by their real values and every file's and folder's own name. It reports file and line, never
+the name, and its self-test plants every saved name, a made-up Test User name and a made-up bare
+marker in a temporary copy and must find each one, at its line and as its kind.
+
+**The new test joins the main suite.** Its tags match five of quest 18's named selections in
+`participant/context/playwright/selections.md`, which list their tests exactly, so the test was added
+to those five lists (now 27, 16, 15, 16 and 11 tests).
 
 ## Where the important artifacts are
 
@@ -96,24 +109,28 @@ node tools/personal-data-check.ts --self-test <attempt>/validated
 
 ## What was tested or validated
 
-All recorded on 11-17-2026 at 10:11 AM, at commit f73dcd7 with the quest-20 files uncommitted.
+All recorded on 11-17-2026 at 10:28 AM, at commit f73dcd7 with the quest-20 files uncommitted.
 
 - **Passing run** (`validated/run-output.txt`): 1 passed. One item captured (the order total, shown
   $165.00, expected $165.00); three steps not captured, each navigation (criteria 1 and 2).
 - **Contrast run** (`logs/contrast-run.txt`, criterion 5): the same test against the broken copy
-  failed (exit 1) at line 81, "Expected: "$165.00" Received: "$150.00"", after retrying for its
+  failed (exit 1) at line 86, "Expected: "$165.00" Received: "$150.00"", after retrying for its
   5-second limit. The evidence changed too: its values file says `Shown total: $150.00` and
   `Result: RULE BROKEN`, and its picture shows $150.00. The log puts the two values files side by
   side: only the shown total, the result and the time differ.
 - **Scans of `validated/`** (`logs/contrast-run.txt`, sections 5 to 7, criterion 6): quest 19's check
   found nothing (exit 0); the buyer-name check found none of the 3 saved names and no Test User name
-  (exit 0); its self-test found both planted names, at the right lines, and nothing else (exit 0).
-  The saved logs were scanned the same way, with the same results.
+  (exit 0); its self-test found all 5 planted names (the 3 saved names, a Test User name and a bare
+  marker), each at its line and as its kind, and nothing else (exit 0). The saved logs were scanned
+  with both checks too, and both passed.
 - **By eye** (Tom, criterion 6): both pictures show only Event, Tickets and Total, with no name box
-  and nothing personal; the first says $165.00 and the second $150.00.
+  and nothing personal; the first says $165.00 and the second $150.00. (The handed-in pictures are
+  from a later recording and are byte-for-byte the same as the ones Tom checked.)
 - **The rest of the project:** the full suite, now 28 tests, ran with 24 passed and 4 skipped as
   before; `tools/tagging-check.ts` passed for all 28 (the new test carries `@order-review @risk-high
-  @read-only @layer-ui @fast`); `tools/project-setup-check.ts` passed. The real
+  @read-only @layer-ui @fast`); `tools/project-setup-check.ts` passed; and `tools/select.ts
+  --list-only` matched every named selection's list (the five updated ones, and `orders-service`'s
+  3), with `slow-read-only` still matching nothing, as designed. The real
   `demo-app/data/orders.json` was unchanged after every run.
 
 ## Reflection: which capture would still look the same if the rule were broken?
