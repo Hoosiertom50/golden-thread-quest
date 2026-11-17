@@ -7,14 +7,16 @@
 //
 // SCAN: reads every file in the folder (and its subfolders) as text, UTF-8 or UTF-16, and looks for:
 //   - every buyer's name saved in the demo app's orders (demo-app/data/orders.json, read when the
-//     check runs, so a name added later is covered too; the file is only read), in any letter case
+//     check runs, so a name added later is covered too; the file is only read, and every order in
+//     it must have a name, or the check stops), in any letter case
 //     and with any spaces or line breaks between the words. A name in exactly the tests' own form
 //     ("Test User qa-…", below) is left to the next item, so it isn't counted twice;
 //   - the shape of the names the tests give their own orders: "Test User qa-<8 hex>-<8 hex>"
 //     (support/orders-fixture.ts), or just its run-marked part "qa-<8 hex>-<8 hex>", even next to
 //     an underscore or other punctuation.
 // JSON and JSON Lines files are also checked by each string's real value, after escapes such as
-//  , at the line where the string starts. Every entry's own name is checked too: each file,
+// \u0061, at the line where the string starts; JSON too deeply nested to read that way stops
+// the check. Every entry's own name is checked too: each file,
 // picture and folder, even an empty one.
 // Each finding is reported as file, line and kind, never the name itself, and every path it prints
 // has any name it found replaced with <name>: the report can be shared. A file that isn't text (a
@@ -25,10 +27,10 @@
 //
 // SELF-TEST: copies the folder to a new temporary folder (never inside the folder itself), first
 // scans the untouched copy (it must be clean, or nothing is planted and the self-test fails), then
-// plants, in a new text file there, every saved buyer's name (one per line),
-// a made-up "Test User qa-…" name and, on a line of its own, a made-up bare "qa-…" marker; the
-// made-up ones are new each time. It passes only if each is found at the exact line where it was
-// planted, as the right kind, and nothing else is found. The temporary copy is deleted afterwards,
+// plants, in a new text file there, each alone on its own line: every saved buyer's name, a made-up
+// "Test User qa-…" name and a made-up bare "qa-…" marker (the made-up ones new each time). It passes
+// only if each is found at its line by its own rule (so one rule can't stand in for another), and
+// nothing is found anywhere but on those lines. The temporary copy is deleted afterwards,
 // whatever happens; the folder itself is only read.
 
 import { randomBytes } from "node:crypto";
@@ -36,10 +38,11 @@ import { copyFileSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileS
 import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { jsonDocuments, jsonStrings } from "./json-places.ts";
+import { type JsonNode, jsonStrings, parseJson } from "./json-places.ts";
 import { decodeText } from "./zip-lite.ts";
 
-type Finding = { file: string; line: number; kind: string };
+// rule: which pattern found it (its place in the list below); used by the self-test, never printed.
+type Finding = { file: string; line: number; kind: string; rule: number };
 
 // A stop that means "couldn't check everything" (exit 2). Its message never carries a raw system
 // error, which can hold a full path.
@@ -61,13 +64,14 @@ const TEST_NAME = /^Test\s+User\s+qa-[0-9a-f]{8}-[0-9a-f]{8}$/i;
 let savedNames: string[];
 try {
   const orders: unknown = JSON.parse(readFileSync(ordersFile, "utf8"));
+  // Every order must have a name: an order the check can't read a name from would quietly leave
+  // that buyer unchecked.
   if (!Array.isArray(orders)) throw new Error();
-  savedNames = [...new Set(orders.map((o) => (o && typeof o === "object" ? (o as { name?: unknown }).name : undefined))
-    .filter((n): n is string => typeof n === "string" && n.trim() !== "")
-    .map((n) => n.trim())
-    .filter((n) => !TEST_NAME.test(n)))];
+  const names = orders.map((o) => (o && typeof o === "object" && !Array.isArray(o) ? (o as { name?: unknown }).name : undefined));
+  if (!names.every((n) => typeof n === "string" && n.trim() !== "")) throw new Error();
+  savedNames = [...new Set((names as string[]).map((n) => n.trim()).filter((n) => !TEST_NAME.test(n)))];
 } catch {
-  console.error("Couldn't read the saved buyers' names from demo-app/data/orders.json: it must be there, readable, and a JSON list of orders.");
+  console.error("Couldn't read the saved buyers' names from demo-app/data/orders.json: it must be there, readable, and a JSON list of orders that each have a name.");
   process.exit(2);
 }
 
@@ -84,9 +88,37 @@ const patterns: [RegExp, string][] = [
     KIND_SAVED,
   ]),
   [new RegExp(`${NOT_WORD_BEFORE}Test\\s+User\\s+qa-[0-9a-f]{8}-[0-9a-f]{8}${NOT_WORD_AFTER}`, "giu"), KIND_TEST],
-  [new RegExp(`(?<!Test\\s+User\\s+)${NOT_WORD_BEFORE}qa-[0-9a-f]{8}-[0-9a-f]{8}${NOT_WORD_AFTER}`, "giu"), KIND_MARKER],
+  // A marker that is part of a whole Test User name is left to the rule above (so it is found once);
+  // any other marker, even one after "xTest User ", is found here.
+  [new RegExp(`(?<!${NOT_WORD_BEFORE}Test\\s+User\\s+)${NOT_WORD_BEFORE}qa-[0-9a-f]{8}-[0-9a-f]{8}${NOT_WORD_AFTER}`, "giu"), KIND_MARKER],
 ];
-const matches = (text: string) => patterns.flatMap(([pattern, kind]) => [...text.matchAll(pattern)].map((m) => ({ index: m.index, kind })));
+const matches = (text: string) =>
+  patterns.flatMap(([pattern, kind], rule) => [...text.matchAll(pattern)].map((m) => ({ index: m.index, kind, rule })));
+
+// The JSON documents in a text: the whole text as one document, or else each line (JSON Lines). A
+// text that isn't JSON gives none. A document too deeply nested for the parser stops the check:
+// its strings couldn't be checked by their real values.
+function jsonDocumentsOf(text: string): { node: JsonNode; offset: number }[] {
+  const parse = (part: string): JsonNode | undefined => {
+    try {
+      return parseJson(part);
+    } catch (error) {
+      if (error instanceof RangeError) throw new Stop("too deeply nested");
+      return undefined;
+    }
+  };
+  const whole = parse(text);
+  if (whole) return [{ node: whole, offset: 0 }];
+  const documents: { node: JsonNode; offset: number }[] = [];
+  let offset = 0;
+  for (const line of text.split("\n")) {
+    const trimmed = line.endsWith("\r") ? line.slice(0, -1) : line;
+    const node = trimmed.trim() === "" ? undefined : parse(trimmed);
+    if (node) documents.push({ node, offset });
+    offset += line.length + 1;
+  }
+  return documents;
+}
 // A path as it may be printed: any name found in it replaced with <name>.
 const shown = (path: string) => patterns.reduce((text, [pattern]) => text.replace(pattern, "<name>"), path);
 
@@ -106,7 +138,7 @@ function scan(root: string): { found: Finding[]; byEye: string[]; files: number 
       const path = join(dir, name);
       const where = relative(root, path);
       // Every entry's own name first, whatever it is.
-      for (const { kind } of matches(name)) found.push({ file: shown(where), line: 0, kind: `${kind}, in the name` });
+      for (const { kind, rule } of matches(name)) found.push({ file: shown(where), line: 0, kind: `${kind}, in the name`, rule });
       let kind;
       try {
         kind = lstatSync(path);
@@ -129,24 +161,24 @@ function scan(root: string): { found: Finding[]; byEye: string[]; files: number 
         }
         const text = decoded.text;
         const here = new Set<string>();
-        const add = (line: number, what: string) => {
-          const key = `${line}\u0000${what}`;
+        const add = (line: number, what: string, rule: number) => {
+          const key = `${line} ${rule}`;
           if (here.has(key)) return;
           here.add(key);
-          found.push({ file: shown(where), line, kind: what });
+          found.push({ file: shown(where), line, kind: what, rule });
         };
-        for (const { index, kind: what } of matches(text)) add(lineAt(text, index), what);
-        // JSON strings by their real values (escapes undone), at the line where each starts. A
-        // file that isn't JSON gives no documents.
-        let documents: ReturnType<typeof jsonDocuments> = [];
+        for (const { index, kind: what, rule } of matches(text)) add(lineAt(text, index), what, rule);
+        // JSON strings by their real values (escapes undone), at the line where each starts.
+        let documents: { node: JsonNode; offset: number }[];
         try {
-          documents = jsonDocuments(text);
-        } catch {
-          documents = [];
+          documents = jsonDocumentsOf(text);
+        } catch (error) {
+          if (!(error instanceof Stop)) throw error;
+          throw new Stop(`Couldn't check the JSON in ${shown(where)} by its real values (${error.message}).`);
         }
         for (const { node, offset } of documents) {
           for (const s of jsonStrings(node)) {
-            for (const { kind: what } of matches(s.value)) add(lineAt(text, offset + s.start), what);
+            for (const { kind: what, rule } of matches(s.value)) add(lineAt(text, offset + s.start), what, rule);
           }
         }
       } else throw new Stop(`${shown(where)} is a link or another special file; it isn't followed, so the check can't vouch for it.`);
@@ -206,27 +238,35 @@ try {
       exitCode = 1;
     } else {
       const hex = () => randomBytes(4).toString("hex");
-      const lines = ["A line with nothing in it."];
+      // Each planted value alone on its line, with no other words a name could match; line 1 is a
+      // line with nothing to find. Each line must be found by its own rule, so one rule can't stand
+      // in for another (a broken "Maria Lopez" rule isn't covered by a buyer named "Lopez").
+      const lines = ["#"];
       const expected: Finding[] = [];
-      const plantFile = "planted-by-self-test.txt";
-      const plant = (text: string, kind: string) => {
+      // A file name with no words in it either (a buyer named "By" or "Test" would match words).
+      const plantFile = "1.txt";
+      const plant = (text: string, kind: string, rule: number) => {
         lines.push(text);
-        expected.push({ file: plantFile, line: lines.length, kind });
+        expected.push({ file: plantFile, line: lines.length, kind, rule });
       };
-      for (const name of savedNames) plant(`Bought by ${name}.`, KIND_SAVED);
-      plant(`Saved as Test User qa-${hex()}-${hex()}.`, KIND_TEST);
-      plant(`Marked qa-${hex()}-${hex()}_values.`, KIND_MARKER);
+      savedNames.forEach((name, rule) => plant(name, KIND_SAVED, rule));
+      plant(`Test User qa-${hex()}-${hex()}`, KIND_TEST, savedNames.length);
+      plant(`qa-${hex()}-${hex()}_values`, KIND_MARKER, savedNames.length + 1);
       writeFileSync(join(copy, plantFile), `${lines.join("\n")}\n`);
       const after = scan(copy);
       console.log(`Planted every saved buyer's name (${savedNames.length}), a made-up Test User name and a made-up bare qa- marker, one per line, in a temporary copy.`);
       report(after);
-      const same = (a: Finding, b: Finding) => a.file === b.file && a.line === b.line && a.kind === b.kind;
+      const same = (a: Finding, b: Finding) => a.file === b.file && a.line === b.line && a.rule === b.rule;
       const allFound = expected.every((e) => after.found.some((f) => same(e, f)));
-      const nothingElse = after.found.every((f) => expected.some((e) => same(e, f)));
+      // Another rule may also match a planted line when the names really overlap (a buyer named
+      // "Lopez" on the "Maria Lopez" line, or one named "Test" on the Test User line). Anything found
+      // anywhere else is wrong.
+      const plantedLines = new Set(expected.map((e) => e.line));
+      const nothingElse = after.found.every((f) => f.file === plantFile && plantedLines.has(f.line));
       exitCode = allFound && nothingElse ? 0 : 1;
       console.log(exitCode
         ? "FAIL: the check missed a planted name or found something else."
-        : `PASS: all ${expected.length} planted names were found, each at its line and as its kind, and nothing else.`);
+        : `PASS: all ${expected.length} planted names were found, each at its line by its own rule, and nothing else.`);
     }
   }
 } catch (error) {

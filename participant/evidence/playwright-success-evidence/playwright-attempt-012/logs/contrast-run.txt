@@ -1,10 +1,10 @@
 # Contrast run: the same test, with the rule broken (a copy of the app whose total leaves out the fee)
-# Recorded 11-17-2026 10:28:53 AM on branch pilot/tom at commit f73dcd7 (with uncommitted quest-20 files).
+# Recorded 11-17-2026 10:44:27 AM on branch pilot/tom at commit f73dcd7 (with uncommitted quest-20 files).
 # The API key was a made-up value, new for this recording; it is not shown. The home folder is shown as ~.
 
 ## 1. The broken copy
 $ node tools/break-ticket-fee.ts <a new temporary folder>
-Broken copy of the demo app in <temporary folder>. Change:
+Broken copy of the demo app made in the folder given. Change:
   review.html: the total leaves out the fee:
     - const cents = quantity * (event.ticketCents + event.feeCents);
     + const cents = quantity * event.ticketCents; // BROKEN COPY: the fee is left out
@@ -19,33 +19,26 @@ Captured (proof): order total, shown $150.00, expected $165.00 -> order-total.pn
 Not captured: opening the review page (navigation)
 Not captured: the page heading (navigation)
 Not captured: the event name and ticket count (navigation: shown in the proof's picture)
-  ✘  1 [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast (5.3s)
+  ✘  1 [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast (243ms)
 
 
   1) [chromium] › meaningful-evidence.spec.ts:34:1 › the review page total for 6 tickets is (ticket + fee) x 6 = $165.00 @order-review @risk-high @read-only @layer-ui @fast 
 
-    Error: expect(locator).toHaveText(expected) failed
+    Error: the total captured in the evidence
 
-    Locator:  getByRole('table', { name: 'Order summary', exact: true }).getByRole('row').filter({ has: getByRole('rowheader', { name: 'Total', exact: true }) }).getByRole('cell')
+    expect(received).toBe(expected) // Object.is equality
+
     Expected: "$165.00"
     Received: "$150.00"
-    Timeout:  5000ms
 
-    Call log:
-      - Expect "toHaveText" getByRole('table', { name: 'Order summary', exact: true }).getByRole('row').filter({ has: getByRole('rowheader', { name: 'Total', exact: true }) }).getByRole('cell') with timeout 5000ms
-      - waiting for getByRole('table', { name: 'Order summary', exact: true }).getByRole('row').filter({ has: getByRole('rowheader', { name: 'Total', exact: true }) }).getByRole('cell')
-        14 × locator resolved to <td id="order-total">$150.00</td>
-           - unexpected value "$150.00"
-
-
-      84 |     console.log(`Captured (proof): order total, shown ${shown}, expected ${expected} -> order-total.png, order-total.txt`);
-      85 |     for (const step of notCaptured) console.log(`Not captured: ${step}`);
-    > 86 |     await expect(total).toHaveText(expected);
-         |                         ^
-      87 |   },
-      88 | );
-      89 |
-        at ~/golden-thread-quest/participant/tests/playwright/meaningful-evidence.spec.ts:86:25
+      89 |     for (const step of notCaptured) console.log(`Not captured: ${step}`);
+      90 |     expect(afterPicture, "the total stayed the same while the evidence was captured").toBe(shown);
+    > 91 |     expect(shown, "the total captured in the evidence").toBe(expected);
+         |                                                         ^
+      92 |   },
+      93 | );
+      94 |
+        at ~/golden-thread-quest/participant/tests/playwright/meaningful-evidence.spec.ts:91:57
 
     attachment #1: proof: order summary (image/png) ────────────────────────────────────────────────
     test-results/meaningful-evidence-the-re-94451-ts-is-ticket-fee-x-6-165-00-chromium/attachments/proof-order-summary-f87db5ac8b128b5ee0307eeba935f4cc7cf67bc6.png
@@ -92,18 +85,18 @@ test-results/ after the run:
   Expected total: $165.00   (($25.00 + $2.50) x 6)
   Shown total: $150.00
   Result: RULE BROKEN
-  Captured: 11-17-2026 10:28:55 AM, right before the check
+  Captured: 11-17-2026 10:44:29 AM, right before the check
   (its picture is saved beside this log as contrast-order-total.png)
 
 ## 4. Compared with the passing run's evidence (validated/order-total.txt)
   5,7c5,7
   < Shown total: $165.00
   < Result: rule held
-  < Captured: 11-17-2026 10:28:53 AM, right before the check
+  < Captured: 11-17-2026 10:44:27 AM, right before the check
   ---
   > Shown total: $150.00
   > Result: RULE BROKEN
-  > Captured: 11-17-2026 10:28:55 AM, right before the check
+  > Captured: 11-17-2026 10:44:29 AM, right before the check
 
 ## 5. Scan of validated/ for credentials and the home-folder address (quest 19's check)
 $ node tools/failure-evidence-check.ts <attempt>/validated
@@ -125,11 +118,11 @@ PASS: no buyer's name found.
 $ node tools/personal-data-check.ts --self-test <attempt>/validated
 Planted every saved buyer's name (3), a made-up Test User name and a made-up bare qa- marker, one per line, in a temporary copy.
 Checked 4 file(s) for 3 saved buyer name(s) and the test-name shape.
-  FOUND a saved buyer's name: planted-by-self-test.txt, line 2
-  FOUND a saved buyer's name: planted-by-self-test.txt, line 3
-  FOUND a saved buyer's name: planted-by-self-test.txt, line 4
-  FOUND a test order's name (Test User qa-…): planted-by-self-test.txt, line 5
-  FOUND a test order's run-marked name (qa-…): planted-by-self-test.txt, line 6
+  FOUND a saved buyer's name: 1.txt, line 2
+  FOUND a saved buyer's name: 1.txt, line 3
+  FOUND a saved buyer's name: 1.txt, line 4
+  FOUND a test order's name (Test User qa-…): 1.txt, line 5
+  FOUND a test order's run-marked name (qa-…): 1.txt, line 6
   Not text, check by eye: order-total.png
-PASS: all 5 planted names were found, each at its line and as its kind, and nothing else.
+PASS: all 5 planted names were found, each at its line by its own rule, and nothing else.
 (exit 0)

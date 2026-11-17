@@ -22,7 +22,7 @@ One rule means one piece of evidence (criterion 1).
 | The heading "Review your order" is visible | NAVIGATION | none |
 | Event is Spring Concert, Tickets is 6 | NAVIGATION (the order the rule is applied to) | none of its own; both show in the proof's picture and are written in its values file |
 | The total is shown (any value) | a wait before the proof | none |
-| **The total is $165.00** (`expect(total).toHaveText(expected)`, line 86) | **PROOF** | **`order-total.png` + `order-total.txt`** |
+| **The total is $165.00** (`expect(shown, …).toBe(expected)`, line 91) | **PROOF** | **`order-total.png` + `order-total.txt`** |
 
 Only the total check proves the rule. The others only show the test reached the right page with the
 right order: they would pass just the same if the total were wrong. So navigation produces no
@@ -49,7 +49,9 @@ next to the picture (stretch goal 2).
 
 **When it is captured (Tom's choice: right before the check, every time).** The test waits until a
 total is shown, captures the picture and the values file, and only then checks the total. So a
-failing check still leaves the evidence of what the page showed.
+failing check still leaves the evidence of what the page showed. The check is made on the very value
+written into the evidence (not on the page again), so the check and the evidence can't disagree; and
+the test reads the total once more after the picture and stops if it changed meanwhile.
 
 **The contrast (Tom's choice: drop the fee).** `tools/break-ticket-fee.ts` makes a broken copy of the
 demo app in a temporary folder, with one line changed: the review page's total leaves out the fee.
@@ -61,7 +63,7 @@ names (Tom's choice): every name saved in the demo app's orders, read when it ru
 tests give their own orders ("Test User qa-…", or just its "qa-…" marker). It also checks JSON
 strings by their real values and every file's and folder's own name. It reports file and line, never
 the name, and its self-test plants every saved name, a made-up Test User name and a made-up bare
-marker in a temporary copy and must find each one, at its line and as its kind.
+marker in a temporary copy and must find each one, at its line and by its own rule.
 
 **The new test joins the main suite.** Its tags match five of quest 18's named selections in
 `participant/context/playwright/selections.md`, which list their tests exactly, so the test was added
@@ -109,19 +111,19 @@ node tools/personal-data-check.ts --self-test <attempt>/validated
 
 ## What was tested or validated
 
-All recorded on 11-17-2026 at 10:28 AM, at commit f73dcd7 with the quest-20 files uncommitted.
+All recorded on 11-17-2026 at 10:44 AM, at commit f73dcd7 with the quest-20 files uncommitted.
 
 - **Passing run** (`validated/run-output.txt`): 1 passed. One item captured (the order total, shown
   $165.00, expected $165.00); three steps not captured, each navigation (criteria 1 and 2).
 - **Contrast run** (`logs/contrast-run.txt`, criterion 5): the same test against the broken copy
-  failed (exit 1) at line 86, "Expected: "$165.00" Received: "$150.00"", after retrying for its
-  5-second limit. The evidence changed too: its values file says `Shown total: $150.00` and
-  `Result: RULE BROKEN`, and its picture shows $150.00. The log puts the two values files side by
+  failed (exit 1) at line 91, "Expected: "$165.00" Received: "$150.00"", at once (0.24 s). The
+  evidence changed too: its values file says `Shown total: $150.00` and `Result: RULE BROKEN`, and
+  its picture shows $150.00. The log puts the two values files side by
   side: only the shown total, the result and the time differ.
 - **Scans of `validated/`** (`logs/contrast-run.txt`, sections 5 to 7, criterion 6): quest 19's check
   found nothing (exit 0); the buyer-name check found none of the 3 saved names and no Test User name
   (exit 0); its self-test found all 5 planted names (the 3 saved names, a Test User name and a bare
-  marker), each at its line and as its kind, and nothing else (exit 0). The saved logs were scanned
+  marker), each at its line by its own rule, and nothing else (exit 0). The saved logs were scanned
   with both checks too, and both passed.
 - **By eye** (Tom, criterion 6): both pictures show only Event, Tickets and Total, with no name box
   and nothing personal; the first says $165.00 and the second $150.00. (The handed-in pictures are
@@ -151,8 +153,10 @@ was right; it only proves something with the expected value beside it.
 - **The name check knows only the names it is given:** those saved in the demo app's orders and the
   tests' own name shape. A name from anywhere else would not be recognised. Here the test never types
   a name and the picture leaves out the name box, so no name can get into the evidence.
-- **A wrong total fails after 5 seconds, not at once:** the check keeps retrying in case the page is
-  still updating.
+- **The total is captured as soon as one is shown.** That suits this page, which works its total
+  out once as it opens. A page that showed a first total and then updated it would need a wait for a
+  settled total before the capture; the second read after the picture would at least stop the test
+  if the total changed during the capture.
 
 ## Sensitive values
 

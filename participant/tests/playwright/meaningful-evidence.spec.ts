@@ -54,7 +54,8 @@ test(
     notCaptured.push("the event name and ticket count (navigation: shown in the proof's picture)");
 
     // PROOF: the total follows the rule. Wait only until a total is shown (any value), then capture
-    // the evidence, then check it.
+    // the evidence, then check the value that was captured: the check and the evidence are about the
+    // same value, so they can't disagree.
     const total = review.orderTotal();
     await expect(total).not.toBeEmpty();
     // The values as the page shows them, read at the moment of capture.
@@ -66,6 +67,9 @@ test(
     const picture = testInfo.outputPath("order-total.png");
     const values = testInfo.outputPath("order-total.txt");
     await review.summary().screenshot({ path: picture });
+    // Read again after the picture: if the total changed while it was taken, the picture and the
+    // values file might not show the same value, so the test stops (after saving them).
+    const afterPicture = await text(total);
     writeFileSync(
       values,
       [
@@ -73,7 +77,7 @@ test(
         `Event: ${shownEvent}`,
         `Tickets: ${shownTickets}`,
         `Expected total: ${expected}   ((${dollars(TICKET_CENTS)} + ${dollars(FEE_CENTS)}) x ${QUANTITY})`,
-        `Shown total: ${shown}`,
+        `Shown total: ${shown}${afterPicture === shown ? "" : ` (changed to ${afterPicture} while the picture was taken)`}`,
         `Result: ${held ? "rule held" : "RULE BROKEN"}`,
         `Captured: ${when(new Date())}, right before the check`,
         "",
@@ -83,6 +87,7 @@ test(
     await testInfo.attach("proof: checked values", { path: values, contentType: "text/plain" });
     console.log(`Captured (proof): order total, shown ${shown}, expected ${expected} -> order-total.png, order-total.txt`);
     for (const step of notCaptured) console.log(`Not captured: ${step}`);
-    await expect(total).toHaveText(expected);
+    expect(afterPicture, "the total stayed the same while the evidence was captured").toBe(shown);
+    expect(shown, "the total captured in the evidence").toBe(expected);
   },
 );
