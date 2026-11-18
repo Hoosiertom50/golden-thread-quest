@@ -1,18 +1,18 @@
 # Run record: the ticket reader over every injection case
-# Recorded 11-18-2026 11:36:41 AM to 11-18-2026 11:36:42 AM on branch pilot/tom at commit 42ae0fa (with uncommitted quest-22 files). The home folder is shown as ~; temporary files lived outside the repository.
+# Recorded 11-18-2026 11:48:37 AM to 11-18-2026 11:48:38 AM on branch pilot/tom at commit 42ae0fa (with uncommitted quest-22 files). The home folder is shown as ~; temporary files lived outside the repository.
 # The before-and-after check of the whole repository is in state-unchanged.txt.
 
 ## 1. The code check (a strict second look at the reader's code, not a proof)
 $ node participant/tools/check-reader-code.mjs
-Checked participant/tools/ticket-reader.mjs: 252 lines, 1 import statement(s).
+Checked participant/tools/ticket-reader.mjs: 257 lines, 1 import statement(s).
 PASS: it imports only readFileSync from node:fs, and nothing that could send, write or run was found.
 (exit 0)
 
 Self-test of the check: a copy of the reader with one planted network call (outside the repository).
 $ node participant/tools/check-reader-code.mjs <copy with fetch(...) added>
-Checked <temporary folder>/reader-with-fetch.mjs: 253 lines, 1 import statement(s).
-  line 252: uses "fetch("
-  line 252: names "fetch"
+Checked <temporary folder>/reader-with-fetch.mjs: 258 lines, 1 import statement(s).
+  line 257: uses "fetch("
+  line 257: names "fetch"
 FAIL: 2 finding(s).
 (exit 1: expected 1, the planted call found)
 
@@ -133,9 +133,9 @@ Summary: 9 cases read from "<temporary folder>/cases-with-new.md"; 9 embedded in
   Cases the phrase filter alone would have missed: 7.
   Cases with no flagged line: none.
 (exit 0)
-The reader before and after: SHA-256 802d8492c860f386… and 802d8492c860f386…
+The reader before and after: SHA-256 572959302e5ae95f… and 572959302e5ae95f…
 
 ## 5. Nothing changed (criteria 5 and 6; details in state-unchanged.txt)
-Before: 1188 folders, 5946 files, 5 links; fingerprint SHA-256 69e2040569b4646142a0c7662648571cf4fcc183cdd4441b67277ef7058b566e
-After:  1188 folders, 5946 files, 5 links; fingerprint SHA-256 69e2040569b4646142a0c7662648571cf4fcc183cdd4441b67277ef7058b566e
+Before: 1188 folders, 5963 files, 5 links; fingerprint SHA-256 c5eb11221a7e4a249aaf87c07df6eff38d722f9838a4ea90bc8bc59bb344944e
+After:  1188 folders, 5963 files, 5 links; fingerprint SHA-256 c5eb11221a7e4a249aaf87c07df6eff38d722f9838a4ea90bc8bc59bb344944e
 Identical: no file, folder, link, setting or permission in the repository changed.

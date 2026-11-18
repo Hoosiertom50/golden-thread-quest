@@ -5,13 +5,13 @@
 # Made by participant/tools/workspace-fingerprint.mjs; compared with diff, not taken from the reader.
 # on branch pilot/tom at commit 42ae0fa (with uncommitted quest-22 files).
 
-Before the run (11-18-2026 11:36:41 AM): 1188 folders, 5946 files, 5 links; fingerprint SHA-256 69e2040569b4646142a0c7662648571cf4fcc183cdd4441b67277ef7058b566e
-After the run  (11-18-2026 11:36:42 AM): 1188 folders, 5946 files, 5 links; fingerprint SHA-256 69e2040569b4646142a0c7662648571cf4fcc183cdd4441b67277ef7058b566e
+Before the run (11-18-2026 11:48:37 AM): 1188 folders, 5963 files, 5 links; fingerprint SHA-256 c5eb11221a7e4a249aaf87c07df6eff38d722f9838a4ea90bc8bc59bb344944e
+After the run  (11-18-2026 11:48:38 AM): 1188 folders, 5963 files, 5 links; fingerprint SHA-256 c5eb11221a7e4a249aaf87c07df6eff38d722f9838a4ea90bc8bc59bb344944e
 
 $ diff <before list> <after list>
 (no output: the two lists are identical, line for line)
 
-Entries by kind (both lists): 1188 dir;5946 file; 5 link;
+Entries by kind (both lists): 1188 dir;5963 file; 5 link;
 Settings included, for example:
     file 100600 501:20 72098427:1 9919 573393449b42e4e1… "participant/progress.yaml"
     file 100644 501:20 66206590:1 1123 b0007b56c36a2eff… ".gitignore"

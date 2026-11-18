@@ -82,7 +82,8 @@ function ticketPieces(body) {
   // Every line is read, and nothing is skipped: a field the reader doesn't expect (a label, a
   // priority), the reporter's name, a description line after a blank line, and a line with no field
   // name at all are all content, and all checked.
-  const field = /^([a-z][a-z_-]*):\s?(.*)$/;
+  // The value may hold any character, Unicode line separators included ("s"), so no field loses its name.
+  const field = /^([a-z][a-z_-]*):\s?(.*)$/s;
   for (let i = 0; i < body.length; i++) {
     if (body[i].trim() === "") continue;
     const m = body[i].match(field);
@@ -148,12 +149,15 @@ function toolResultPieces(body) {
       while (j < source.length && source[j] !== '"') j += source[j] === "\\" ? 2 : 1;
       const value = JSON.parse(source.slice(i, j + 1));
       const top = frames[frames.length - 1];
-      const here = frames.map((f, n) => (f.kind === "object" ? (n === frames.length - 1 && expectKey ? "" : f.key) : `[${f.index}]`));
+      // Each object key quoted on its own and each list position in brackets, so a key such as "a.b"
+      // or "a[0]" can't pass itself off as another place.
+      const segment = (f) => (f.kind === "object" ? safe(f.key) : `[${f.index}]`);
+      const at = (list) => list.join(".").replace(/\.\[/g, "[");
       if (top?.kind === "object" && expectKey) {
         top.key = value;
         expectKey = false;
-        pieces.push({ where: `the name of a tool result's field (${safe(here.slice(0, -1).concat(value).join("."))})`, text: value });
-      } else pieces.push({ where: `the tool result's field ${safe(here.join(".").replace(/\.\[/g, "["))}`, text: value });
+        pieces.push({ where: `the name of a tool result's field (${at([...frames.slice(0, -1).map(segment), safe(value)])})`, text: value });
+      } else pieces.push({ where: `the tool result's field ${at(frames.map(segment))}`, text: value });
       i = j;
     }
   }
@@ -174,9 +178,9 @@ function decoded(piece) {
     } catch {
       continue;
     }
-    // Any printable text (letters, digits, punctuation, symbols such as € or emoji, accents, spaces,
-    // tabs and line breaks) with at least a short word in it; the report quotes it safely.
-    if (!/^[\p{L}\p{N}\p{P}\p{S}\p{M}\p{Zs}\t\r\n]+$/u.test(plain) || !/\p{L}{3,}/u.test(plain)) continue;
+    // Everything that decodes as UTF-8 goes to the flags; the report quotes it safely, invisible
+    // characters included. (Ordinary words that happen to decode give text no flag fires on.)
+    if (plain === "") continue;
     found.push({ where: `${piece.where} (decoded from base64)`, text: plain, encoded: token });
   }
   return found;
@@ -248,4 +252,5 @@ console.log(`Summary: ${cases.length} cases read from ${quote(casesFile)}; ${ins
 console.log(`  Flagged by the phrase filter: ${byPhrase}; by addresses-the-reader: ${byReader}.`);
 console.log(`  Cases the phrase filter alone would have missed: ${phraseMissed.length ? phraseMissed.join(", ") : "none"}.`);
 console.log(`  Cases with no flagged line: ${unflagged.length ? unflagged.join(", ") : "none"}.`);
-process.exit(unflagged.length ? 1 : 0);
+// The exit code is set rather than exiting at once, so a report going to a pipe is written in full.
+process.exitCode = unflagged.length ? 1 : 0;

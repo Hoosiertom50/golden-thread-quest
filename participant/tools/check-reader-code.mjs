@@ -12,7 +12,7 @@
 //     the word "import" nowhere but in that one statement;
 //   - never names fetch, XMLHttpRequest, WebSocket, globalThis, Reflect, constructor and the like, even
 //     without calling them (an alias would otherwise slip past), never looks a name up by a string
-//     (x["name"]), and uses process only for process.argv and process.exit;
+//     (x["name"]), and uses process only for process.argv, process.exit and process.exitCode;
 //   - names nothing that sends, writes or runs: fetch, XMLHttpRequest, WebSocket, http, https, net,
 //     tls, dgram, dns, child_process, worker_threads, cluster, process.binding, writeFile,
 //     appendFile, createWriteStream, open (for writing), mkdir, rm, rename, unlink, copyFile,
@@ -77,7 +77,7 @@ for (const m of code.matchAll(new RegExp(`(?<![\\w$])(?:${NEVER.join("|")})(?![\
   findings.push(`line ${lineOf(m.index)}: names "${m[0]}"`);
 }
 // "process" only for the command-line arguments and the exit code.
-for (const m of code.matchAll(/(?<![\w$.])process(?![\w$])(?!\.(?:argv|exit)\b)/g)) findings.push(`line ${lineOf(m.index)}: uses process other than process.argv or process.exit`);
+for (const m of code.matchAll(/(?<![\w$.])process(?![\w$])(?!\.(?:argv|exit|exitCode)\b)/g)) findings.push(`line ${lineOf(m.index)}: uses process other than process.argv, process.exit or process.exitCode`);
 // Looking a name up by a string (x["name"]) is refused outright.
 for (const m of code.matchAll(/[\w$)\]]\s*\[\s*["'`]/g)) findings.push(`line ${lineOf(m.index)}: looks a name up by a string`);
 // Modules that can act, named anywhere (an import, a require, a string handed to a loader).
@@ -89,8 +89,9 @@ for (const m of code.matchAll(new RegExp(`["'](?:node:)?(?:${MODULES.join("|")})
 console.log(`Checked ${file}: ${source.split("\n").length} lines, ${imports.length} import statement(s).`);
 if (findings.length === 0) {
   console.log("PASS: it imports only readFileSync from node:fs, and nothing that could send, write or run was found.");
-  process.exit(0);
+} else {
+  for (const f of findings) console.log(`  ${f}`);
+  console.log(`FAIL: ${findings.length} finding(s).`);
 }
-for (const f of findings) console.log(`  ${f}`);
-console.log(`FAIL: ${findings.length} finding(s).`);
-process.exit(1);
+// Set rather than exiting at once, so the report is written in full when it goes to a pipe.
+process.exitCode = findings.length ? 1 : 0;

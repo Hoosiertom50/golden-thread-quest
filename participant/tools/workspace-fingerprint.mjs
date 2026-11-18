@@ -51,7 +51,8 @@ let files = 0;
 let links = 0;
 let others = 0;
 // Names are read as raw bytes, so a name that isn't valid UTF-8 can't be confused with another.
-const utf8 = new TextDecoder("utf-8", { fatal: true });
+// ignoreBOM keeps a leading byte-order mark, which would otherwise be silently dropped.
+const utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const show = (bytes) => {
   try {
     return JSON.stringify(utf8.decode(bytes));
