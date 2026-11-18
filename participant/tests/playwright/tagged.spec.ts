@@ -15,7 +15,14 @@ const EVENT = "Spring Concert";
 // price shown to a buyer is money that is wrong.)
 test(
   "the events page shows the Tixly name at the top",
-  { tag: ["@events", "@risk-low", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@events", "@risk-low", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-19" },
+      { type: "purpose", description: "The events page shows the Tixly name at the top." },
+      { type: "source", description: "none: the site's name isn't in the requirements" },
+    ],
+  },
   async ({ page }) => {
     const events = new EventsScreen(page);
     await events.open();
@@ -25,7 +32,14 @@ test(
 
 test(
   "choosing 3 tickets on the events page shows a total of $82.50",
-  { tag: ["@events", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@events", "@risk-high", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-20" },
+      { type: "purpose", description: "Choosing 3 tickets on the events page shows a total of $82.50." },
+      { type: "source", description: "CHK-07" },
+    ],
+  },
   async ({ page }) => {
     const events = new EventsScreen(page);
     await events.open();
@@ -36,7 +50,14 @@ test(
 
 test(
   "the review page for 4 tickets shows a total of $110.00",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-21" },
+      { type: "purpose", description: "The review page for 4 tickets shows a total of $110.00." },
+      { type: "source", description: "CHK-07" },
+    ],
+  },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
     await review.openFromLink("spring-concert", "4");
@@ -47,7 +68,15 @@ test(
 
 test(
   "a review link for an event not on sale says so instead of showing a total",
-  { tag: ["@order-review", "@risk-medium", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-medium", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-22" },
+      { type: "purpose", description: "A review link for an event that isn't on sale says so and shows no total." },
+      { type: "source", description: "none: events not on sale aren't in the requirements" },
+      { type: "value", description: "low: same check as T-15, which also tries a second event and checks every line; kept so the tag scheme uses every tag" },
+    ],
+  },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
     await review.openFromLink("winter-gala", "2");
@@ -62,7 +91,14 @@ test(
 // a broken answer naming someone else's order can't get that order cancelled.
 test(
   "the orders service refuses an order for 7 tickets",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-api", "@fast"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-api", "@fast"],
+    annotation: [
+      { type: "id", description: "T-23" },
+      { type: "purpose", description: "The orders service refuses an order for 7 tickets; CHK-01 says up to 8, so the limit is unconfirmed." },
+      { type: "source", description: "CHK-01" },
+    ],
+  },
   async ({ orders }) => {
     const name = orders.uniqueName();
     const answer = await ask(new URL("/api/orders", baseUrl()), {
@@ -86,7 +122,14 @@ test(
 // project starts (not against another copy given by TIXLY_BASE_URL).
 test(
   "the orders service lists every saved order that isn't test data, exactly as saved",
-  { tag: ["@saved-orders", "@risk-medium", "@read-only", "@layer-api", "@fast"] },
+  {
+    tag: ["@saved-orders", "@risk-medium", "@read-only", "@layer-api", "@fast"],
+    annotation: [
+      { type: "id", description: "T-24" },
+      { type: "purpose", description: "The orders service lists every saved order that isn't test data, exactly as saved." },
+      { type: "source", description: "none: listing saved orders isn't in the requirements yet" },
+    ],
+  },
   async ({ orders }) => {
     test.skip(process.env.TIXLY_BASE_URL !== undefined, "compares with this project's own orders file, which another copy of the app doesn't use");
     const saved = JSON.parse(readFileSync(new URL("./demo-app/data/orders.json", import.meta.url), "utf8")) as { name: string }[];
@@ -101,7 +144,14 @@ test(
 
 test(
   "an order created through the API shows the right total on Your orders",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast"],
+    annotation: [
+      { type: "id", description: "T-25" },
+      { type: "purpose", description: "An order saved through the orders service shows the right total on Your orders." },
+      { type: "source", description: "none: saving orders isn't in the requirements yet" },
+    ],
+  },
   async ({ page, orders }) => {
     const order = await orders.create({ quantity: 2 });
     await page.goto("/orders");
@@ -114,7 +164,14 @@ test(
 // as on a slow connection (only in this browser; the app itself is unchanged).
 test(
   "cancelling still shows the right result on a slow connection",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@slow"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@slow"],
+    annotation: [
+      { type: "id", description: "T-26" },
+      { type: "purpose", description: "Cancelling an order on a slow connection still ends with the right result shown." },
+      { type: "source", description: "CHK-08" },
+    ],
+  },
   async ({ page, orders }) => {
     const order = await orders.create({ quantity: 1 });
     await page.route("**/api/orders**", async (route) => {

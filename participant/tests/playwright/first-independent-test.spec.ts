@@ -19,7 +19,15 @@ test(
   "a buyer choosing 2 Spring Concert tickets sees a total of $55.00, with the $2.50 service fee on each ticket",
   // Tags from the scheme (participant/context/playwright/tag-scheme.md): feature, risk, read or write,
   // layer and duration. It was tagged @ticket-total before the scheme; that tag was folded into @events.
-  { tag: ["@events", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@events", "@risk-high", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-07" },
+      { type: "purpose", description: "The events page total for 2 Spring Concert tickets is $55.00, the $2.50 fee included on each ticket." },
+      { type: "source", description: "CHK-07" },
+      { type: "value", description: "low: same check as T-18; kept as the project's first test" },
+    ],
+  },
   async ({ page }, testInfo) => {
     const eventsPage = new UpcomingEventsPage(page);
     await eventsPage.open();

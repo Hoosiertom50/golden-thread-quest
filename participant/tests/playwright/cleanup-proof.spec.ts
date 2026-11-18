@@ -11,7 +11,14 @@ test.skip(process.env.TIXLY_CLEANUP_PROOF !== "1", "Fails on purpose; run with T
 
 test(
   "proof 1: a test that fails after creating its order still has it cancelled by its cleanup",
-  { tag: ["@saved-orders", "@risk-low", "@writes-data", "@layer-api", "@fast"] },
+  {
+    tag: ["@saved-orders", "@risk-low", "@writes-data", "@layer-api", "@fast"],
+    annotation: [
+      { type: "id", description: "T-03" },
+      { type: "purpose", description: "A test that fails after saving its order still has that order cancelled by its own cleanup." },
+      { type: "source", description: "none: tests the test setup's own cleanup" },
+    ],
+  },
   async ({ orders }) => {
     const order = await orders.create();
     console.log(`proof 1 created ${order.id} (${order.name}), then fails on purpose`);
@@ -22,7 +29,14 @@ test(
 
 test(
   "proof 2: an order the test never got to note is cancelled by the run-end safety net",
-  { tag: ["@saved-orders", "@risk-low", "@writes-data", "@layer-ui", "@fast"] },
+  {
+    tag: ["@saved-orders", "@risk-low", "@writes-data", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-04" },
+      { type: "purpose", description: "An order a test saved but never got to note is cancelled by the safety net at the end of the run." },
+      { type: "source", description: "none: tests the test setup's own cleanup" },
+    ],
+  },
   async ({ page, orders }) => {
     const name = orders.uniqueName();
     await page.goto("/review?event=spring-concert&quantity=1");

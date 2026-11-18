@@ -33,7 +33,14 @@ const when = (d: Date) =>
 
 test(
   "the review page total for 6 tickets is (ticket + fee) x 6 = $165.00",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-11" },
+      { type: "purpose", description: "The review page total for 6 tickets is $165.00: ($25.00 ticket + $2.50 fee) x 6." },
+      { type: "source", description: "CHK-07" },
+    ],
+  },
   async ({ page }, testInfo) => {
     const review = new OrderReviewScreen(page);
     const expected = dollars((TICKET_CENTS + FEE_CENTS) * QUANTITY);
