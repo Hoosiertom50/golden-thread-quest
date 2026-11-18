@@ -12,7 +12,15 @@ import { expect, test } from "./support/orders-fixture.ts";
 
 test(
   "a buyer cancels an order (UI-only: saved and cancelled through the screen)",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@ui-only"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@ui-only"],
+    annotation: [
+      { type: "id", description: "T-28" },
+      { type: "purpose", description: "A buyer can cancel a saved order from Your orders, and it is then cancelled." },
+      { type: "source", description: "CHK-08" },
+      { type: "value", description: "low: same check as T-01 but can't see the server; kept to compare" },
+    ],
+  },
   async ({ page, orders }) => {
     const name = orders.uniqueName();
 

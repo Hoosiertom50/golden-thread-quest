@@ -9,7 +9,14 @@ import { expect, test } from "./support/orders-fixture.ts";
 
 test(
   "a buyer saves an order and sees it in Your orders (isolated)",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-isolated"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-isolated"],
+    annotation: [
+      { type: "id", description: "T-08" },
+      { type: "purpose", description: "A saved order appears on Your orders." },
+      { type: "source", description: "none: saving orders isn't in the requirements yet" },
+    ],
+  },
   async ({ page, orders }) => {
     const name = orders.uniqueName();
     await page.goto("/review?event=spring-concert&quantity=2");
@@ -52,7 +59,15 @@ test(
 
 test(
   "a buyer cancels their own order (isolated: makes the order it cancels)",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast", "@data-isolated"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast", "@data-isolated"],
+    annotation: [
+      { type: "id", description: "T-09" },
+      { type: "purpose", description: "A buyer can cancel a saved order from Your orders, and it is then cancelled." },
+      { type: "source", description: "CHK-08" },
+      { type: "value", description: "low: same check as T-01; kept to show a test making its own data" },
+    ],
+  },
   async ({ page, orders }) => {
     // Setup through the orders service: this test is about cancelling, not saving.
     const order = await orders.create({ quantity: 1 });
@@ -70,7 +85,14 @@ test(
 
 test(
   "cancelling one buyer's order leaves another buyer's order in Your orders (isolated)",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast", "@data-isolated"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-mixed", "@fast", "@data-isolated"],
+    annotation: [
+      { type: "id", description: "T-10" },
+      { type: "purpose", description: "Cancelling one buyer's order leaves another buyer's order on Your orders, not cancelled." },
+      { type: "source", description: "CHK-08" },
+    ],
+  },
   async ({ page, orders }) => {
     // Two orders of its own: one to cancel, one that must survive.
     const toCancel = await orders.create({ quantity: 1 });

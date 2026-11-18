@@ -20,7 +20,14 @@ const EVENT = "Spring Concert";
 
 test(
   "a buyer reviewing 2 Spring Concert tickets sees the event, 2 tickets and a total of $55.00",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-12" },
+      { type: "purpose", description: "The review page for 2 Spring Concert tickets shows the event, 2 tickets and a total of $55.00." },
+      { type: "source", description: "CHK-07" },
+    ],
+  },
   async ({ page }) => {
     const events = new EventsScreen(page);
     await events.open();
@@ -37,7 +44,14 @@ test(
 
 test(
   "a buyer who goes back from the review to choose 4 tickets instead sees the new total of $110.00",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-13" },
+      { type: "purpose", description: "Going back from the review to choose 4 tickets instead shows the new total, $110.00." },
+      { type: "source", description: "CHK-07" },
+    ],
+  },
   async ({ page }) => {
     const events = new EventsScreen(page);
     await events.open();
@@ -53,7 +67,14 @@ test(
 
 test(
   "a review link asking for 0, a fraction, too many or no whole number of tickets explains the 1 to 6 limit instead of showing a total",
-  { tag: ["@order-review", "@risk-medium", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-medium", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-14" },
+      { type: "purpose", description: "A review link asking for 0, a fraction, more than 6 or no whole number of tickets explains the 1-to-6 limit and shows no total; CHK-01 says up to 8, so the limit is unconfirmed." },
+      { type: "source", description: "CHK-01" },
+    ],
+  },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
 
@@ -70,7 +91,14 @@ test(
 
 test(
   "a review link naming an event that isn't on sale says so instead of showing a total",
-  { tag: ["@order-review", "@risk-medium", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-medium", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-15" },
+      { type: "purpose", description: "A review link for an event that isn't on sale says so and shows no total." },
+      { type: "source", description: "none: events not on sale aren't in the requirements" },
+    ],
+  },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
 
@@ -87,7 +115,14 @@ test(
 
 test(
   "a buyer who uses the browser's Back button from the review still sees 3 tickets and $82.50",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-16" },
+      { type: "purpose", description: "After the browser's Back button from the review, the events page still shows 3 tickets and $82.50." },
+      { type: "source", description: "CHK-07" },
+    ],
+  },
   async ({ page }) => {
     const events = new EventsScreen(page);
     await events.open();
@@ -103,7 +138,14 @@ test(
 
 test(
   "review links for 1 and for 6 tickets, the smallest and largest orders, show totals of $27.50 and $165.00",
-  { tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"] },
+  {
+    tag: ["@order-review", "@risk-high", "@read-only", "@layer-ui", "@fast"],
+    annotation: [
+      { type: "id", description: "T-17" },
+      { type: "purpose", description: "Review links for 1 and 6 tickets, the smallest and largest orders, show $27.50 and $165.00." },
+      { type: "source", description: "CHK-07" },
+    ],
+  },
   async ({ page }) => {
     const review = new OrderReviewScreen(page);
 

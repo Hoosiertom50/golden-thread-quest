@@ -204,4 +204,13 @@ attempts:
   evidence_path: participant/evidence/playwright-success-evidence/playwright-attempt-012
   submission_id: submission-20261117162314-94f998
   review_id: review-20261117163449-122517
-updated_at: '2026-11-17T16:34:49Z'
+- attempt_id: playwright-attempt-013
+  quest_id: playwright-test-inventory
+  quest_version: 1
+  content_hash: sha256:2989e7ff4683f71e44e2f3d8502b997649469dddde98c11b12c04c20826a2a34
+  state: submitted
+  started_at: '2026-11-18T13:32:44Z'
+  updated_at: '2026-11-18T15:18:39Z'
+  evidence_path: participant/evidence/playwright-test-inventory/playwright-attempt-013
+  submission_id: submission-20261118151839-acf35b
+updated_at: '2026-11-18T15:18:39Z'

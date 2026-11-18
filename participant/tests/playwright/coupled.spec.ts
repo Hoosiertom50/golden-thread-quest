@@ -17,7 +17,15 @@ test.skip(process.env.TIXLY_COUPLED !== "1", "Coupled on purpose and can leave d
 
 test(
   "a buyer saves an order for Test User and sees it in Your orders (coupled)",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-coupled"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-coupled"],
+    annotation: [
+      { type: "id", description: "T-05" },
+      { type: "purpose", description: "A saved order appears on Your orders." },
+      { type: "source", description: "none: saving orders isn't in the requirements yet" },
+      { type: "value", description: "low: coupled on purpose and skipped; same check as T-08" },
+    ],
+  },
   async ({ page }) => {
     await page.goto("/review?event=spring-concert&quantity=2");
     await page.getByLabel("Your name", { exact: true }).fill("Test User");
@@ -31,7 +39,15 @@ test(
 
 test(
   "a buyer cancels Test User's order (coupled: relies on the order the test above saved)",
-  { tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-coupled"] },
+  {
+    tag: ["@saved-orders", "@risk-high", "@writes-data", "@layer-ui", "@fast", "@data-coupled"],
+    annotation: [
+      { type: "id", description: "T-06" },
+      { type: "purpose", description: "A buyer can cancel a saved order from Your orders, and it is then cancelled." },
+      { type: "source", description: "CHK-08" },
+      { type: "value", description: "low: coupled on purpose and skipped; same check as T-01" },
+    ],
+  },
   async ({ page }) => {
     await page.goto("/orders");
 
