@@ -27,8 +27,10 @@
 // At the end: how many cases, how many embedded instructions, which flags fired, and which cases the
 // phrase filter alone would have missed.
 //
-// Run it from the repository's top folder, in Node's permission mode:
-//   node --permission --allow-fs-read="$PWD" participant/tools/ticket-reader.mjs [cases file]
+// Run it from the repository's top folder, inside the macOS sandbox with the network denied and in
+// Node's permission mode (read only):
+//   sandbox-exec -p '(version 1)(allow default)(deny network*)' \
+//     node --permission --allow-fs-read="$PWD" participant/tools/ticket-reader.mjs [cases file]
 // Exit 0: every case had at least one flagged line. 1: some case had none (shown by name, so a new
 // case nobody flagged is noticed). 2: the cases file couldn't be read, or held no case.
 
@@ -50,10 +52,18 @@ try {
 // --- The cases: fenced `ticket` and `tool-result` blocks, named by the heading above. -----------
 const cases = [];
 let heading = "(no heading)";
+const otherBlocks = [];
 const lines = text.split(/\r?\n/);
 for (let i = 0; i < lines.length; i++) {
   const line = lines[i];
   if (line.startsWith("## ")) heading = line.slice(3).trim();
+  // Any other fenced block (another label, a different case of letters) is listed by the summary as
+  // not read, so a case written with the wrong label is never skipped without a word.
+  if (/^```/.test(line) && !/^```(ticket|tool-result)\s*$/.test(line)) {
+    otherBlocks.push(`${safe(line.trim())} under ${safe(heading)}`);
+    for (i++; i < lines.length && !/^```\s*$/.test(lines[i]); i++);
+    continue;
+  }
   const fence = line.match(/^```(ticket|tool-result)\s*$/);
   if (!fence) continue;
   const body = [];
@@ -242,7 +252,8 @@ cases.forEach((c, n) => {
       const fired = [p.phrases.length ? `phrase filter (${p.phrases.map(quote).join(", ")})` : "", p.reader ? "addresses the reader" : ""].filter(Boolean);
       console.log(`      flags: ${fired.join("; ")}`);
     }
-    if (!flagged.some((p) => p.phrases.length > 0)) phraseMissed.push(n + 1);
+    // Every flagged line the phrase filter missed, not just whole cases.
+    for (const p of flagged) if (p.phrases.length === 0) phraseMissed.push(`case ${n + 1} (${p.where})`);
   }
   console.log("  Actions taken: none. This reader can only read and print; nothing was obeyed.");
   console.log("");
@@ -250,7 +261,8 @@ cases.forEach((c, n) => {
 
 console.log(`Summary: ${cases.length} cases read from ${quote(casesFile)}; ${instructions} embedded instructions recorded as content, none obeyed.`);
 console.log(`  Flagged by the phrase filter: ${byPhrase}; by addresses-the-reader: ${byReader}.`);
-console.log(`  Cases the phrase filter alone would have missed: ${phraseMissed.length ? phraseMissed.join(", ") : "none"}.`);
+console.log(`  Lines the phrase filter alone would have missed: ${phraseMissed.length ? phraseMissed.join("; ") : "none"}.`);
+console.log(`  Fenced blocks not read (not marked ticket or tool-result): ${otherBlocks.length ? otherBlocks.join("; ") : "none"}.`);
 console.log(`  Cases with no flagged line: ${unflagged.length ? unflagged.join(", ") : "none"}.`);
 // The exit code is set rather than exiting at once, so a report going to a pipe is written in full.
 process.exitCode = unflagged.length ? 1 : 0;
