@@ -10,7 +10,14 @@ import { expect, test } from "@playwright/test";
 // 2 tickets -> $55.00 (quantity x (price + fee)).
 test(
   "a buyer choosing 2 Spring Concert tickets sees a total of $55.00 (stable locators)",
-  { tag: ["@events", "@risk-high", "@read-only", "@layer-ui", "@fast", "@locator-comparison"] },
+  {
+    tag: ["@events", "@risk-high", "@read-only", "@layer-ui", "@fast", "@locator-comparison"],
+    annotation: [
+      { type: "id", description: "T-18" },
+      { type: "purpose", description: "The events page total for 2 Spring Concert tickets is $55.00, the $2.50 fee included on each ticket." },
+      { type: "source", description: "CHK-07" },
+    ],
+  },
   async ({ page }) => {
     await page.goto("/");
 

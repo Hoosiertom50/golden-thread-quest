@@ -199,6 +199,21 @@ From a fresh copy of the repository:
 
    Check the screenshot and the trace's pictures by eye: the scan can't read pictures.
 
+   **Test inventory.** `participant/context/playwright/inventory.md` lists every test (29, in the
+   main suite and the evidence settings) with its identifier, purpose, tags, source requirement,
+   value score, file and how it runs. It is generated from the tests and never edited by hand: each
+   test carries an `id`, a `purpose` (what it proves) and a `source` (a requirement from
+   `participant/context/playwright/requirements.md`, or `none: <reason>` for a known gap) as
+   Playwright annotations next to its tags, and may set a different value score with a reason. After
+   adding or changing a test, generate it again (this lists the tests without running them):
+
+   ```
+   node tools/inventory.ts
+   ```
+
+   It refuses to write anything when two tests share an identifier, and lists tests with a missing
+   purpose or source as incomplete and tests with the same purpose as possible duplicates.
+
 5. Optional: confirm generated files and environment files are ignored by Git, and scan the
    repository for credentials. This step also needs the repository's Python environment
    (`.venv`), which you have once the quest app is set up as the repository's main README

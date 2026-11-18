@@ -101,6 +101,7 @@ const MUST_NOT_BE_IGNORED: string[] = [
   "meaningful-evidence.spec.ts",
   "tools/break-ticket-fee.ts",
   "tools/personal-data-check.ts",
+  "tools/inventory.ts",
   ".gitignore",
   ".env.example",
 ];

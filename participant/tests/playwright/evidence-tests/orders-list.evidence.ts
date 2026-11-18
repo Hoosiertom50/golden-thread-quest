@@ -11,7 +11,15 @@ import { expect, test } from "../support/evidence-fixture.ts";
 
 test(
   "a saved order shows on Your orders",
-  { tag: ["@saved-orders", "@risk-medium", "@writes-data", "@layer-mixed", "@fast"] },
+  {
+    tag: ["@saved-orders", "@risk-medium", "@writes-data", "@layer-mixed", "@fast"],
+    annotation: [
+      { type: "id", description: "T-29" },
+      { type: "purpose", description: "A saved order appears on Your orders." },
+      { type: "source", description: "none: saving orders isn't in the requirements yet" },
+      { type: "value", description: "low: same check as T-08; runs only with the evidence settings, to show failure evidence" },
+    ],
+  },
   async ({ page, orders }) => {
     const order = await orders.create({ quantity: 2 });
     await page.goto("/orders");
