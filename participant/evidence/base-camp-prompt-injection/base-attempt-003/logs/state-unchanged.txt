@@ -5,22 +5,22 @@
 # Made by participant/tools/workspace-fingerprint.mjs; compared with diff, not taken from the reader.
 # on branch pilot/tom at commit 42ae0fa (with uncommitted quest-22 files).
 
-Before the run (11-18-2026 11:22:13 AM): 1188 folders, 5929 files, 5 links; fingerprint SHA-256 c15f5042b51d6ceb2b86f7a87df5505d4b8d698c6feb332b93f0bd798a7112e6
-After the run  (11-18-2026 11:22:14 AM): 1188 folders, 5929 files, 5 links; fingerprint SHA-256 c15f5042b51d6ceb2b86f7a87df5505d4b8d698c6feb332b93f0bd798a7112e6
+Before the run (11-18-2026 11:36:41 AM): 1188 folders, 5946 files, 5 links; fingerprint SHA-256 69e2040569b4646142a0c7662648571cf4fcc183cdd4441b67277ef7058b566e
+After the run  (11-18-2026 11:36:42 AM): 1188 folders, 5946 files, 5 links; fingerprint SHA-256 69e2040569b4646142a0c7662648571cf4fcc183cdd4441b67277ef7058b566e
 
 $ diff <before list> <after list>
 (no output: the two lists are identical, line for line)
 
-Entries by kind (both lists): 1188 dir;5929 file; 5 link;
+Entries by kind (both lists): 1188 dir;5946 file; 5 link;
 Settings included, for example:
-    file 0600 501:20 9919 573393449b42e4e1… "participant/progress.yaml"
-    file 0644 501:20 1123 b0007b56c36a2eff… ".gitignore"
-    file 0644 501:20 26 a2ec369a8574fb88… ".git/HEAD"
-    file 0644 501:20 603 b46e3486e6c38734… ".git/config"
+    file 100600 501:20 72098427:1 9919 573393449b42e4e1… "participant/progress.yaml"
+    file 100644 501:20 66206590:1 1123 b0007b56c36a2eff… ".gitignore"
+    file 100644 501:20 66207147:1 26 a2ec369a8574fb88… ".git/HEAD"
+    file 100644 501:20 72095681:1 603 b46e3486e6c38734… ".git/config"
 
 The first 5 lines of the list, as a sample:
-    dir  0755 501:20 "."
-    dir  0755 501:20 ".claude"
-    dir  0755 501:20 ".git"
-    dir  0755 501:20 ".git/hooks"
-    dir  0755 501:20 ".git/info"
+    dir  040755 501:20 66206517:43 "."
+    dir  040755 501:20 66206518:15 ".git"
+    dir  040755 501:20 66206519:3 ".git/info"
+    dir  040755 501:20 66206522:15 ".git/hooks"
+    dir  040755 501:20 66206536:5 ".git/refs"

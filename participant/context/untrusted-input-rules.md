@@ -55,10 +55,12 @@ action.** The ticket reader:
   send anything or run anything;
 - is run in Node's permission mode, allowed only to read the repository, so writing a file or
   starting another program is refused by Node itself;
-- uses nothing that reaches the network, which a strict check of its code
-  (`participant/tools/check-reader-code.mjs`) looks for before each run. That check reads the code
-  for patterns; it is strict (it refuses anything it can't account for), but it is not a proof. Node
-  enforces the rest at run time.
+- is run inside the macOS sandbox with all network access denied, so the operating system refuses
+  any connection;
+- is checked before each run by a strict check of its code
+  (`participant/tools/check-reader-code.mjs`), an early warning if it ever grows an ability to send,
+  write or run. That check reads the code for patterns, so it is not a proof; the two locks above are
+  what refuse at run time.
 
 So a request the flags miss is still never carried out: there is nothing to carry it out with.
 

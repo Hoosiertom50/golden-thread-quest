@@ -3,12 +3,14 @@
 // itself, not from what the agent says about itself.
 //
 // Every entry is listed, the top folder itself, Git's own folder (.git, with its settings and
-// history) and ignored files included: for each folder, its path, permissions and owner (user and
-// group); for each file, the same plus its size and the SHA-256 of its contents; for each link, its
-// path, owner and where it points. Every path and link target is written in quotes with escapes, so
-// two different folders can never give the same list. The list is sorted, so the same folder always
-// gives the same list, and its own SHA-256 is the folder's fingerprint. Paths are relative to the
-// folder, never showing the computer's home folder.
+// history) and ignored files included: for every entry its kind and full mode (type and
+// permissions), owner (user and group), and identity on disk (inode and number of hard links, so a
+// file replaced by a hard link to another is seen); for each file, also its size and the SHA-256 of
+// its contents; for each link, where it points; for a device, its device number. Every path and link
+// target is written in quotes with escapes, and one that isn't valid UTF-8 is written as its raw
+// bytes in hex, so two different folders can never give the same list. The list is sorted, so the
+// same folder always gives the same list, and its own SHA-256 is the folder's fingerprint. Paths are
+// relative to the folder, never showing the computer's home folder.
 //
 // Not covered: extended attributes and access-control lists (macOS ACLs), and timestamps (reading a
 // file changes its access time; what matters is whether anything was changed).
@@ -21,7 +23,7 @@
 
 import { createHash } from "node:crypto";
 import { closeSync, lstatSync, openSync, readdirSync, readFileSync, readlinkSync, realpathSync, writeSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 const out = process.argv[2];
 if (!out || process.argv.length !== 3) {
@@ -47,31 +49,46 @@ const entries = [];
 let dirs = 0;
 let files = 0;
 let links = 0;
-const q = (s) => JSON.stringify(s);
-const meta = (st) => `${(st.mode & 0o7777).toString(8).padStart(4, "0")} ${st.uid}:${st.gid}`;
-const walk = (dir) => {
-  for (const name of readdirSync(dir).sort()) {
-    const path = join(dir, name);
-    const shown = q(relative(root, path));
+let others = 0;
+// Names are read as raw bytes, so a name that isn't valid UTF-8 can't be confused with another.
+const utf8 = new TextDecoder("utf-8", { fatal: true });
+const show = (bytes) => {
+  try {
+    return JSON.stringify(utf8.decode(bytes));
+  } catch {
+    return `hex:${Buffer.from(bytes).toString("hex")}`;
+  }
+};
+const meta = (st) => `${st.mode.toString(8).padStart(6, "0")} ${st.uid}:${st.gid} ${st.ino}:${st.nlink}`;
+const rootBytes = Buffer.from(root);
+const walk = (dir, shownParts) => {
+  const names = readdirSync(dir, { encoding: "buffer" }).sort(Buffer.compare);
+  for (const name of names) {
+    const path = Buffer.concat([dir, Buffer.from("/"), name]);
+    const parts = [...shownParts, name];
+    const shown = show(Buffer.concat(parts.flatMap((p, n) => (n ? [Buffer.from("/"), p] : [p]))));
     const st = lstatSync(path);
     if (st.isDirectory()) {
       dirs++;
       entries.push(`dir  ${meta(st)} ${shown}`);
-      walk(path);
+      walk(path, parts);
     } else if (st.isFile()) {
       files++;
       const sha = createHash("sha256").update(readFileSync(path)).digest("hex");
       entries.push(`file ${meta(st)} ${st.size} ${sha} ${shown}`);
     } else if (st.isSymbolicLink()) {
       links++;
-      entries.push(`link ${meta(st)} ${shown} -> ${q(readlinkSync(path))}`);
-    } else entries.push(`other ${meta(st)} ${shown}`);
+      entries.push(`link ${meta(st)} ${shown} -> ${show(readlinkSync(path, { encoding: "buffer" }))}`);
+    } else {
+      others++;
+      entries.push(`other ${meta(st)} device ${st.rdev} ${shown}`);
+    }
   }
 };
 const top = lstatSync(root);
 dirs++;
 entries.push(`dir  ${meta(top)} "."`);
-walk(root);
+walk(rootBytes, []);
 entries.sort();
 const list = `${entries.join("\n")}\n`;
 // A new file only ("wx"): an existing file, or a link standing where it would go, is refused.
@@ -90,4 +107,4 @@ try {
   closeSync(fd);
 }
 const fingerprint = createHash("sha256").update(list).digest("hex");
-console.log(`${dirs} folders, ${files} files, ${links} links; fingerprint SHA-256 ${fingerprint}`);
+console.log(`${dirs} folders, ${files} files, ${links} links${others ? `, ${others} other entries` : ""}; fingerprint SHA-256 ${fingerprint}`);

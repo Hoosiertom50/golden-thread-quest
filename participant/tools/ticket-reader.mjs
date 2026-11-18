@@ -103,7 +103,7 @@ function ticketPieces(body) {
     } else if (name === "comment") {
       comments++;
       pieces.push({ where: `comment ${comments}`, text: value });
-    } else if (field === "attachment") {
+    } else if (name === "attachment") {
       attachments++;
       pieces.push({ where: `the name of attachment ${attachments}`, text: value });
     } else {
@@ -122,17 +122,40 @@ function toolResultPieces(body) {
   try {
     data = JSON.parse(source);
   } catch {
-    return { fields: {}, pieces: [{ where: "the tool result (not valid JSON, read as text)", text: body.join(" ") }] };
+    return { fields: {}, pieces: [{ where: "the tool result (not valid JSON, read as text)", text: source }] };
   }
-  // Every string written in the result is checked, from the text itself rather than the parsed object:
-  // a key written twice keeps only its last value once parsed, and the earlier one must not vanish.
-  let lastKey = "";
-  for (const m of source.matchAll(/"(?:[^"\\]|\\.)*"/g)) {
-    const value = JSON.parse(m[0]);
-    if (/^\s*:/.test(source.slice(m.index + m[0].length))) {
-      lastKey = value;
-      pieces.push({ where: `the name of a tool result's field (${safe(value)})`, text: value });
-    } else pieces.push({ where: `the tool result's field ${safe(lastKey)}`, text: value });
+  // Every string written in the result is checked, from the text itself rather than the parsed object
+  // (a key written twice keeps only its last value once parsed, and the earlier one must not vanish),
+  // and each is named by where it sits: field names for objects, positions for lists.
+  const frames = [];
+  let expectKey = false;
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    if (c === "{") {
+      frames.push({ kind: "object", key: "" });
+      expectKey = true;
+    } else if (c === "[") {
+      frames.push({ kind: "list", index: 0 });
+      expectKey = false;
+    } else if (c === "}" || c === "]") {
+      frames.pop();
+    } else if (c === ",") {
+      const top = frames[frames.length - 1];
+      if (top?.kind === "list") top.index++;
+      else expectKey = true;
+    } else if (c === '"') {
+      let j = i + 1;
+      while (j < source.length && source[j] !== '"') j += source[j] === "\\" ? 2 : 1;
+      const value = JSON.parse(source.slice(i, j + 1));
+      const top = frames[frames.length - 1];
+      const here = frames.map((f, n) => (f.kind === "object" ? (n === frames.length - 1 && expectKey ? "" : f.key) : `[${f.index}]`));
+      if (top?.kind === "object" && expectKey) {
+        top.key = value;
+        expectKey = false;
+        pieces.push({ where: `the name of a tool result's field (${safe(here.slice(0, -1).concat(value).join("."))})`, text: value });
+      } else pieces.push({ where: `the tool result's field ${safe(here.join(".").replace(/\.\[/g, "["))}`, text: value });
+      i = j;
+    }
   }
   return { fields: { tool: typeof data?.tool === "string" ? data.tool : "(unnamed)" }, pieces };
 }
@@ -145,8 +168,15 @@ function decoded(piece) {
   for (const token of piece.text.match(/[A-Za-z0-9+/]{8,}={0,2}/g) ?? []) {
     const bare = token.replace(/=+$/, "");
     if (bare.length % 4 === 1) continue;
-    const plain = Buffer.from(bare, "base64").toString("utf8");
-    if (!/^[\p{L}\p{N}\p{P}\p{Zs}$+<=>^`|~\t\r\n]+$/u.test(plain) || !/\p{L}{3,}/u.test(plain)) continue;
+    let plain;
+    try {
+      plain = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.from(bare, "base64"));
+    } catch {
+      continue;
+    }
+    // Any printable text (letters, digits, punctuation, symbols such as € or emoji, accents, spaces,
+    // tabs and line breaks) with at least a short word in it; the report quotes it safely.
+    if (!/^[\p{L}\p{N}\p{P}\p{S}\p{M}\p{Zs}\t\r\n]+$/u.test(plain) || !/\p{L}{3,}/u.test(plain)) continue;
     found.push({ where: `${piece.where} (decoded from base64)`, text: plain, encoded: token });
   }
   return found;

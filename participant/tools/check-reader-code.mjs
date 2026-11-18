@@ -1,8 +1,10 @@
 // Checks the ticket reader's own code (participant/tools/ticket-reader.mjs) for any ability to act,
 // for the base-camp-prompt-injection quest. A strict pattern check, not a proof: it refuses anything
 // it can't account for. Node's permission mode already refuses writing files and starting programs
-// when the reader runs; this looks for what that mode doesn't cover: the network, and the
-// code quietly growing an ability later.
+// when the reader runs, and the macOS sandbox it runs in refuses the network; this is a second look
+// at the code itself, to notice it quietly growing an ability later. Written cleverly (an escaped
+// name, a name built at run time), code could get past a pattern check like this one: the locks
+// that refuse at run time are the defense, and this check is an early warning.
 //
 // It passes only if the reader:
 //   - imports exactly one thing: readFileSync from "node:fs";
