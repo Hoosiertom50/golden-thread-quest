@@ -101,7 +101,9 @@ medium ("covers CHK-09 only on the events page, not the payment page it names"),
 requirement doesn't look fully tested when it isn't. (Found by the practice review, below.)
 
 **Where the scores came out:** 3 high (T-01, T-10, T-26: all cancel tests, CHK-08), 15 medium and 11
-low. Only 3 of the 29 tests both guard a High-importance requirement and carry a high risk.
+low. Seven tests carry `@risk-high` and guard a High-importance requirement (the six CHK-08 cancel
+tests and T-27); four of them were set lower by Tom's overrides (T-06, T-09 and T-28 as duplicates
+of T-01, T-27 as partial coverage), which leaves 3 high.
 
 **A disagreement between two earlier decisions.** Every total test is tagged `@risk-high` (the tag
 scheme calls wrong money high risk), but traces to CHK-07, which `requirements.md` rates Low
@@ -131,7 +133,7 @@ share an identifier, or it couldn't list the tests or read the requirements).
 
 ## What was tested or validated
 
-The run record was made on 11-18-2026 at 9:54 AM, at commit 915123b with the quest-21 files
+The run record was made on 11-18-2026 at 10:03 AM, at commit 915123b with the quest-21 files
 uncommitted (`logs/inventory-run.txt`). Its temporary test files were only listed by Playwright,
 never run, and removed afterwards.
 

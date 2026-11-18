@@ -329,7 +329,7 @@ const out: string[] = [
   "",
   "## By value",
   "",
-  ...(["high", "medium", "low"] as const).map((v) => `- **${v}:** ${rows.filter((r) => r.value === v).map(label).join(", ") || "none"}`),
+  ...(["high", "medium", "low"] as const).map((v) => `- **${v}:** ${rows.filter((r) => r.value === v).map((r) => cell(label(r))).join(", ") || "none"}`),
   "",
 ];
 const page = out.join("\n");
