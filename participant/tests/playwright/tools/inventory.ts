@@ -49,6 +49,7 @@
 // written (duplicate identifiers, or it couldn't list the tests or read the requirements).
 
 import { spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -106,7 +107,8 @@ for (const [config, runs] of settings) {
   // and run a different copy when the project's packages aren't installed.
   const cli = resolve(projectDir, "node_modules/@playwright/test/cli.js");
   if (!existsSync(cli)) stop("Playwright isn't installed in this project; run `npm ci` here first.");
-  const listed = spawnSync(process.execPath, [cli, "test", "--config", config, "--list", "--reporter=json"], {
+  // One settings file with no tests left is fine (--pass-with-no-tests); no tests at all is not.
+  const listed = spawnSync(process.execPath, [cli, "test", "--config", config, "--list", "--reporter=json", "--pass-with-no-tests"], {
     cwd: projectDir, encoding: "utf8", env: listEnv,
   });
   let suites: Suite[] = [];
@@ -240,9 +242,14 @@ const gaps = rows.filter((row) => row.source.startsWith("none:"));
 const requirementIds = [...importance.keys()].sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
 
 // --- The page. --------------------------------------------------------------------------------
-const cell = (text: string) => text.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
-const tagsOf = (row: Row) => row.tags.map((t) => `\`${t}\``).join(" ");
-const valueOf = (row: Row) => (row.value ? `**${row.value}**${row.valueNote ? ` (${row.valueNote})` : ""}` : "(not worked out)");
+// Text from the tests (titles, purposes, sources, reasons) is shown exactly as written: every
+// character Markdown or HTML would treat as formatting is escaped, and a line break becomes a space.
+const cell = (text: string) =>
+  text.replace(/\r?\n/g, " ").replace(/&/g, "&amp;").replace(/[\\`*_[\]<>|#~]/g, (c) => `\\${c}`);
+// Inside `code`, only a table's | needs escaping; text containing a backtick is shown as plain text.
+const code = (text: string) => (text.includes("`") ? cell(text) : `\`${text.replace(/\r?\n/g, " ").replace(/\|/g, "\\|")}\``);
+const tagsOf = (row: Row) => row.tags.map(code).join(" ");
+const valueOf = (row: Row) => (row.value ? `**${row.value}**${row.valueNote ? ` (${cell(row.valueNote)})` : ""}` : "(not worked out)");
 const out: string[] = [
   "# Test inventory",
   "",
@@ -277,7 +284,7 @@ const out: string[] = [
   "| ID | Test | Purpose | Tags | Source | Value | File | How it runs |",
   "|---|---|---|---|---|---|---|---|",
   ...rows.map((row) =>
-    `| ${cell(label(row))} | ${cell(row.title)} | ${cell(row.purpose || "(none)")} | ${tagsOf(row)} | ${cell(row.source || "(none)")} | ${cell(valueOf(row))} | \`${cell(where(row))}\` | ${cell(row.runs)} |`),
+    `| ${cell(label(row))} | ${cell(row.title)} | ${cell(row.purpose || "(none)")} | ${tagsOf(row)} | ${cell(row.source || "(none)")} | ${valueOf(row)} | ${code(where(row))} | ${cell(row.runs)} |`),
   "",
   "## Tests by requirement",
   "",
@@ -292,7 +299,7 @@ const out: string[] = [
   "",
   "## Known gaps: tests no requirement covers",
   "",
-  ...(gaps.length ? gaps.map((row) => `- ${cell(label(row))}: ${cell(row.source.slice(5).trim())} (\`${cell(where(row))}\`)`) : ["None."]),
+  ...(gaps.length ? gaps.map((row) => `- ${cell(label(row))}: ${cell(row.source.slice(5).trim())} (${code(where(row))})`) : ["None."]),
   "",
   "## Possible duplicates: tests with the same purpose",
   "",
@@ -301,13 +308,13 @@ const out: string[] = [
   ...(duplicates.length
     ? duplicates.flatMap((list, n) => [
         `${n + 1}. "${cell(list[0].purpose)}"`,
-        ...list.map((row) => `   - ${cell(label(row))}: ${cell(row.title)}, value ${cell(valueOf(row))}`),
+        ...list.map((row) => `   - ${cell(label(row))}: ${cell(row.title)}, value ${valueOf(row)}`),
       ])
     : ["None."]),
   "",
   "## Incomplete tests",
   "",
-  ...(incomplete.length ? incomplete.map((row) => `- ${cell(label(row))} (\`${cell(where(row))}\`): ${cell(row.problems.join("; "))}`) : ["None."]),
+  ...(incomplete.length ? incomplete.map((row) => `- ${cell(label(row))} (${code(where(row))}): ${cell(row.problems.join("; "))}`) : ["None."]),
   "",
   "## By value",
   "",
@@ -338,12 +345,21 @@ if (inputs.some((input) => resolve(input) === outFile || sameFile(input, outFile
 }
 // The whole page goes into a new file beside the destination first, and replaces the destination
 // only once it is complete: a failed write never leaves a half-written inventory.
-const temporary = join(dirname(outFile), `.inventory-${process.pid}.tmp`);
+// Its name is new each time, and only a file this run created is ever removed.
+const temporary = join(dirname(outFile), `.inventory-${process.pid}-${randomBytes(6).toString("hex")}.tmp`);
+let created = false;
 try {
   writeFileSync(temporary, page, { flag: "wx" });
+  created = true;
   renameSync(temporary, outFile);
 } catch {
-  rmSync(temporary, { force: true });
+  if (created) {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+      // Left behind; the message below still says nothing was written to the inventory.
+    }
+  }
   stop("Couldn't write the inventory.");
 }
 // The file is named from the repository's top (participant/…), or just as "the --out file" when it is
