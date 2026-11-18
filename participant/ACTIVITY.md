@@ -133,3 +133,8 @@ Every change this application made to your files, newest last.
 - `2026-11-18T15:18:39Z` playwright-test-inventory: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-18T15:18:39Z` Submitted playwright-test-inventory for review as submission-20261118151839-acf35b.
 - `2026-11-18T15:24:53Z` Review of playwright-test-inventory: approved by Claude (automated reviewer).
+- `2026-11-18T15:28:29Z` Started base-camp-prompt-injection as attempt base-attempt-003.
+- `2026-11-18T17:26:44Z` base-camp-prompt-injection: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-18T17:26:57Z` base-camp-prompt-injection: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-18T17:27:14Z` base-camp-prompt-injection: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-18T17:27:14Z` Submitted base-camp-prompt-injection for review as submission-20261118172714-d4a614.
