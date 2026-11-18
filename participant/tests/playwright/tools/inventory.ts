@@ -10,7 +10,8 @@
 //                                                     participant/context/playwright/requirements.md,
 //     or { type: "source", description: "none: …" }   a known gap: no requirement covers it, and why
 //   { type: "value", description: "low: …" }          optional: a different value score, with a reason
-// The tests are read through Playwright's own listing (`npx playwright test --list`), for the main
+// The tests are read through Playwright's own listing (`playwright test --list`, the project's own
+// installed copy run by Node, never through npx, which could download another), for the main
 // settings (playwright.config.ts) and the failure-evidence settings (evidence.config.ts). Listing
 // loads the test files to learn their titles, tags and annotations; it runs no test, starts no
 // browser and changes nothing. The test files are also read as text for one thing only: a whole file
@@ -37,6 +38,9 @@
 //   - Known gaps ("none: …") are listed apart from incomplete tests: a gap chosen on purpose is not a
 //     mistake. Requirements no test serves are listed too.
 // The output is the same for the same tests: no date or time is written, and every list is sorted.
+// It is written only to a .md file, never over a test, a settings file, the requirements or the
+// generator (even under another name for the same file), and only once complete: the page goes
+// into a new file first, which then replaces the old inventory.
 //
 // Run it from participant/tests/playwright:
 //   node tools/inventory.ts                    write participant/context/playwright/inventory.md
@@ -45,9 +49,8 @@
 // written (duplicate identifiers, or it couldn't list the tests or read the requirements).
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { relative, resolve } from "node:path";
+import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 type Annotation = { type: string; description?: string };
@@ -55,7 +58,7 @@ type Spec = { title: string; file: string; line: number; tags?: string[]; tests?
 type Suite = { specs?: Spec[]; suites?: Suite[] };
 type Value = "high" | "medium" | "low";
 type Row = {
-  id: string; title: string; file: string; line: number; tags: string[]; purpose: string; source: string;
+  id: string; ids: string[]; title: string; file: string; line: number; tags: string[]; purpose: string; source: string;
   value: Value | ""; valueNote: string; runs: string; problems: string[];
 };
 
@@ -99,7 +102,11 @@ const settings: [string, string][] = [
 ];
 const specs: { spec: Spec; runs: string }[] = [];
 for (const [config, runs] of settings) {
-  const listed = spawnSync("npx", ["playwright", "test", "--config", config, "--list", "--reporter=json"], {
+  // The project's own installed Playwright, run by this same Node: never `npx`, which could download
+  // and run a different copy when the project's packages aren't installed.
+  const cli = resolve(projectDir, "node_modules/@playwright/test/cli.js");
+  if (!existsSync(cli)) stop("Playwright isn't installed in this project; run `npm ci` here first.");
+  const listed = spawnSync(process.execPath, [cli, "test", "--config", config, "--list", "--reporter=json"], {
     cwd: projectDir, encoding: "utf8", env: listEnv,
   });
   let suites: Suite[] = [];
@@ -112,8 +119,9 @@ for (const [config, runs] of settings) {
     rootDir = String(report.config?.rootDir ?? "");
     if (!rootDir) throw new Error();
   } catch {
-    // Playwright's own message can name full paths; the home folder is shown as ~.
-    stop(`Couldn't list the tests with ${config} (exit ${listed.status ?? "none"}):\n${(listed.stderr ?? "").split(homedir()).join("~")}`);
+    // Playwright's own message isn't passed on: it can name full paths or other details of this
+    // computer. The command to see it is given instead.
+    stop(`Couldn't list the tests with ${config} (exit ${listed.status ?? "none"}). To see why, run: npx playwright test --config ${config} --list`);
   }
   const walk = (suite: Suite) => {
     for (const spec of suite.specs ?? []) {
@@ -147,8 +155,12 @@ const skipSetting = (file: string): string => {
 const one = (annotations: Annotation[], type: string, problems: string[], required: boolean): string => {
   const found = annotations.filter((a) => a.type === type).map((a) => (a.description ?? "").trim());
   if (found.length > 1) problems.push(`more than one ${type}`);
-  if (found.length === 0 || found[0] === "") {
+  if (found.length === 0) {
     if (required) problems.push(`no ${type}`);
+    return "";
+  }
+  if (found[0] === "") {
+    problems.push(required ? `no ${type}` : `an empty ${type}`);
     return "";
   }
   return found[0];
@@ -158,6 +170,8 @@ const rows: Row[] = specs.map(({ spec, runs }) => {
   const problems: string[] = [];
   const file = spec.file;
   const id = one(annotations, "id", problems, true);
+  // Every identifier the test declares, so a second one can't hide a clash with another test.
+  const ids = [...new Set(annotations.filter((a) => a.type === "id").map((a) => (a.description ?? "").trim()).filter(Boolean))];
   if (id && !/^T-\d+$/.test(id)) problems.push(`identifier "${id}" isn't of the form T-<number>`);
   const purpose = one(annotations, "purpose", problems, true);
   const source = one(annotations, "source", problems, true);
@@ -188,7 +202,7 @@ const rows: Row[] = specs.map(({ spec, runs }) => {
   }
   const skippedBy = skipSetting(file);
   const howItRuns = skippedBy ? `${runs}, but skipped unless ${skippedBy}=1` : runs;
-  return { id, title: spec.title, file, line: spec.line, tags: spec.tags ?? [], purpose, source, value, valueNote, runs: howItRuns, problems };
+  return { id, ids, title: spec.title, file, line: spec.line, tags: spec.tags ?? [], purpose, source, value, valueNote, runs: howItRuns, problems };
 });
 
 // --- Duplicate identifiers: rejected. ---------------------------------------------------------
@@ -196,13 +210,16 @@ const rows: Row[] = specs.map(({ spec, runs }) => {
 // form T-<number> is compared as written (it is reported as incomplete anyway).
 const idKey = (id: string) => (/^T-\d+$/.test(id) ? `T-${Number(id.slice(2))}` : id);
 const byId = new Map<string, Row[]>();
-for (const row of rows) if (row.id) byId.set(idKey(row.id), [...(byId.get(idKey(row.id)) ?? []), row]);
+for (const row of rows) {
+  // Each test once per identifier, even if it repeats one ("T-7" and "T-07" on the same test).
+  for (const key of new Set(row.ids.map(idKey))) byId.set(key, [...(byId.get(key) ?? []), row]);
+}
 const clashes = [...byId.entries()].filter(([, list]) => list.length > 1).sort(([a], [b]) => a.localeCompare(b, "en"));
 if (clashes.length > 0) {
   console.error("REJECTED: two or more tests share an identifier, so no inventory can be written:");
   for (const [id, list] of clashes) {
     console.error(`  ${id}:`);
-    for (const row of list) console.error(`    ${row.id}: ${row.file}:${row.line} › ${row.title}`);
+    for (const row of list) console.error(`    ${row.ids.join(", ")}: ${row.file}:${row.line} › ${row.title}`);
   }
   console.error("Give each test its own identifier and run this again.");
   console.error("Nothing was written.");
@@ -299,9 +316,34 @@ const out: string[] = [
 ];
 const page = out.join("\n");
 
+// Writing: only to a Markdown file, and never onto anything the inventory is made from (a test file,
+// a settings file, the requirements or this generator), even by another name for the same file.
+const sameFile = (a: string, b: string) => {
+  try {
+    const x = statSync(a);
+    const y = statSync(b);
+    return x.dev === y.dev && x.ino === y.ino;
+  } catch {
+    return false;
+  }
+};
+const inputs = [
+  requirementsFile, fileURLToPath(import.meta.url),
+  ...settings.map(([config]) => resolve(projectDir, config)),
+  ...[...new Set(rows.map((row) => row.file))].map((file) => resolve(projectDir, file)),
+];
+if (extname(outFile).toLowerCase() !== ".md") stop("The inventory can only be written to a .md file.");
+if (inputs.some((input) => resolve(input) === outFile || sameFile(input, outFile))) {
+  stop("The inventory can't be written over a file it is made from (a test, a settings file, the requirements or the generator).");
+}
+// The whole page goes into a new file beside the destination first, and replaces the destination
+// only once it is complete: a failed write never leaves a half-written inventory.
+const temporary = join(dirname(outFile), `.inventory-${process.pid}.tmp`);
 try {
-  writeFileSync(outFile, page);
+  writeFileSync(temporary, page, { flag: "wx" });
+  renameSync(temporary, outFile);
 } catch {
+  rmSync(temporary, { force: true });
   stop("Couldn't write the inventory.");
 }
 // The file is named from the repository's top (participant/…), or just as "the --out file" when it is

@@ -22,7 +22,7 @@ requirement's importance (a known gap counts as Low importance):
 
 A test can set a different score only with a reason, shown next to its score.
 
-**29 tests:** 4 high, 14 medium, 11 low; 0 incomplete; 10 known gaps; 4 groups of possible duplicates.
+**29 tests:** 3 high, 15 medium, 11 low; 0 incomplete; 10 known gaps; 4 groups of possible duplicates.
 
 ## Every test
 
@@ -54,7 +54,7 @@ A test can set a different score only with a reason, shown next to its score.
 | T-24 | the orders service lists every saved order that isn't test data, exactly as saved | The orders service lists every saved order that isn't test data, exactly as saved. | `@saved-orders` `@risk-medium` `@read-only` `@layer-api` `@fast` | none: listing saved orders isn't in the requirements yet | **medium** | `tagged.spec.ts:123` | main suite |
 | T-25 | an order created through the API shows the right total on Your orders | An order saved through the orders service shows the right total on Your orders. | `@saved-orders` `@risk-high` `@writes-data` `@layer-mixed` `@fast` | none: saving orders isn't in the requirements yet | **medium** | `tagged.spec.ts:145` | main suite |
 | T-26 | cancelling still shows the right result on a slow connection | Cancelling an order on a slow connection still ends with the right result shown. | `@saved-orders` `@risk-high` `@writes-data` `@layer-mixed` `@slow` | CHK-08 | **high** | `tagged.spec.ts:165` | main suite |
-| T-27 | a visitor sees the Spring Concert and its ticket price on the Tixly home page | The events page shows the Spring Concert with its $25.00 ticket price and its $2.50 per-ticket fee. | `@events` `@risk-high` `@read-only` `@layer-ui` `@fast` | CHK-09 | **high** | `tests/smoke.spec.ts:6` | main suite |
+| T-27 | a visitor sees the Spring Concert and its ticket price on the Tixly home page | The events page shows the Spring Concert with its $25.00 ticket price and its $2.50 per-ticket fee; CHK-09 asks for the fee on the payment page, which the app doesn't have yet. | `@events` `@risk-high` `@read-only` `@layer-ui` `@fast` | CHK-09 | **medium** (worked out high; set to medium: covers CHK-09 only on the events page, not the payment page it names) | `tests/smoke.spec.ts:6` | main suite |
 | T-28 | a buyer cancels an order (UI-only: saved and cancelled through the screen) | A buyer can cancel a saved order from Your orders, and it is then cancelled. | `@saved-orders` `@risk-high` `@writes-data` `@layer-ui` `@fast` `@ui-only` | CHK-08 | **low** (worked out high; set to low: same check as T-01 but can't see the server; kept to compare) | `ui-only.spec.ts:13` | main suite |
 | T-29 | a saved order shows on Your orders | A saved order appears on Your orders. | `@saved-orders` `@risk-medium` `@writes-data` `@layer-mixed` `@fast` | none: saving orders isn't in the requirements yet | **low** (worked out medium; set to low: same check as T-08; runs only with the evidence settings, to show failure evidence) | `evidence-tests/orders-list.evidence.ts:12` | only with the evidence settings (evidence.config.ts) |
 
@@ -72,7 +72,7 @@ Where to find the tests for a requirement. A requirement with no test is listed 
 | CHK-06 | Medium | **no test** |
 | CHK-07 | Low | T-02 (low), T-07 (low), T-11 (medium), T-12 (medium), T-13 (medium), T-16 (medium), T-17 (medium), T-18 (medium), T-20 (medium), T-21 (medium) |
 | CHK-08 | High | T-01 (high), T-06 (low), T-09 (low), T-10 (high), T-26 (high), T-28 (low) |
-| CHK-09 | High | T-27 (high) |
+| CHK-09 | High | T-27 (medium) |
 | CHK-10 | Medium | **no test** |
 | CHK-11 | High | **no test** |
 | CHK-12 | High | **no test** |
@@ -117,6 +117,6 @@ None.
 
 ## By value
 
-- **high:** T-01, T-10, T-26, T-27
-- **medium:** T-08, T-11, T-12, T-13, T-14, T-15, T-16, T-17, T-18, T-20, T-21, T-23, T-24, T-25
+- **high:** T-01, T-10, T-26
+- **medium:** T-08, T-11, T-12, T-13, T-14, T-15, T-16, T-17, T-18, T-20, T-21, T-23, T-24, T-25, T-27
 - **low:** T-02, T-03, T-04, T-05, T-06, T-07, T-09, T-19, T-22, T-28, T-29

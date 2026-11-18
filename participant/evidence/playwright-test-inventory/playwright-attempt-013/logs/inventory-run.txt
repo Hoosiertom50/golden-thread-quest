@@ -1,5 +1,5 @@
 # Run record: generating the test inventory (criteria 1 to 6)
-# Recorded 11-18-2026 9:05:32 AM on branch pilot/tom at commit 915123b (with uncommitted quest-21 files).
+# Recorded 11-18-2026 9:28:27 AM on branch pilot/tom at commit 915123b (with uncommitted quest-21 files).
 # The API key was a made-up value, new for this recording; it is not shown. The home folder is shown as ~.
 # Every temporary test is only listed by Playwright, never run, and its file is removed at the end.
 
@@ -19,7 +19,7 @@ Wrote participant/context/playwright/inventory.md: 29 tests; 0 incomplete; 10 kn
   POSSIBLE DUPLICATES: T-15, T-22: "A review link for an event that isn't on sale says so and shows no total."
 (exit 0)
 $ cmp <first run's inventory.md> participant/context/playwright/inventory.md
-identical: the same 15726 bytes, SHA-256 ef94d68d49502c02…
+identical: the same 15910 bytes, SHA-256 98ffe58ae94e6342…
 
 ## 2. Tests with no purpose, no source, or a requirement that doesn't exist: incomplete (criteria 3 and 6)
 Temporary test file tests/inventory-demo.spec.ts (three tests with something missing or wrong):
@@ -56,7 +56,7 @@ Temporary test file tests/inventory-demo.spec.ts (a new test that reuses T-07):
     // Temporary, for the inventory's run record only: listed, never run.
     test("demo: a new test that reuses an existing identifier", { tag: ["@events", "@risk-low", "@read-only", "@layer-ui", "@fast"], annotation: [{ type: "id", description: "T-07" }, { type: "purpose", description: "Demo only: reuses T-07." }, { type: "source", description: "CHK-09" }] }, async () => {});
 
-participant/context/playwright/inventory.md before: SHA-256 ef94d68d49502c02…, changed 11-18-2026 9:05:34 AM
+participant/context/playwright/inventory.md before: SHA-256 98ffe58ae94e6342…, changed 11-18-2026 9:28:29 AM
 $ node tools/inventory.ts
 REJECTED: two or more tests share an identifier, so no inventory can be written:
   T-7:
@@ -65,14 +65,14 @@ REJECTED: two or more tests share an identifier, so no inventory can be written:
 Give each test its own identifier and run this again.
 Nothing was written.
 (exit 2)
-participant/context/playwright/inventory.md after:  SHA-256 ef94d68d49502c02…, changed 11-18-2026 9:05:34 AM
+participant/context/playwright/inventory.md after:  SHA-256 98ffe58ae94e6342…, changed 11-18-2026 9:28:29 AM
 unchanged: still identical to the inventory from section 1
 
 ## 4. Two tests with the same purpose, in different letters and punctuation: possible duplicates (criterion 4)
-Temporary test file tests/inventory-demo.spec.ts (a new test whose purpose matches T-27's once letter case and punctuation are ignored):
+Temporary test file tests/inventory-demo.spec.ts (a new test whose purpose matches T-20's once letter case and punctuation are ignored):
     import { test } from "@playwright/test";
     // Temporary, for the inventory's run record only: listed, never run.
-    test("demo: a new test with T-27's purpose, written differently", { tag: ["@events", "@risk-low", "@read-only", "@layer-ui", "@fast"], annotation: [{ type: "id", description: "T-93" }, { type: "purpose", description: "the events page shows the spring concert with its $25.00 ticket price, and its $2.50 per-ticket fee" }, { type: "source", description: "CHK-09" }] }, async () => {});
+    test("demo: a new test with T-20's purpose, written differently", { tag: ["@events", "@risk-low", "@read-only", "@layer-ui", "@fast"], annotation: [{ type: "id", description: "T-93" }, { type: "purpose", description: "choosing 3 tickets on the events page shows a total of $82.50 !" }, { type: "source", description: "CHK-07" }] }, async () => {});
 
 $ node tools/inventory.ts --out <temporary folder>/inventory.md
 Wrote the --out file: 30 tests; 0 incomplete; 10 known gaps; 5 groups of possible duplicates.
@@ -80,7 +80,7 @@ Wrote the --out file: 30 tests; 0 incomplete; 10 known gaps; 5 groups of possibl
   POSSIBLE DUPLICATES: T-02, T-07, T-18: "The events page total for 2 Spring Concert tickets is $55.00, the $2.50 fee included on each ticket."
   POSSIBLE DUPLICATES: T-05, T-08, T-29: "A saved order appears on Your orders."
   POSSIBLE DUPLICATES: T-15, T-22: "A review link for an event that isn't on sale says so and shows no total."
-  POSSIBLE DUPLICATES: T-27, T-93: "The events page shows the Spring Concert with its $25.00 ticket price and its $2.50 per-ticket fee."
+  POSSIBLE DUPLICATES: T-20, T-93: "Choosing 3 tickets on the events page shows a total of $82.50."
 (exit 0)
 Its Possible duplicates section:
     
@@ -102,9 +102,9 @@ Its Possible duplicates section:
     4. "A review link for an event that isn't on sale says so and shows no total."
        - T-15: a review link naming an event that isn't on sale says so instead of showing a total, value **medium**
        - T-22: a review link for an event not on sale says so instead of showing a total, value **low** (worked out medium; set to low: same check as T-15, which also tries a second event and checks every line; kept so the tag scheme uses every tag)
-    5. "The events page shows the Spring Concert with its $25.00 ticket price and its $2.50 per-ticket fee."
-       - T-27: a visitor sees the Spring Concert and its ticket price on the Tixly home page, value **high**
-       - T-93: demo: a new test with T-27's purpose, written differently, value **medium**
+    5. "Choosing 3 tickets on the events page shows a total of $82.50."
+       - T-20: choosing 3 tickets on the events page shows a total of $82.50, value **medium**
+       - T-93: demo: a new test with T-20's purpose, written differently, value **low**
     
 
 ## 5. After the temporary files are removed: the inventory is the same as in section 1
@@ -115,5 +115,5 @@ Wrote participant/context/playwright/inventory.md: 29 tests; 0 incomplete; 10 kn
   POSSIBLE DUPLICATES: T-05, T-08, T-29: "A saved order appears on Your orders."
   POSSIBLE DUPLICATES: T-15, T-22: "A review link for an event that isn't on sale says so and shows no total."
 (exit 0)
-identical to section 1: SHA-256 ef94d68d49502c02…
+identical to section 1: SHA-256 98ffe58ae94e6342…
 the temporary test file is gone

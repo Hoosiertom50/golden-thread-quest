@@ -94,6 +94,15 @@ app allows 1 to 6, and two tests check that limit (T-14, T-23). If the requireme
 tests guard a bug. Their purposes say so ("CHK-01 says up to 8, so the limit is unconfirmed"), and
 they are linked to CHK-01 rather than hidden as a gap.
 
+**A test that only partly covers its requirement.** T-27 (the smoke test) checks that the $2.50 fee
+line is shown on the events page; CHK-09 asks for it on the payment page, which the app doesn't
+have yet. Tom chose to keep it linked to CHK-09, with the gap in its purpose and its score set to
+medium ("covers CHK-09 only on the events page, not the payment page it names"), so a High
+requirement doesn't look fully tested when it isn't. (Found by the practice review, below.)
+
+**Where the scores came out:** 3 high (T-01, T-10, T-26: all cancel tests, CHK-08), 15 medium and 11
+low. Only 3 of the 29 tests both guard a High-importance requirement and carry a high risk.
+
 **A disagreement between two earlier decisions.** Every total test is tagged `@risk-high` (the tag
 scheme calls wrong money high risk), but traces to CHK-07, which `requirements.md` rates Low
 importance. So, by the rule, they score medium, not high. Tom chose to keep the rule and note this to
@@ -122,12 +131,12 @@ share an identifier, or it couldn't list the tests or read the requirements).
 
 ## What was tested or validated
 
-The run record was made on 11-18-2026 at 9:05 AM, at commit 915123b with the quest-21 files
+The run record was made on 11-18-2026 at 9:28 AM, at commit 915123b with the quest-21 files
 uncommitted (`logs/inventory-run.txt`). Its temporary test files were only listed by Playwright,
 never run, and removed afterwards.
 
 1. **Generated twice: identical** (criteria 1 and 5). Both runs: 29 tests, 0 incomplete, 10 known
-   gaps, 4 groups of possible duplicates; the two files are the same 15,726 bytes. Nothing in the
+   gaps, 4 groups of possible duplicates; the two files are the same 15,910 bytes. Nothing in the
    inventory depends on the date or time.
 2. **Incomplete** (criteria 3 and 6). A temporary file with three tests: T-90 with no purpose, T-91
    with no source, T-92 with a source of CHK-99. The generator listed all three as incomplete
@@ -136,8 +145,8 @@ never run, and removed afterwards.
 3. **Shared identifier: rejected.** A temporary test reusing T-07. The generator named both tests,
    said "Nothing was written" and exited 2; the real inventory's fingerprint and time were the same
    before and after.
-4. **Same purpose: possible duplicates** (criterion 4). A temporary test whose purpose is T-27's in
-   lower case, with an extra comma and no full stop: reported as a fifth group, T-27 and T-93.
+4. **Same purpose: possible duplicates** (criterion 4). A temporary test whose purpose is T-20's in
+   lower case, with " !" in place of the full stop: reported as a fifth group, T-20 and T-93.
 5. **Afterwards:** the inventory generated again is identical to run 1, and the temporary file is
    gone.
 
