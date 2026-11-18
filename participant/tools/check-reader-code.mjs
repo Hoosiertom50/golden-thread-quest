@@ -1,11 +1,16 @@
 // Checks the ticket reader's own code (participant/tools/ticket-reader.mjs) for any ability to act,
-// for the base-camp-prompt-injection quest. Node's permission mode already refuses writing files and
-// starting programs when the reader runs; this covers what that mode doesn't: the network, and the
+// for the base-camp-prompt-injection quest. A strict pattern check, not a proof: it refuses anything
+// it can't account for. Node's permission mode already refuses writing files and starting programs
+// when the reader runs; this looks for what that mode doesn't cover: the network, and the
 // code quietly growing an ability later.
 //
 // It passes only if the reader:
 //   - imports exactly one thing: readFileSync from "node:fs";
-//   - uses no require(), no dynamic import(), no eval or new Function (ways to load more code);
+//   - uses no require(), no dynamic import(), no eval or new Function (ways to load more code), and
+//     the word "import" nowhere but in that one statement;
+//   - never names fetch, XMLHttpRequest, WebSocket, globalThis, Reflect, constructor and the like, even
+//     without calling them (an alias would otherwise slip past), never looks a name up by a string
+//     (x["name"]), and uses process only for process.argv and process.exit;
 //   - names nothing that sends, writes or runs: fetch, XMLHttpRequest, WebSocket, http, https, net,
 //     tls, dgram, dns, child_process, worker_threads, cluster, process.binding, writeFile,
 //     appendFile, createWriteStream, open (for writing), mkdir, rm, rename, unlink, copyFile,
@@ -43,6 +48,10 @@ for (const m of imports) {
   if (!allowed.test(statement)) findings.push(`line ${lineOf(m.index)}: imports something other than readFileSync from node:fs`);
 }
 if (imports.length !== 1) findings.push(`${imports.length} import statements; exactly 1 (readFileSync from node:fs) is allowed`);
+// The word "import" itself may appear only in that one statement: an import written across several
+// lines, or any other import, is refused rather than half-read.
+const importWords = [...code.matchAll(/(?<![\w$])import(?![\w$])/g)];
+if (importWords.length !== 1) findings.push(`the word "import" appears ${importWords.length} times; only the one allowed import statement may use it`);
 
 // Names that load more code, reach the network, write, or run something: found when called
 // (name followed by "("), reached as a property (".name"), or created ("new name").
@@ -57,6 +66,18 @@ for (const name of ACTING) {
   const use = new RegExp(`(?<![\\w$])(?:${name})[ \\t]*\\(|\\.(?:${name})(?![\\w$])|\\bnew[ \\t]+(?:${name})(?![\\w$])`, "g");
   for (const m of code.matchAll(use)) findings.push(`line ${lineOf(m.index)}: uses "${m[0].trim()}"`);
 }
+// Names that reach the network, load code or get at everything else, refused wherever they appear,
+// not only when called: an alias ("const transmit = fetch") or a lookup by name
+// (globalThis["fetch"]) would otherwise slip past.
+const NEVER = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource", "require", "eval", "Function", "globalThis",
+  "global", "self", "window", "Reflect", "Proxy", "constructor", "prototype", "__proto__", "module", "WebAssembly"];
+for (const m of code.matchAll(new RegExp(`(?<![\\w$])(?:${NEVER.join("|")})(?![\\w$])`, "g"))) {
+  findings.push(`line ${lineOf(m.index)}: names "${m[0]}"`);
+}
+// "process" only for the command-line arguments and the exit code.
+for (const m of code.matchAll(/(?<![\w$.])process(?![\w$])(?!\.(?:argv|exit)\b)/g)) findings.push(`line ${lineOf(m.index)}: uses process other than process.argv or process.exit`);
+// Looking a name up by a string (x["name"]) is refused outright.
+for (const m of code.matchAll(/[\w$)\]]\s*\[\s*["'`]/g)) findings.push(`line ${lineOf(m.index)}: looks a name up by a string`);
 // Modules that can act, named anywhere (an import, a require, a string handed to a loader).
 const MODULES = ["http", "https", "http2", "net", "tls", "dgram", "dns", "child_process", "worker_threads", "cluster", "inspector", "vm", "fs/promises"];
 for (const m of code.matchAll(new RegExp(`["'](?:node:)?(?:${MODULES.join("|")})["']`, "g"))) {
@@ -65,7 +86,7 @@ for (const m of code.matchAll(new RegExp(`["'](?:node:)?(?:${MODULES.join("|")})
 
 console.log(`Checked ${file}: ${source.split("\n").length} lines, ${imports.length} import statement(s).`);
 if (findings.length === 0) {
-  console.log("PASS: it imports only readFileSync from node:fs, and uses nothing that could send, write or run.");
+  console.log("PASS: it imports only readFileSync from node:fs, and nothing that could send, write or run was found.");
   process.exit(0);
 }
 for (const f of findings) console.log(`  ${f}`);

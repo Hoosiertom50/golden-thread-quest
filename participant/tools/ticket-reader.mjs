@@ -65,6 +65,14 @@ if (cases.length === 0) {
   process.exit(2);
 }
 
+// Untrusted text is always shown through this: quoted, with every character a terminal or a viewer
+// could act on shown as an escape instead (control characters, Unicode line and paragraph
+// separators, characters that reverse or hide text, zero-width characters).
+function safe(text) {
+  return JSON.stringify(String(text)).replace(/[\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff\ufff9-\ufffb]/g,
+    (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
 // --- The pieces of a case: each line of content, with where it is. --------------------------------
 function ticketPieces(body) {
   const pieces = [];
@@ -100,7 +108,8 @@ function ticketPieces(body) {
       pieces.push({ where: `the name of attachment ${attachments}`, text: value });
     } else {
       fields[name] = value;
-      pieces.push({ where: `the ${name}`, text: value });
+      // The whole line, field name included: a field can be named to address the reader.
+      pieces.push({ where: `the ${name}`, text: name === "title" ? value : `${name}: ${value}` });
     }
   }
   return { fields, pieces };
@@ -108,35 +117,36 @@ function ticketPieces(body) {
 
 function toolResultPieces(body) {
   const pieces = [];
+  const source = body.join("\n");
   let data;
   try {
-    data = JSON.parse(body.join("\n"));
+    data = JSON.parse(source);
   } catch {
     return { fields: {}, pieces: [{ where: "the tool result (not valid JSON, read as text)", text: body.join(" ") }] };
   }
-  // Every string is checked, field names included: a name can carry words as well as a value.
-  const walk = (value, path) => {
-    // Field names come from the content too, so they are quoted wherever they are shown.
-    if (typeof value === "string") pieces.push({ where: `the tool result's field ${JSON.stringify(path)}`, text: value });
-    else if (value && typeof value === "object") {
-      for (const [k, v] of Object.entries(value)) {
-        const here = path ? `${path}.${k}` : k;
-        pieces.push({ where: `the name of a tool result's field (${JSON.stringify(here)})`, text: k });
-        walk(v, here);
-      }
-    }
-  };
-  walk(data, "");
+  // Every string written in the result is checked, from the text itself rather than the parsed object:
+  // a key written twice keeps only its last value once parsed, and the earlier one must not vanish.
+  let lastKey = "";
+  for (const m of source.matchAll(/"(?:[^"\\]|\\.)*"/g)) {
+    const value = JSON.parse(m[0]);
+    if (/^\s*:/.test(source.slice(m.index + m[0].length))) {
+      lastKey = value;
+      pieces.push({ where: `the name of a tool result's field (${safe(value)})`, text: value });
+    } else pieces.push({ where: `the tool result's field ${safe(lastKey)}`, text: value });
+  }
   return { fields: { tool: typeof data?.tool === "string" ? data.tool : "(unnamed)" }, pieces };
 }
 
 // Base64 found inside a piece is decoded, and the decoded text checked too, when it reads as text.
 function decoded(piece) {
   const found = [];
-  for (const token of piece.text.match(/[A-Za-z0-9+/]{16,}={0,2}/g) ?? []) {
-    if (token.length % 4 !== 0) continue;
-    const plain = Buffer.from(token, "base64").toString("utf8");
-    if (!/^[\p{L}\p{N}\p{P}\p{Zs}$+<=>^`|~]+$/u.test(plain) || !/\p{L}{3,}/u.test(plain)) continue;
+  // Tokens of 8 or more base64 characters, with or without their "=" padding; kept when the decoded
+  // bytes are ordinary text (letters, digits, punctuation, spaces, tabs and line breaks).
+  for (const token of piece.text.match(/[A-Za-z0-9+/]{8,}={0,2}/g) ?? []) {
+    const bare = token.replace(/=+$/, "");
+    if (bare.length % 4 === 1) continue;
+    const plain = Buffer.from(bare, "base64").toString("utf8");
+    if (!/^[\p{L}\p{N}\p{P}\p{Zs}$+<=>^`|~\t\r\n]+$/u.test(plain) || !/\p{L}{3,}/u.test(plain)) continue;
     found.push({ where: `${piece.where} (decoded from base64)`, text: plain, encoded: token });
   }
   return found;
@@ -167,7 +177,7 @@ const READER = [
 const addressesReader = (s) => READER.some((r) => r.test(s));
 
 // --- The report. -----------------------------------------------------------------------------------
-const quote = (s) => JSON.stringify(s);
+const quote = safe;
 let instructions = 0;
 let byPhrase = 0;
 let byReader = 0;

@@ -2,29 +2,43 @@
 // before-and-after check (criterion 6): proof that nothing changed comes from comparing the folder
 // itself, not from what the agent says about itself.
 //
-// Every entry is listed, Git's own folder (.git, with its settings and history) and ignored files
-// included: for each folder, its path and permissions; for each file, its path, permissions, size
-// and SHA-256 of its contents; for each link, its path and where it points. The list is sorted, so
-// the same folder always gives the same list, and its own SHA-256 is the folder's fingerprint. Paths
-// are shown relative to the folder, never with the computer's home folder.
+// Every entry is listed, the top folder itself, Git's own folder (.git, with its settings and
+// history) and ignored files included: for each folder, its path, permissions and owner (user and
+// group); for each file, the same plus its size and the SHA-256 of its contents; for each link, its
+// path, owner and where it points. Every path and link target is written in quotes with escapes, so
+// two different folders can never give the same list. The list is sorted, so the same folder always
+// gives the same list, and its own SHA-256 is the folder's fingerprint. Paths are relative to the
+// folder, never showing the computer's home folder.
+//
+// Not covered: extended attributes and access-control lists (macOS ACLs), and timestamps (reading a
+// file changes its access time; what matters is whether anything was changed).
 //
 // Run it from the repository's top folder:
-//   node participant/tools/workspace-fingerprint.mjs <list file to write>   (folder: the current one)
-// It prints the number of folders, files and links and the fingerprint. The list file must be outside
-// the folder being fingerprinted, or it would fingerprint itself.
+//   node participant/tools/workspace-fingerprint.mjs <new list file>   (folder: the current one)
+// It prints the number of folders, files and links and the fingerprint. The list file must be new
+// (an existing file is never overwritten) and outside the folder being fingerprinted, also when
+// reached through a link, or it would fingerprint itself or overwrite part of it.
 
 import { createHash } from "node:crypto";
-import { lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync, writeFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { closeSync, lstatSync, openSync, readdirSync, readFileSync, readlinkSync, realpathSync, writeSync } from "node:fs";
+import { basename, dirname, join, relative, resolve } from "node:path";
 
 const out = process.argv[2];
 if (!out || process.argv.length !== 3) {
-  console.error("Usage: node participant/tools/workspace-fingerprint.mjs <list file outside this folder>");
+  console.error("Usage: node participant/tools/workspace-fingerprint.mjs <new list file outside this folder>");
   process.exit(2);
 }
 const root = realpathSync(".");
-const outPath = resolve(out);
-if (outPath === root || outPath.startsWith(`${root}/`)) {
+// The list file's real folder (links followed), so a link can't lead it back inside.
+let outDir;
+try {
+  outDir = realpathSync(dirname(resolve(out)));
+} catch {
+  console.error("The list file's folder doesn't exist.");
+  process.exit(2);
+}
+const outPath = join(outDir, basename(out));
+if (outDir === root || outDir.startsWith(`${root}/`)) {
   console.error("The list file must be outside the folder being fingerprinted.");
   process.exit(2);
 }
@@ -33,29 +47,47 @@ const entries = [];
 let dirs = 0;
 let files = 0;
 let links = 0;
-const mode = (st) => (st.mode & 0o7777).toString(8).padStart(4, "0");
+const q = (s) => JSON.stringify(s);
+const meta = (st) => `${(st.mode & 0o7777).toString(8).padStart(4, "0")} ${st.uid}:${st.gid}`;
 const walk = (dir) => {
   for (const name of readdirSync(dir).sort()) {
     const path = join(dir, name);
-    const shown = relative(root, path);
+    const shown = q(relative(root, path));
     const st = lstatSync(path);
     if (st.isDirectory()) {
       dirs++;
-      entries.push(`dir  ${mode(st)} ${shown}`);
+      entries.push(`dir  ${meta(st)} ${shown}`);
       walk(path);
     } else if (st.isFile()) {
       files++;
       const sha = createHash("sha256").update(readFileSync(path)).digest("hex");
-      entries.push(`file ${mode(st)} ${st.size} ${sha} ${shown}`);
+      entries.push(`file ${meta(st)} ${st.size} ${sha} ${shown}`);
     } else if (st.isSymbolicLink()) {
       links++;
-      entries.push(`link ${shown} -> ${readlinkSync(path)}`);
-    } else entries.push(`other ${shown}`);
+      entries.push(`link ${meta(st)} ${shown} -> ${q(readlinkSync(path))}`);
+    } else entries.push(`other ${meta(st)} ${shown}`);
   }
 };
+const top = lstatSync(root);
+dirs++;
+entries.push(`dir  ${meta(top)} "."`);
 walk(root);
 entries.sort();
 const list = `${entries.join("\n")}\n`;
-writeFileSync(outPath, list);
+// A new file only ("wx"): an existing file, or a link standing where it would go, is refused.
+let fd;
+try {
+  fd = openSync(outPath, "wx");
+} catch {
+  console.error("Couldn't create the list file: it must not exist yet.");
+  process.exit(2);
+}
+try {
+  const bytes = Buffer.from(list, "utf8");
+  let at = 0;
+  while (at < bytes.length) at += writeSync(fd, bytes, at, bytes.length - at);
+} finally {
+  closeSync(fd);
+}
 const fingerprint = createHash("sha256").update(list).digest("hex");
 console.log(`${dirs} folders, ${files} files, ${links} links; fingerprint SHA-256 ${fingerprint}`);
