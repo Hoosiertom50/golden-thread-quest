@@ -208,9 +208,10 @@ attempts:
   quest_id: playwright-test-inventory
   quest_version: 1
   content_hash: sha256:2989e7ff4683f71e44e2f3d8502b997649469dddde98c11b12c04c20826a2a34
-  state: submitted
+  state: verified
   started_at: '2026-11-18T13:32:44Z'
-  updated_at: '2026-11-18T15:18:39Z'
+  updated_at: '2026-11-18T15:24:53Z'
   evidence_path: participant/evidence/playwright-test-inventory/playwright-attempt-013
   submission_id: submission-20261118151839-acf35b
-updated_at: '2026-11-18T15:18:39Z'
+  review_id: review-20261118152453-2f2b5d
+updated_at: '2026-11-18T15:24:53Z'
