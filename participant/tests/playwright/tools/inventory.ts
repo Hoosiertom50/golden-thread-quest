@@ -50,7 +50,7 @@
 
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, openSync, readFileSync, renameSync, rmSync, statSync, writeSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -210,7 +210,10 @@ const rows: Row[] = specs.map(({ spec, runs }) => {
 // --- Duplicate identifiers: rejected. ---------------------------------------------------------
 // Compared by number, so "T-7" and "T-07" count as the same identifier. An identifier not of the
 // form T-<number> is compared as written (it is reported as incomplete anyway).
-const idKey = (id: string) => (/^T-\d+$/.test(id) ? `T-${Number(id.slice(2))}` : id);
+// Leading zeros are dropped as text, not by turning the number into a JavaScript number, which
+// would merge very large ones.
+const digits = (id: string) => id.slice(2).replace(/^0+(?=\d)/, "");
+const idKey = (id: string) => (/^T-\d+$/.test(id) ? `T-${digits(id)}` : id);
 const byId = new Map<string, Row[]>();
 for (const row of rows) {
   // Each test once per identifier, even if it repeats one ("T-7" and "T-07" on the same test).
@@ -229,9 +232,17 @@ if (clashes.length > 0) {
 }
 
 // --- Sorting, duplicates and gaps. -----------------------------------------------------------
-const idNumber = (id: string) => (/^T-\d+$/.test(id) ? Number(id.slice(2)) : Number.POSITIVE_INFINITY);
+// By number, compared as text (shorter is smaller, then digit by digit); others after, as written.
+const byNumber = (a: string, b: string) => {
+  const okA = /^T-\d+$/.test(a);
+  const okB = /^T-\d+$/.test(b);
+  if (okA !== okB) return okA ? -1 : 1;
+  if (!okA) return 0;
+  const [x, y] = [digits(a), digits(b)];
+  return x.length - y.length || (x < y ? -1 : x > y ? 1 : 0);
+};
 const where = (row: Row) => `${row.file}:${row.line}`;
-rows.sort((a, b) => idNumber(a.id) - idNumber(b.id) || a.id.localeCompare(b.id, "en") || where(a).localeCompare(where(b), "en"));
+rows.sort((a, b) => byNumber(a.id, b.id) || a.id.localeCompare(b.id, "en") || where(a).localeCompare(where(b), "en"));
 const label = (row: Row) => row.id || `(no id) ${where(row)}`;
 const tidy = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const byPurpose = new Map<string, Row[]>();
@@ -349,8 +360,17 @@ if (inputs.some((input) => resolve(input) === outFile || sameFile(input, outFile
 const temporary = join(dirname(outFile), `.inventory-${process.pid}-${randomBytes(6).toString("hex")}.tmp`);
 let created = false;
 try {
-  writeFileSync(temporary, page, { flag: "wx" });
+  // Created new ("wx"), and known to be this run's from that moment, so a failure part-way through
+  // writing still removes it.
+  const fd = openSync(temporary, "wx");
   created = true;
+  try {
+    const bytes = Buffer.from(page, "utf8");
+    let at = 0;
+    while (at < bytes.length) at += writeSync(fd, bytes, at, bytes.length - at);
+  } finally {
+    closeSync(fd);
+  }
   renameSync(temporary, outFile);
 } catch {
   if (created) {

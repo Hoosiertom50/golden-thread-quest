@@ -1,5 +1,5 @@
 # Run record: generating the test inventory (criteria 1 to 6)
-# Recorded 11-18-2026 9:42:43 AM on branch pilot/tom at commit 915123b (with uncommitted quest-21 files).
+# Recorded 11-18-2026 9:54:44 AM on branch pilot/tom at commit 915123b (with uncommitted quest-21 files).
 # The API key was a made-up value, new for this recording; it is not shown. The home folder is shown as ~.
 # Every temporary test is only listed by Playwright, never run, and its file is removed at the end.
 
@@ -56,7 +56,7 @@ Temporary test file tests/inventory-demo.spec.ts (a new test that reuses T-07):
     // Temporary, for the inventory's run record only: listed, never run.
     test("demo: a new test that reuses an existing identifier", { tag: ["@events", "@risk-low", "@read-only", "@layer-ui", "@fast"], annotation: [{ type: "id", description: "T-07" }, { type: "purpose", description: "Demo only: reuses T-07." }, { type: "source", description: "CHK-09" }] }, async () => {});
 
-participant/context/playwright/inventory.md before: SHA-256 aa8b83b9ee994338…, changed 11-18-2026 9:42:45 AM
+participant/context/playwright/inventory.md before: SHA-256 aa8b83b9ee994338…, changed 11-18-2026 9:54:45 AM
 $ node tools/inventory.ts
 REJECTED: two or more tests share an identifier, so no inventory can be written:
   T-7:
@@ -65,7 +65,7 @@ REJECTED: two or more tests share an identifier, so no inventory can be written:
 Give each test its own identifier and run this again.
 Nothing was written.
 (exit 2)
-participant/context/playwright/inventory.md after:  SHA-256 aa8b83b9ee994338…, changed 11-18-2026 9:42:45 AM
+participant/context/playwright/inventory.md after:  SHA-256 aa8b83b9ee994338…, changed 11-18-2026 9:54:45 AM
 unchanged: still identical to the inventory from section 1
 
 ## 4. Two tests with the same purpose, in different letters and punctuation: possible duplicates (criterion 4)
