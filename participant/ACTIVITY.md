@@ -139,3 +139,8 @@ Every change this application made to your files, newest last.
 - `2026-11-18T17:27:14Z` base-camp-prompt-injection: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-18T17:27:14Z` Submitted base-camp-prompt-injection for review as submission-20261118172714-d4a614.
 - `2026-11-18T17:30:40Z` Review of base-camp-prompt-injection: approved by Claude (automated reviewer).
+- `2026-11-19T13:37:09Z` Started base-camp-ownership-zones as attempt base-attempt-004.
+- `2026-11-19T16:36:45Z` base-camp-ownership-zones: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-19T16:37:18Z` base-camp-ownership-zones: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-19T16:37:36Z` base-camp-ownership-zones: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-19T16:37:36Z` Submitted base-camp-ownership-zones for review as submission-20261119163736-ec60d7.
