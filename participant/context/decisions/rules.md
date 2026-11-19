@@ -45,7 +45,8 @@ Each decision names its **Area**, one of: `fees` (prices and fees), `ticket limi
 tickets an order may have), `pages` (what the shop's pages show or let a buyer do) and
 `calculation` (how amounts are worked out and stored). The area is the one the **record** gives,
 not one the log entry chooses. A decision approved by anyone else, or by one of them outside their
-areas, is not a decision.
+areas, is not a decision. Replacing a decision takes it out of force, so the replacement's approver
+must also be allowed to approve the replaced decision's area.
 
 ## How a proposal becomes a decision
 
@@ -76,8 +77,9 @@ so it can never show an entry that isn't a valid decision.
 
 The work-items table in `sources.md` is where work and decisions are linked: each made-up work
 item names the decisions it rests on. New work is a new row, so no decision entry is ever rewritten
-to link it. A decision may also list the work it affects (`Affects: SHOP-nn`, or `none`); when it
-does, the table must agree.
+to link it. A decision may also list the work it affected when it was written (`Affects: SHOP-nn`,
+or `none`): a snapshot, like the rest of the entry. Each item it lists must be in the table and, while
+the decision is in force, rest on it; work added later appears only in the table.
 
 A work item must rest on a decision in force, never on a proposal, a question or a replaced
 decision: that is how an idea quietly becomes "the decision" without anyone approving it. Only a

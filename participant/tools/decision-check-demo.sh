@@ -363,7 +363,36 @@ SHOP-18 | Waive the fee | P-03 |"
   changes new-work
   run new-work "" "" --previous new-work-earlier.md
 
-  echo "== 27. --write-view refuses to write over a log with a problem =="
+  echo "== 27. A replacement by someone without authority over the replaced decision =="
+  echo "The tech lead's calculation decision claims to replace D-01, the product owner's fee decision."
+  copy wrong-authority
+  record wrong-authority "MTG-04 · Totals follow-up, 11-10-2026" "Approved by Sam Ortiz (area: calculation; replaces: D-01): totals include no service fee."
+  edit wrong-authority log.md "- Affects: SHOP-11 SHOP-12
+
+### D-02" "- Affects: SHOP-11 SHOP-12
+- Replaced by: D-08
+
+### D-02"
+  decision wrong-authority D-08 "Totals without a fee" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: calculation; replaces: D-01): totals include no service fee." "- Replaces: D-01"
+  edit wrong-authority sources.md "| SHOP-11 | Show the order total on the event card | D-01 D-04 |" "| SHOP-11 | Show the order total on the event card | D-04 D-08 |"
+  edit wrong-authority sources.md "| SHOP-12 | Show the service fee on the event card | D-01 |" "| SHOP-12 | Show the service fee on the event card | D-08 |"
+  view wrong-authority; changes wrong-authority
+  run wrong-authority "5" "D-08: replaces D-01, an area \"fees\" decision, but Sam Ortiz may not approve area \"fees\""
+
+  echo "== 28. A second \"current decisions\" section further down the log =="
+  copy second-section
+  printf '\n## Current decisions (continued)\n\n| Decision | What |\n|---|---|\n| P-03 | waive the fee |\n' >> "$T/second-section/log.md"
+  changes second-section
+  run second-section "0" "log.md has only its title, \"## Current decisions\" and \"## Entries\""
+
+  echo "== 29. Words in the authority table beyond the area names =="
+  echo "\"\`calculation\` (not \`fees\`)\" reads as a denial; the checker must not read it as granting fees."
+  copy authority-prose
+  edit authority-prose rules.md "| Sam Ortiz | Tech lead (made up) | \`calculation\` |" "| Sam Ortiz | Tech lead (made up) | \`calculation\` (not \`fees\`) |"
+  changes authority-prose
+  run authority-prose "0 2" "must be only area names in backticks"
+
+  echo "== 30. --write-view refuses to write over a log with a problem =="
   echo "The copy from case 7 (a borrowed approval), with its list emptied, is given --write-view."
   copy refuse-write
   cp "$T/borrowed/log.md" "$T/refuse-write/log.md"
@@ -377,7 +406,7 @@ SHOP-18 | Waive the fee | P-03 |"
   if cmp -s "$T/refuse-write-before.md" "$T/refuse-write/log.md"; then echo "The copy's log.md is unchanged, byte for byte."; else echo "UNEXPECTED: the log was written"; FAIL=1; fi
   echo
 
-  echo "== 28. --write-view repairs a stale list, even one naming a proposal =="
+  echo "== 31. --write-view repairs a stale list, even one naming a proposal =="
   copy repair
   edit repair log.md "| D-06 |" "| P-03 | waive the fee | fees | Avery Lane | 10-19-2026 | MTG-02 |
 | D-06 |"

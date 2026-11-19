@@ -50,7 +50,8 @@ approval, however many people agree.
   promotes or decision it replaces ("(area: ticket limits; replaces: D-02)"). The entry must agree
   with its record on all of these and on the date, and the approver must hold the record's area. So
   an entry can't re-label an approval to get past the authority check, or claim a promotion or
-  replacement its approval never made (criteria 2, 4 and 5).
+  replacement its approval never made (criteria 2, 4 and 5). Replacing a decision takes it out of
+  force, so the replacement's approver must also hold the replaced decision's area.
 - **Each approval backs one decision**, and the Current decisions view shows the approver's own
   approved words, not the entry's title: what a reader sees as decided is exactly what was approved,
   and a decision can't borrow another's approval (criteria 2 and 7).
@@ -74,9 +75,10 @@ word.
    entry comes after the one it promotes or replaces, and, given an earlier copy, that its entries
    are still first, in order, with only those two kinds of line added (criteria 4 and 5).
 5. **Both stretch goals:** the work-items table in `sources.md` names the decisions each made-up
-   work item rests on (new work is a new row, so no decision is rewritten to link it), and a
-   decision may list the work it affects, which must agree; work may rest only on a decision in
-   force. The checker lists decisions in force with no work resting on them (D-06, "prices in US
+   work item rests on (new work is a new row, so no decision is rewritten to link it). A decision may
+   also list the work it affected when it was written (a snapshot, like the rest of the entry); each
+   item it lists must be in the table and, while the decision is in force, rest on it. Work may rest
+   only on a decision in force. The checker lists decisions in force with no work resting on them (D-06, "prices in US
    dollars").
 
 ## Which decision I would least want to be asked about
@@ -116,14 +118,14 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 3:30 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
+Recorded on 11-19-2026 at 3:50 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
 working would make the demonstration fail.
 
-1. **The real log:** 13 entries; every check passes. For checks 4 and 5 the report also names each
-   link it verified. For criterion 5 it prints:
+1. **The real log:** 13 entries; every check passes. When every check passes, the report also names
+   each link checks 4 and 5 verified. For criterion 5 it prints:
    `verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02`.
    The demonstration requires both verified lines (D-02 to D-07, and P-02 to D-05) to appear.
 2. **Agreement recorded as an approval** (the quest's scenario): check 2, "agreement is not an
@@ -161,8 +163,14 @@ working would make the demonstration fail.
     check, which compares the lines exactly as written.
 26. **New work for an existing decision added as a new row only,** checked against the earlier
     copy: every check passes, so linking work never means rewriting a decision.
-27. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
-28. **`--write-view` on a stale list that even names a proposal:** it rebuilds the list, and the
+27. **A replacement by someone without authority over the replaced decision** (the tech lead's
+    calculation decision "replacing" the product owner's fee decision): check 5.
+28. **A second "current decisions" section further down the log:** check 0; `log.md` has only its
+    title and its two sections.
+29. **Words in the authority table beyond the area names** ("`calculation` (not `fees`)"): checks 0
+    and 2; a cell is only area names, so prose can't grant an area.
+30. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
+31. **`--write-view` on a stale list that even names a proposal:** it rebuilds the list, and the
     log then passes.
 
 The demonstration writes the log only if every case came out as expected. The real files' SHA-256,
@@ -187,12 +195,12 @@ for criterion 5 is one specific, quotable line. Nothing in the log changed.
   see that an entry was rewritten; in a real repository, Git's history is that earlier copy.
   Blank lines inside an entry aren't compared: adding or removing one doesn't change what the entry
   says.
-- **It fails closed on Markdown it doesn't use.** The three files may contain only headings that
-  start at the beginning of a line, text, "- " bullets, "|" tables and inline code (and, in
-  `log.md`, the two marker comments). Code blocks, indented or tab-indented lines, underlined
-  headings, HTML and other comments are reported as problems rather than interpreted, so a reader
-  and the checker can't see different things; the price is that the files must stay in that simple
-  form.
+- **It fails closed on Markdown it doesn't use.** The three files must be valid UTF-8 and may
+  contain only headings that start at the beginning of a line (with a space and a title), text,
+  "- " bullets, "|" tables and inline code (and, in `log.md`, the two marker comments). Code blocks,
+  indented or tab-indented lines, underlined headings, horizontal rules, HTML and other comments are
+  reported as problems rather than interpreted, so a reader and the checker can't see different
+  things; the price is that the files must stay in that simple form.
 - **`--write-view` won't write through a link.** If `log.md` is a symbolic link, it refuses rather
   than replace the link.
 - **`--write-view` and someone else saving at the same moment.** It refuses if the log changed since

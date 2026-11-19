@@ -45,11 +45,19 @@ for (let i = 0; i < args.length; i++) {
 }
 // Folders are shown as given, except an absolute one (it could show this computer's folders).
 const shownDir = isAbsolute(dir) ? `(folder ${basename(dir)})` : dir;
+const utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const readRaw = (path, what) => {
+  let bytes;
   try {
-    return readFileSync(path, "utf8");
+    bytes = readFileSync(path);
   } catch {
     console.error(`Couldn't read ${what}.`);
+    process.exit(2);
+  }
+  try {
+    return utf8.decode(bytes);
+  } catch {
+    console.error(`${what} is not valid UTF-8 text; nothing was checked or written.`);
     process.exit(2);
   }
 };
@@ -141,10 +149,11 @@ const lint = (raw, file, markers) => {
     else if (/^ *\t/.test(line)) problems.push(`${where}: a tab at the start of a line (it can turn a line into code)`);
     else if (/^ {4,}\S/.test(line)) problems.push(`${where}: a line indented four or more spaces (that is code in Markdown)`);
     else if (/^ {1,3}#/.test(line)) problems.push(`${where}: a heading must start at the beginning of the line`);
-    else if (/^ {0,3}(=+|-{3,}|\*{3,}|_{3,})\s*$/.test(line)) problems.push(`${where}: underlined headings and horizontal rules aren't used in the decision files`);
+    else if (/^ {0,3}(=+|-+|(\* *){3,}|(_ *){3,})\s*$/.test(line)) problems.push(`${where}: underlined headings and horizontal rules aren't used in the decision files`);
     else if (masked.includes("<!--") || masked.includes("-->")) {
       if (!(markers && (line.trim() === START || line.trim() === END))) problems.push(`${where}: comments aren't used in the decision files (only the two current-decisions markers in log.md)`);
-    } else if (/<\/?[A-Za-z][^>]*>/.test(masked)) problems.push(`${where}: HTML isn't used in the decision files`);
+    } else if (/<[A-Za-z!?\/]/.test(masked)) problems.push(`${where}: HTML isn't used in the decision files`);
+    else if (/^#{1,6}(\t|$)/.test(line) || /^#{1,6} +#* *$/.test(line)) problems.push(`${where}: a heading needs a space and a title after its #'s`);
   });
   return problems;
 };
@@ -169,7 +178,7 @@ const section = (lines, level, exact, file) => {
   if (at.length !== 1) return { problem: `${file} must have exactly one "${head}" heading (found ${at.length})` };
   const out = [];
   for (let i = at[0] + 1; i < lines.length; i++) {
-    const m = /^(#+) /.exec(lines[i]);
+    const m = /^ {0,3}(#{1,6})(\s|$)/.exec(lines[i]);
     if (m && m[1].length <= level) break;
     out.push(lines[i]);
   }
@@ -221,6 +230,7 @@ if (who.problem) setupProblems.push(who.problem);
 for (const row of tableRows(who.lines, 'rules.md "Who may approve"', setupProblems, ["Approver", "Role", "May approve"])) {
   if (!row[0] || row.length < 3) setupProblems.push('rules.md: a "Who may approve" row is incomplete');
   else if (approvers.has(row[0])) setupProblems.push(`rules.md lists ${row[0]} twice`);
+  else if (!/^`[^`]+`( `[^`]+`)*$/.test(row[2])) setupProblems.push(`rules.md: ${row[0]}'s "May approve" must be only area names in backticks, nothing else: ${JSON.stringify(row[2])}`);
   else approvers.set(row[0], ticks(row[2]));
 }
 if (!approvers.size) setupProblems.push('rules.md has no approvers in its "Who may approve" table');
@@ -235,7 +245,7 @@ for (let i = 0; i < sourcesLines.length; i++) {
   const date = /(\d{2}-\d{2}-\d{4})\s*$/.exec(sourcesLines[i])?.[1] ?? null;
   if (!date) setupProblems.push(`sources.md: ${m[1]}'s heading doesn't end with its date (MM-DD-YYYY)`);
   const body = [];
-  for (let j = i + 1; j < sourcesLines.length && !/^ {0,3}#{1,2}(\s|$)/.test(sourcesLines[j]); j++) body.push(sourcesExact[j]);
+  for (let j = i + 1; j < sourcesLines.length && !/^ {0,3}#{1,6}(\s|$)/.test(sourcesLines[j]); j++) body.push(sourcesExact[j]);
   sources.set(m[1], { date, body });
 }
 if (!sources.size) setupProblems.push("sources.md has no sources");
@@ -359,6 +369,14 @@ const viewOf = (raw) => {
 };
 
 const parseProblems = [];
+// log.md has one title and exactly two sections, so no second "current decisions" list (or any
+// other section) can sit outside the checks.
+visibleLines(classify(logRaw)).forEach((l, i) => {
+  const h = /^ {0,3}(#{1,2})(?:\s+(.*?))?\s*$/.exec(l);
+  if (!h) return;
+  const ok = h[1] === "#" ? i === visibleLines(classify(logRaw)).findIndex((x) => /^ {0,3}#(\s|$)/.test(x)) : h[2] === "Current decisions" || h[2] === "Entries";
+  if (!ok) parseProblems.push(`log.md line ${i + 1}: log.md has only its title, "## Current decisions" and "## Entries"; found ${JSON.stringify(l.trim())}`);
+});
 const entries = parseEntries(logRaw, parseProblems, "log.md");
 if (mode === "print-view") {
   console.log(buildView(entries));
@@ -512,6 +530,10 @@ check("5. A replaced decision links to the one that replaced it", (p) => {
       if (!o || status(o) !== "decision") p.push(`${e.id}: Replaces ${old}, which isn't a decision in the log`);
       else {
         if (o.fields.get("Replaced by") !== e.id) p.push(`${e.id}: Replaces ${old}, but ${old} doesn't say "Replaced by: ${e.id}"`);
+        // Replacing a decision takes it out of force, so the approver must hold its area too.
+        const oldArea = recordOf(o)?.tags.get("area");
+        const person = e.fields.get("Approver");
+        if (oldArea && approvers.has(person) && !approvers.get(person).includes(oldArea)) p.push(`${e.id}: replaces ${old}, an area "${oldArea}" decision, but ${person} may not approve area "${oldArea}"`);
         // A replacement comes after what it replaces: no decision replaces itself, and no loops.
         if (!before(old, e.id)) p.push(`${e.id}: must come after ${old}, which it replaces`);
         if (earlier(e.fields.get("Date"), o.fields.get("Date"))) p.push(`${e.id}: dated before ${old}, which it replaces`);
@@ -643,17 +665,20 @@ console.log(`Decision log check: ${shownDir} (${entries.length} entries: ${count
 // What a passing check 4 or 5 verified, spelled out link by link, so a reader can see each
 // promotion and replacement it confirmed, not just the word PASS.
 const linkWords = (e) => (status(e) === "decision" ? approvedWords(e) : e.title);
+const allPass = results.every((r) => r.problems.length === 0);
 const verified = (r) => {
-  if (r.problems.length) return [];
+  if (!allPass) return [];
   if (r.title.startsWith("4.")) {
     return entries.filter((e) => status(e) === "decision" && e.fields.has("From")).map((e) => {
       const from = byId.get(e.fields.get("From"));
+      if (!from) return null;
       return `verified: proposal ${from.id} "${linkWords(from)}" became decision ${e.id} "${linkWords(e)}"; ${from.id} says "Became: ${e.id}", ${e.id} says "From: ${from.id}", and ${e.id}'s approval record says it promotes ${from.id}`;
     });
   }
   if (r.title.startsWith("5.")) {
     return entries.filter((e) => status(e) === "decision" && e.fields.has("Replaces")).map((e) => {
       const old = byId.get(e.fields.get("Replaces"));
+      if (!old) return null;
       return `verified: superseded decision ${old.id} "${linkWords(old)}" links to ${e.id}, the decision that replaced it, "${linkWords(e)}"; ${old.id} says "Replaced by: ${e.id}", ${e.id} says "Replaces: ${old.id}", and ${e.id}'s approval record says it replaces ${old.id}`;
     });
   }
@@ -662,10 +687,11 @@ const verified = (r) => {
 for (const r of results) {
   console.log(`${r.problems.length ? "FAIL" : "PASS"}  ${r.title}`);
   for (const pr of r.problems) console.log(`      - ${pr}`);
-  for (const line of verified(r)) console.log(`      ${line}`);
+  for (const line of verified(r).filter(Boolean)) console.log(`      ${line}`);
 }
 // Stretch goal 2: decisions in force with no work resting on them, by their approved words.
 const idle = entries.filter((e) => status(e) === "decision" && !e.fields.has("Replaced by") && ![...workItems.values()].some((r) => r.includes(e.id)));
-console.log(`Decisions in force with no work resting on them: ${idle.length ? idle.map((e) => `${e.id} (${approvedWords(e)})`).join(", ") : "none"}`);
+if (allPass) console.log(`Decisions in force with no work resting on them: ${idle.length ? idle.map((e) => `${e.id} (${approvedWords(e)})`).join(", ") : "none"}`);
+else console.log("Decisions in force with no work resting on them: not listed, because the log has problems.");
 console.log(failed ? `Result: FAIL, ${failed} problem${failed === 1 ? "" : "s"}.` : "Result: PASS, every check passed.");
 process.exitCode = failed ? 1 : 0;
