@@ -240,7 +240,7 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
 - Approval: \"Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map.\"
 - Affects: none"
   view rewrite; changes rewrite
-  run rewrite "1 4 History" "\"Status: decision\" was added or changed" --previous earlier-log.md
+  run rewrite "1 4 History" "\"- Status: decision\" was added or changed" --previous earlier-log.md
 
   echo "== 13. A replaced decision that no longer links to its replacement =="
   copy one-way
@@ -300,13 +300,13 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
 |---|---|
 | P-03 | waive the fee |"
   changes extra-view
-  run extra-view "7" "content after the current-decisions end marker"
+  run extra-view "7" "content in \"## Current decisions\" outside the generated list"
 
-  echo "== 21. A work item that rests on a decision that doesn't list it =="
+  echo "== 21. A decision listing a work item that doesn't exist =="
   copy stretch-link
-  edit stretch-link sources.md "| SHOP-16 | Show the order total on the review page | D-04 |" "| SHOP-16 | Show the order total on the review page | D-04 D-06 |"
-  changes stretch-link
-  run stretch-link "Stretch" "work item SHOP-16 rests on D-06, but D-06 doesn't list it under Affects"
+  edit stretch-link log.md "- Affects: SHOP-15" "- Affects: SHOP-15 SHOP-99"
+  view stretch-link; changes stretch-link
+  run stretch-link "Stretch" "D-03: affects SHOP-99, which isn't in the work-items table"
 
   echo "== 22. A table row the parser could miss =="
   copy no-pipe
@@ -315,7 +315,47 @@ SHOP-18 | Waive the fee | P-03 |"
   changes no-pipe
   run no-pipe "0" "a table line doesn't start with \"|\""
 
-  echo "== 23. --write-view refuses to write over a log with a problem =="
+  echo "== 23. A question promoted to a decision =="
+  echo "Only a proposal can be promoted; Q-03 is given a 'Became' and a decision claims to come from it."
+  copy question
+  record question "MTG-04 · Limits follow-up, 11-16-2026" "Approved by Avery Lane (area: ticket limits; promotes: Q-03): there is no limit per buyer across orders."
+  edit question log.md "- Source: MTG-03
+- Asked by: Riley Chen" "- Source: MTG-03
+- Asked by: Riley Chen
+- Became: D-08"
+  decision question D-08 "No per-buyer limit" 11-16-2026 MTG-04 "ticket limits" "Avery Lane" "Approved by Avery Lane (area: ticket limits; promotes: Q-03): there is no limit per buyer across orders." "- From: Q-03"
+  view question; changes question
+  run question "1 4" "D-08: From Q-03, which is a question; only a proposal is promoted"
+
+  echo "== 24. An approval hidden in a comment that opens on a line that also closes one =="
+  echo "Readers see no approval in MTG-01 (it sits inside a comment); the checker must not either."
+  copy hidden
+  edit hidden sources.md "- $FEE" "<!-- first --> <!--
+- $FEE
+-->"
+  changes hidden
+  run hidden "2" "D-01: the approval line isn't in MTG-01, word for word"
+
+  echo "== 25. An earlier line changed by one space, checked against the earlier copy =="
+  copy one-space
+  cp "$REAL/log.md" "$T/one-space-earlier.md"
+  edit one-space log.md "- Proposed by: Jordan Pike
+
+### Q-01 ·" "- Proposed by:  Jordan Pike
+
+### Q-01 ·"
+  changes one-space
+  run one-space "History" "\"- Proposed by:  Jordan Pike\" was added or changed" --previous one-space-earlier.md
+
+  echo "== 26. New work for an existing decision: a new row only, checked against the earlier copy =="
+  copy new-work
+  cp "$REAL/log.md" "$T/new-work-earlier.md"
+  edit new-work sources.md "| SHOP-17 | Cancel an order from the orders page | D-05 |" "| SHOP-17 | Cancel an order from the orders page | D-05 |
+| SHOP-20 | Show prices with two decimals on receipts | D-06 |"
+  changes new-work
+  run new-work "" "" --previous new-work-earlier.md
+
+  echo "== 27. --write-view refuses to write over a log with a problem =="
   echo "The copy from case 7 (a borrowed approval), with its list emptied, is given --write-view."
   copy refuse-write
   cp "$T/borrowed/log.md" "$T/refuse-write/log.md"
@@ -329,7 +369,7 @@ SHOP-18 | Waive the fee | P-03 |"
   if cmp -s "$T/refuse-write-before.md" "$T/refuse-write/log.md"; then echo "The copy's log.md is unchanged, byte for byte."; else echo "UNEXPECTED: the log was written"; FAIL=1; fi
   echo
 
-  echo "== 24. --write-view repairs a stale list, even one naming a proposal =="
+  echo "== 28. --write-view repairs a stale list, even one naming a proposal =="
   copy repair
   edit repair log.md "| D-06 |" "| P-03 | waive the fee | fees | Avery Lane | 10-19-2026 | MTG-02 |
 | D-06 |"

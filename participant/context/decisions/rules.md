@@ -74,6 +74,11 @@ so it can never show an entry that isn't a valid decision.
 
 ## Work items
 
-Each decision lists the made-up work items it affects (`Affects: SHOP-nn`). A work item must rest
-on a decision, never on a proposal or a question: that is how an idea quietly becomes "the
-decision" without anyone approving it.
+The work-items table in `sources.md` is where work and decisions are linked: each made-up work
+item names the decisions it rests on. New work is a new row, so no decision entry is ever rewritten
+to link it. A decision may also list the work it affects (`Affects: SHOP-nn`, or `none`); when it
+does, the table must agree.
+
+A work item must rest on a decision in force, never on a proposal, a question or a replaced
+decision: that is how an idea quietly becomes "the decision" without anyone approving it. Only a
+proposal can be promoted to a decision; a question is answered by a new proposal or decision.

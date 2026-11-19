@@ -62,49 +62,77 @@ const classify = (raw) => {
   const out = [];
   let fence = null;
   let comment = false;
+  let indented = false; // inside an indented code block
   let prevBlank = true;
   for (const line of lines) {
+    const blank = line.trim() === "";
     if (fence) {
-      out.push({ line, kind: "code" });
+      out.push({ line: "", kind: "code" });
       const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
       if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
-      continue;
-    }
-    if (comment) {
-      out.push({ line, kind: "comment" });
-      if (line.includes("-->")) comment = false;
-      continue;
-    }
-    const open = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-    if (open) {
-      fence = open[1];
-      out.push({ line, kind: "code" });
-    } else if (prevBlank && /^( {4}|\t)/.test(line) && line.trim() !== "") {
-      out.push({ line, kind: "code" });
       prevBlank = false;
       continue;
-    } else if (line.trim().startsWith("<!--")) {
-      out.push({ line, kind: "comment" });
-      if (!line.slice(line.indexOf("<!--") + 4).includes("-->")) comment = true;
-    } else if (line.includes("<!--")) {
-      // Text before a comment on the same line stays; the comment (and the rest, if it doesn't
-      // close) is not part of the record.
-      const close = line.indexOf("-->", line.indexOf("<!--"));
-      out.push({ line: close === -1 ? line.slice(0, line.indexOf("<!--")) : line.slice(0, line.indexOf("<!--")) + line.slice(close + 3), kind: "text" });
-      if (close === -1) comment = true;
-    } else {
-      out.push({ line, kind: "text" });
     }
-    prevBlank = line.trim() === "" || out[out.length - 1].kind === "code";
+    // Indented code: a line indented four spaces (or a tab) after a blank line, and every line
+    // after it that is indented or blank, until a line that isn't.
+    if (!comment && /^( {4}|\t)/.test(line) && !blank && (prevBlank || indented)) {
+      indented = true;
+      out.push({ line: "", kind: "code" });
+      prevBlank = false;
+      continue;
+    }
+    if (indented && !blank) indented = false;
+    const open = !comment && /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (open) {
+      fence = open[1];
+      out.push({ line: "", kind: "code" });
+      prevBlank = false;
+      continue;
+    }
+    // Comments: every "<!--" and "-->" on the line, in order. What is outside them stays.
+    let visible = "";
+    let rest = line;
+    let touched = comment;
+    while (rest.length) {
+      if (comment) {
+        const close = rest.indexOf("-->");
+        if (close === -1) {
+          rest = "";
+        } else {
+          rest = rest.slice(close + 3);
+          comment = false;
+        }
+      } else {
+        const openAt = rest.indexOf("<!--");
+        if (openAt === -1) {
+          visible += rest;
+          rest = "";
+        } else {
+          visible += rest.slice(0, openAt);
+          rest = rest.slice(openAt + 4);
+          comment = true;
+          touched = true;
+        }
+      }
+    }
+    // A line any part of which was a comment is kept apart from the record's own lines: its visible
+    // text isn't what was written there, word for word.
+    if (touched && visible.trim() === "") out.push({ line: "", kind: "comment", raw: line });
+    else out.push({ line: visible, kind: touched ? "mixed" : "text" });
+    prevBlank = blank;
   }
   return out;
 };
-const visibleLines = (classified) => classified.map((c) => (c.kind === "text" ? c.line : ""));
+const visibleLines = (classified) => classified.map((c) => (c.kind === "text" || c.kind === "mixed" ? c.line : ""));
+// The lines written exactly as they are (no comment inside), for word-for-word matching.
+const exactLines = (classified) => classified.map((c) => (c.kind === "text" ? c.line : ""));
 
 const logPath = join(dir, "log.md");
 const logRaw = readRaw(logPath, `${shownDir}/log.md`);
 const rulesLines = visibleLines(classify(readRaw(join(dir, "rules.md"), `${shownDir}/rules.md`)));
-const sourcesLines = visibleLines(classify(readRaw(join(dir, "sources.md"), `${shownDir}/sources.md`)));
+const sourcesClassified = classify(readRaw(join(dir, "sources.md"), `${shownDir}/sources.md`));
+const sourcesLines = visibleLines(sourcesClassified);
+const sourcesExact = exactLines(sourcesClassified);
 
 // The lines under the one visible heading `<#…> <exact>`, up to the next heading of that level or
 // higher. Returns { lines, start } (start: the heading's line number) or { problem }.
@@ -132,19 +160,20 @@ const cellsOf = (line) => {
 // would show in the table but could be missed), and the table ends at a blank line.
 const tableRows = (lines, what, problems) => {
   const rows = [];
-  let started = false;
+  let state = "before"; // before, in, after the table
   for (const l of lines ?? []) {
     const t = l.trim();
     if (t === "") {
-      if (started) break;
+      if (state === "in") state = "after";
       continue;
     }
-    if (t.startsWith("|")) {
-      started = true;
+    if (state === "after" && t.includes("|")) {
+      problems.push(`${what}: a second table, or a table line after the table ended: ${JSON.stringify(t)}`);
+    } else if (t.startsWith("|") && state !== "after") {
+      state = "in";
       rows.push(t);
-    } else if (started || t.includes("|")) {
+    } else if (state === "in" || t.includes("|")) {
       problems.push(`${what}: a table line doesn't start with "|": ${JSON.stringify(t)}`);
-      if (started) break;
     }
   }
   return rows.slice(2).map(cellsOf);
@@ -173,7 +202,7 @@ for (let i = 0; i < sourcesLines.length; i++) {
   const date = /(\d{2}-\d{2}-\d{4})\s*$/.exec(sourcesLines[i])?.[1] ?? null;
   if (!date) setupProblems.push(`sources.md: ${m[1]}'s heading doesn't end with its date (MM-DD-YYYY)`);
   const body = [];
-  for (let j = i + 1; j < sourcesLines.length && !/^#{1,2} /.test(sourcesLines[j]); j++) body.push(sourcesLines[j]);
+  for (let j = i + 1; j < sourcesLines.length && !/^ {0,3}#{1,2}(\s|$)/.test(sourcesLines[j]); j++) body.push(sourcesExact[j]);
   sources.set(m[1], { date, body });
 }
 if (!sources.size) setupProblems.push("sources.md has no sources");
@@ -193,7 +222,7 @@ for (const row of tableRows(wi.lines, "sources.md work items", setupProblems)) {
 
 // An approval line, split into its parts: { approver, tags: Map, words } or null.
 const parseApproval = (line) => {
-  const m = /^Approved by (.+?) \(([^()]*)\): (.+)$/.exec(line);
+  const m = /^Approved by (.+?) \(([^()]*)\): (.*\S.*)$/.exec(line);
   if (!m) return null;
   const tags = new Map();
   for (const part of m[2].split(";")) {
@@ -206,42 +235,59 @@ const parseApproval = (line) => {
 
 // log.md: the entries under "## Entries", each "### ID · title" with "- Field: value" lines.
 const FIELDS = {
-  decision: { required: ["Status", "Date", "Source", "Area", "Approver", "Approval", "Affects"], optional: ["From", "Replaces", "Replaced by", "Note"] },
+  decision: { required: ["Status", "Date", "Source", "Area", "Approver", "Approval"], optional: ["Affects", "From", "Replaces", "Replaced by", "Note"] },
   proposal: { required: ["Status", "Date", "Source", "Proposed by"], optional: ["Became", "Note"] },
-  question: { required: ["Status", "Date", "Source", "Asked by"], optional: ["Became", "Note"] },
+  question: { required: ["Status", "Date", "Source", "Asked by"], optional: ["Note"] },
 };
 const PREFIX = { decision: "D", proposal: "P", question: "Q" };
-const parseEntries = (lines, problems, file) => {
+// `raw` is the whole text as written; each entry keeps its non-blank lines exactly as written
+// (comments included), for the history check.
+const parseEntries = (raw, problems, file) => {
+  const cl = classify(raw);
+  const lines = visibleLines(cl);
+  const rawLines = raw.split("\n").map((l) => l.replace(/\r$/, ""));
   const entries = [];
   const sec = section(lines, 2, "Entries", file);
   if (sec.problem) {
     problems.push(sec.problem);
     return entries;
   }
+  // An entry-shaped heading anywhere else would be seen by readers but never checked.
+  lines.forEach((l, i) => {
+    const inside = i > sec.start && i <= sec.start + sec.lines.length;
+    if (!inside && /^ {0,3}#{1,6} +[DPQ]-\d+ · /.test(l)) problems.push(`${file}: an entry heading outside "## Entries": ${JSON.stringify(l.trim())}`);
+  });
   let cur = null;
-  for (const line of sec.lines) {
+  sec.lines.forEach((line, k) => {
+    const n = sec.start + 1 + k;
+    if (cur && rawLines[n].trim() !== "" && !/^### /.test(line)) cur.raw.push(rawLines[n]);
     const h = /^### (\S+) · (.+)$/.exec(line);
     if (h) {
-      cur = { id: h[1], title: h[2].trim(), fields: new Map(), lines: [] };
+      cur = { id: h[1], title: h[2].trim(), fields: new Map(), lines: [], raw: [] };
       entries.push(cur);
-      continue;
+      return;
     }
-    if (line.trim() === "") continue;
+    if (/^ {0,3}#{1,6}(\s|$)/.test(line)) {
+      problems.push(`${file}: a heading inside "## Entries" that isn't an entry: ${JSON.stringify(line.trim())}`);
+      cur = null;
+      return;
+    }
+    if (line.trim() === "") return;
     if (!cur) {
       problems.push(`${file}: a line before the first entry: ${JSON.stringify(line)}`);
-      continue;
+      return;
     }
     const f = /^- ([A-Za-z ]+?):(?: (.*))?$/.exec(line);
     if (!f) {
       problems.push(`${cur.id}: a line that isn't "- Field: value": ${JSON.stringify(line)}`);
-      continue;
+      return;
     }
     const value = (f[2] ?? "").trim();
     if (cur.fields.has(f[1])) problems.push(`${cur.id}: "${f[1]}" is given twice`);
     if (value === "") problems.push(`${cur.id}: "${f[1]}" is empty`);
     cur.fields.set(f[1], value);
     cur.lines.push(`${f[1]}: ${value}`);
-  }
+  });
   return entries;
 };
 
@@ -265,7 +311,7 @@ const viewOf = (raw) => {
   const vis = visibleLines(cl);
   const sec = section(vis, 2, "Current decisions", "log.md");
   if (sec.problem) return { problem: sec.problem };
-  const marks = (m) => cl.flatMap((c, i) => (c.kind === "comment" && c.line.trim() === m ? [i] : []));
+  const marks = (m) => cl.flatMap((c, i) => (c.kind === "comment" && c.raw.trim() === m ? [i] : []));
   const starts = marks(START);
   const ends = marks(END);
   const first = sec.start + 1;
@@ -273,13 +319,16 @@ const viewOf = (raw) => {
   if (starts.length !== 1 || ends.length !== 1) return { problem: "log.md needs exactly one pair of current-decisions markers" };
   const [s, e] = [starts[0], ends[0]];
   if (!(first <= s && s < e && e <= last)) return { problem: 'both current-decisions markers must be inside "## Current decisions", start before end' };
-  for (let i = first; i < s; i++) if (vis[i].trim().startsWith("|")) return { problem: "a table before the current-decisions start marker; the list goes between the markers" };
-  for (let i = e + 1; i <= last; i++) if (vis[i].trim() !== "") return { problem: `content after the current-decisions end marker, in the same section: ${JSON.stringify(vis[i].trim())}` };
+  // The section holds only the generated list: anything else in it is a list nobody checks.
+  for (let i = first; i <= last; i++) {
+    if (i >= s && i <= e) continue;
+    if (vis[i].trim() !== "") return { problem: `content in "## Current decisions" outside the generated list: ${JSON.stringify(vis[i].trim())}` };
+  }
   return { start: s, end: e, inner: cl.slice(s + 1, e).map((c) => c.line).join("\n").trim() };
 };
 
 const parseProblems = [];
-const entries = parseEntries(visibleLines(classify(logRaw)), parseProblems, "log.md");
+const entries = parseEntries(logRaw, parseProblems, "log.md");
 if (mode === "print-view") {
   console.log(buildView(entries));
   process.exit(0);
@@ -397,7 +446,7 @@ check("4. Promoting a proposal adds an entry and keeps the history", (p) => {
       const src = byId.get(from);
       if (!src) p.push(`${e.id}: From ${from}, which isn't in the log`);
       else {
-        if (status(src) === "decision") p.push(`${e.id}: From ${from}, which is already a decision`);
+        if (status(src) !== "proposal") p.push(`${e.id}: From ${from}, which is a ${status(src)}; only a proposal is promoted`);
         if (src.fields.get("Became") !== e.id) p.push(`${e.id}: From ${from}, but ${from} doesn't say "Became: ${e.id}"`);
         if (!before(from, e.id)) p.push(`${e.id}: must come after ${from}, which it came from`);
         if (earlier(e.fields.get("Date"), src.fields.get("Date"))) p.push(`${e.id}: dated before ${from}, which it came from`);
@@ -451,7 +500,9 @@ check("6. Each entry cites its source (and its date)", (p) => {
 });
 
 check("Stretch: decisions link to the work items they affect", (p) => {
-  for (const e of entries.filter((x) => status(x) === "decision")) {
+  // The work-items table holds the links (a new work item is a new row; no decision is rewritten).
+  // A decision's own "Affects" line is optional, and when present must agree with the table.
+  for (const e of entries.filter((x) => status(x) === "decision" && x.fields.has("Affects"))) {
     const affects = ids(e.fields.get("Affects"));
     if (affects.length === 1 && affects[0] === "none") continue;
     for (const item of affects) {
@@ -463,7 +514,6 @@ check("Stretch: decisions link to the work items they affect", (p) => {
     for (const id of rests) {
       const e = byId.get(id);
       if (e && status(e) === "decision" && e.fields.has("Replaced by")) p.push(`work item ${item} rests on ${id}, which was replaced by ${e.fields.get("Replaced by")}`);
-      if (e && status(e) === "decision" && !ids(e.fields.get("Affects")).includes(item)) p.push(`work item ${item} rests on ${id}, but ${id} doesn't list it under Affects`);
     }
   }
 });
@@ -471,7 +521,7 @@ check("Stretch: decisions link to the work items they affect", (p) => {
 if (previous !== null) {
   check("History: the log was only added to since the earlier copy", (p) => {
     const baseProblems = [];
-    const old = parseEntries(visibleLines(classify(readRaw(previous, "the earlier copy of the log"))), baseProblems, "the earlier copy");
+    const old = parseEntries(readRaw(previous, "the earlier copy of the log"), baseProblems, "the earlier copy");
     if (baseProblems.length || !old.length || new Set(old.map((e) => e.id)).size !== old.length) {
       p.push(`the earlier copy can't be used as a baseline: ${baseProblems[0] ?? (old.length ? "an ID is used twice" : "it has no entries")}`);
       return;
@@ -484,13 +534,14 @@ if (previous !== null) {
         return;
       }
       if (n.title !== o.title) p.push(`${o.id}: its title was changed`);
-      // Its earlier lines, in order, with only "Became" and "Replaced by" lines added.
+      // Its earlier lines exactly as written, in order, with only "- Became: …" and
+      // "- Replaced by: …" lines added.
       let j = 0;
-      for (const line of n.lines) {
-        if (j < o.lines.length && line === o.lines[j]) j++;
-        else if (!/^(Became|Replaced by): /.test(line)) p.push(`${o.id}: "${line}" was added or changed; only "Became" and "Replaced by" may be added`);
+      for (const line of n.raw) {
+        if (j < o.raw.length && line === o.raw[j]) j++;
+        else if (!/^- (Became|Replaced by): [DP]-\d+$/.test(line)) p.push(`${o.id}: ${JSON.stringify(line)} was added or changed; only "- Became: …" and "- Replaced by: …" may be added`);
       }
-      for (; j < o.lines.length; j++) p.push(`${o.id}: "${o.lines[j]}" was removed, changed or moved`);
+      for (; j < o.raw.length; j++) p.push(`${o.id}: ${JSON.stringify(o.raw[j])} was removed, changed or moved`);
     });
   });
 }

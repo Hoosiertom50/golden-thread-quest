@@ -73,9 +73,11 @@ word.
    one line to the old (`Replaced by`). The checker confirms both links point both ways, that a new
    entry comes after the one it promotes or replaces, and, given an earlier copy, that its entries
    are still first, in order, with only those two kinds of line added (criteria 4 and 5).
-5. **Both stretch goals:** each decision lists the work items it affects and each work item names
-   the decision it rests on, checked both ways; the checker lists decisions in force with no work
-   resting on them (D-06, "prices in US dollars").
+5. **Both stretch goals:** the work-items table in `sources.md` names the decisions each made-up
+   work item rests on (new work is a new row, so no decision is rewritten to link it), and a
+   decision may list the work it affects, which must agree; work may rest only on a decision in
+   force. The checker lists decisions in force with no work resting on them (D-06, "prices in US
+   dollars").
 
 ## Which decision I would least want to be asked about
 
@@ -114,7 +116,7 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 12:52 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
+Recorded on 11-19-2026 at 1:12 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
@@ -147,10 +149,17 @@ working would make the demonstration fail.
 18. **A date that doesn't match its record:** check 6.
 19. **A Current decisions list edited by hand:** check 7 (criterion 7).
 20. **A second "current decisions" table below the generated one:** check 7.
-21. **A work item resting on a decision that doesn't list it:** the stretch check.
+21. **A decision listing a work item that doesn't exist:** the stretch check.
 22. **A table row without a leading "|":** check 0.
-23. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
-24. **`--write-view` on a stale list that even names a proposal:** it rebuilds the list, and the
+23. **A question "promoted" to a decision:** checks 1 and 4; only a proposal is promoted.
+24. **An approval hidden in a comment** (a line that closes one comment and opens another): check 2;
+    what readers can't see doesn't count.
+25. **An earlier line changed by a single space,** checked against the earlier copy: the history
+    check, which compares the lines exactly as written.
+26. **New work for an existing decision added as a new row only,** checked against the earlier
+    copy: every check passes, so linking work never means rewriting a decision.
+27. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
+28. **`--write-view` on a stale list that even names a proposal:** it rebuilds the list, and the
     log then passes.
 
 The demonstration writes the log only if every case came out as expected. The real files' SHA-256,

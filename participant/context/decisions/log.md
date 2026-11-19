@@ -9,10 +9,12 @@ Every decision, proposal and question about the made-up demo shop
 Entries are never rewritten: a change adds a new entry, and the only lines ever added to an old one
 are `Became` and `Replaced by`. Check the log with `node participant/tools/decision-check.mjs`.
 
-## Current decisions
+The **Current decisions** list below shows the decisions in force now (not replaced), each in its
+approver's own words. The checker builds it from the entries; don't edit it by hand
+(`node participant/tools/decision-check.mjs --write-view`). Work items and the decisions they rest
+on are listed in `sources.md`.
 
-The decisions in force now (not replaced). Built by the checker from the entries below; don't edit
-it by hand (`node participant/tools/decision-check.mjs --write-view`).
+## Current decisions
 
 <!-- current-decisions: start -->
 | Decision | What was approved (the approver's words) | Area | Approved by | Date | Where |
