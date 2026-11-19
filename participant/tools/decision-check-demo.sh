@@ -73,10 +73,11 @@ changes() {
   done
 }
 # run <name> "<failing checks>" "<expected message>" [extra arguments...]: runs the checker on a
-# copy; exactly the named checks (space-separated, e.g. "2" or "1 History") must fail, the message
-# must appear, and the exit code must be 1 (or 0 when no check is named).
+# copy; exactly the named checks (space-separated, in report order) must fail, the message must
+# appear, and the exit code must be 1 (or 0 when no check is named). "As expected" is printed only
+# when every one of those holds.
 run() {
-  local name=$1 want=$2 msg=$3 code out failing
+  local name=$1 want=$2 msg=$3 code out failing ok=1
   shift 3
   echo "\$ node decision-check.mjs --dir $name$( [ $# -gt 0 ] && printf ' %s' "$@")"
   out=$(cd "$T" && node "$CHECK" --dir "$T/$name" "$@" 2>&1)
@@ -84,36 +85,59 @@ run() {
   printf '%s\n' "${out//"$T/"/}"
   echo "exit code: $code"
   failing=$(printf '%s\n' "$out" | sed -n -E 's/^FAIL  ([0-9]+|[A-Za-z]+)[.:].*/\1/p' | tr '\n' ' ' | sed 's/ $//')
-  if [ "$failing" != "$want" ]; then echo "UNEXPECTED: checks failing were \"$failing\", expected \"$want\""; FAIL=1; fi
-  if [ -n "$msg" ] && ! printf '%s\n' "$out" | grep -qF -- "$msg"; then echo "UNEXPECTED: the message \"$msg\" is missing"; FAIL=1; fi
-  if [ -z "$want" ] && [ "$code" != 0 ]; then echo "UNEXPECTED: exit code 0 was expected"; FAIL=1; fi
-  if [ -n "$want" ] && [ "$code" != 1 ]; then echo "UNEXPECTED: exit code 1 was expected"; FAIL=1; fi
-  [ -n "$want" ] && echo "As expected: only check(s) $want failed, with \"$msg\"." || echo "As expected: every check passed."
+  if [ "$failing" != "$want" ]; then echo "UNEXPECTED: checks failing were \"$failing\", expected \"$want\""; ok=0; fi
+  if [ -n "$msg" ] && ! printf '%s\n' "$out" | grep -qF -- "$msg"; then echo "UNEXPECTED: the message \"$msg\" is missing"; ok=0; fi
+  if [ -z "$want" ] && [ "$code" != 0 ]; then echo "UNEXPECTED: exit code 0 was expected"; ok=0; fi
+  if [ -n "$want" ] && [ "$code" != 1 ]; then echo "UNEXPECTED: exit code 1 was expected"; ok=0; fi
+  if [ "$ok" = 1 ]; then
+    if [ -n "$want" ]; then echo "As expected: exactly check(s) $want failed, with \"$msg\"."; else echo "As expected: every check passed."; fi
+  else
+    FAIL=1
+  fi
   echo
 }
+# record <name> <source heading> <approval line>: adds a new source section with one approval line
+record() { edit "$1" sources.md "## DOC-01 ·" "## $2
+
+- $3
+
+## DOC-01 ·"; }
+# decision <name> <id> <title> <date> <source> <area> <approver> <approval line> [extra lines...]
+decision() {
+  local name=$1 id=$2 title=$3 date=$4 src=$5 area=$6 who=$7 line=$8 x
+  shift 8
+  { printf '\n### %s · %s\n\n- Status: decision\n- Date: %s\n- Source: %s\n- Area: %s\n- Approver: %s\n- Approval: "%s"\n' "$id" "$title" "$date" "$src" "$area" "$who" "$line"
+    for x in "$@"; do printf '%s\n' "$x"; done
+    printf -- '- Affects: none\n'; } >> "$T/$name/log.md"
+}
+FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, charged on every ticket.'
 
 {
   echo "context-decision-log: the decision-log check"
   echo "Recorded $(date '+%m-%d-%Y %I:%M %p') with Node $(node --version), by participant/tools/decision-check-demo.sh."
-  echo "Each case is a copy of the real files (participant/context/decisions/) in a temp folder, changed"
-  echo "as shown, with its Current decisions list rebuilt so that only the case's own mistake can fail."
-  echo "The real files are only read. Folder names below are relative to that temp folder."
+  echo "Each case is a copy of the real files (participant/context/decisions/) in a temp folder with"
+  echo "one mistake, and its Current decisions list rebuilt so only that mistake can fail. Each must fail"
+  echo "exactly the checks named, with the message named. Every check (0 to 7, the stretch check and the"
+  echo "history check) is the expected failure of at least one case, so a check that stopped working"
+  echo "would make this demonstration fail. The real files are only read. Folder names below are"
+  echo "relative to that temp folder."
   echo
 
   echo "== 1. The real log =="
   echo "\$ node participant/tools/decision-check.mjs"
   out=$(cd "$REPO" && node "$CHECK" 2>&1); code=$?
-  printf '%s\nexit code: %s\n\n' "$out" "$code"
-  [ "$code" = 0 ] || { echo "UNEXPECTED: exit code 0 was expected"; FAIL=1; }
+  printf '%s\nexit code: %s\n' "$out" "$code"
+  if [ "$code" = 0 ]; then echo "As expected: every check passed."; else echo "UNEXPECTED: exit code 0 was expected"; FAIL=1; fi
+  echo
 
   echo "== 2. Agreement recorded as an approval (the quest's scenario) =="
-  echo "P-03 is promoted to a decision whose approval quotes the meeting's agreement, not an approval."
+  echo "P-03 is promoted to a decision whose \"approval\" quotes the meeting's agreement."
   copy agreement
   edit agreement log.md "- Proposed by: Jordan Pike
 - Note: everyone in MTG-02" "- Proposed by: Jordan Pike
 - Became: D-08
 - Note: everyone in MTG-02"
-  printf '\n### D-08 · Waive the service fee for orders of 6 or more tickets\n\n- Status: decision\n- Date: 10-19-2026\n- Source: MTG-02\n- Area: fees\n- Approver: Avery Lane\n- Approval: "Jordan: we could waive the fee for orders of 6 or more tickets. Everyone agreed it was a good idea."\n- From: P-03\n- Affects: none\n' >> "$T/agreement/log.md"
+  decision agreement D-08 "Waive the service fee for orders of 6 or more tickets" 10-19-2026 MTG-02 fees "Avery Lane" "Jordan: we could waive the fee for orders of 6 or more tickets. Everyone agreed it was a good idea." "- From: P-03"
   view agreement; changes agreement
   run agreement "2" "agreement is not an approval"
 
@@ -121,62 +145,84 @@ run() {
   copy no-approver
   edit no-approver log.md "- Area: pages
 - Approver: Avery Lane
-- Approval: \"Approved by Avery Lane: the buyer's name" "- Area: pages
-- Approval: \"Approved by Avery Lane: the buyer's name"
+- Approval: \"Approved by Avery Lane (area: pages): the buyer's name" "- Area: pages
+- Approval: \"Approved by Avery Lane (area: pages): the buyer's name"
   view no-approver; changes no-approver
   run no-approver "1 2" "no approver is recorded"
 
   echo "== 4. An approval quote that isn't in its source, word for word =="
   copy wrong-quote
-  edit wrong-quote log.md "\"Approved by Avery Lane: the service fee is \$2.50 per ticket, charged on every ticket.\"" "\"Approved by Avery Lane: the service fee is \$2.00 per ticket, charged on every ticket.\""
+  edit wrong-quote log.md "\"$FEE\"" "\"Approved by Avery Lane (area: fees): the service fee is \$2.00 per ticket, charged on every ticket.\""
   view wrong-quote; changes wrong-quote
   run wrong-quote "2" "the approval line isn't in MTG-01, word for word"
 
   echo "== 5. An approver outside their authority =="
-  echo "Sam Ortiz may approve only 'calculation'; D-04's area is changed to 'fees'."
+  echo "A new record has the tech lead approving a fee; the decision citing it says so honestly."
   copy no-authority
-  edit no-authority log.md "- Area: calculation" "- Area: fees"
+  record no-authority "MTG-04 · Fee follow-up, 11-10-2026" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
+  decision no-authority D-08 "Waive the fee for 6 or more tickets" 11-10-2026 MTG-04 fees "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
   view no-authority; changes no-authority
   run no-authority "2" "Sam Ortiz may not approve area \"fees\""
 
-  echo "== 6. A decision borrowing another decision's approval =="
+  echo "== 6. An entry claiming a different area from its record =="
+  echo "The same fee approval by the tech lead, filed as a 'calculation' decision to pass the authority check."
+  copy wrong-area
+  record wrong-area "MTG-04 · Fee follow-up, 11-10-2026" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
+  decision wrong-area D-08 "Waive the fee for 6 or more tickets" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
+  view wrong-area; changes wrong-area
+  run wrong-area "2" "Area \"calculation\" doesn't match the record's area \"fees\""
+
+  echo "== 7. A decision borrowing another decision's approval =="
   echo "A new D-08 says the fee is waived, citing D-01's approval of the \$2.50 fee."
   copy borrowed
-  printf '\n### D-08 · The service fee is waived for everyone\n\n- Status: decision\n- Date: 11-10-2026\n- Source: MTG-01\n- Area: fees\n- Approver: Avery Lane\n- Approval: "Approved by Avery Lane: the service fee is $2.50 per ticket, charged on every ticket."\n- Affects: none\n' >> "$T/borrowed/log.md"
+  decision borrowed D-08 "The service fee is waived for everyone" 10-05-2026 MTG-01 fees "Avery Lane" "$FEE"
   view borrowed; changes borrowed
   run borrowed "2" "uses the same approval as D-01"
 
-  echo "== 7. Work resting on a proposal (a proposal treated as decided) =="
+  echo "== 8. Work resting on a proposal (a proposal treated as decided) =="
   copy work-on-proposal
   edit work-on-proposal sources.md "| SHOP-17 | Cancel an order from the orders page | D-05 |" "| SHOP-17 | Cancel an order from the orders page | D-05 |
 | SHOP-18 | Waive the fee for 6+ tickets at checkout | P-03 |"
   changes work-on-proposal
   run work-on-proposal "3" "work item SHOP-18 rests on P-03, a proposal"
 
-  echo "== 8. A correct promotion, checked against the earlier copy =="
-  echo "Avery Lane approves P-01 in a new meeting: a new decision D-08 is added at the end"
-  echo "(From: P-01), and P-01 gets one added line (Became: D-08)."
+  echo "== 9. A correct promotion, checked against the earlier copy =="
+  echo "Avery Lane approves P-01 in a new meeting, and the record says it promotes P-01: a new decision"
+  echo "D-08 is added at the end (From: P-01), and P-01 gets one added line (Became: D-08)."
   copy promotion
   cp "$REAL/log.md" "$T/earlier-log.md"
-  edit promotion sources.md "## DOC-01 ·" "## MTG-04 · Seating follow-up, 11-16-2026
-
-Attendees: Avery Lane, Jordan Pike.
-
-- Approved by Avery Lane: buyers may choose their seats on a seating map.
-
-## DOC-01 ·"
+  record promotion "MTG-04 · Seating follow-up, 11-16-2026" "Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map."
   edit promotion log.md "- Proposed by: Jordan Pike
 
 ### Q-01 ·" "- Proposed by: Jordan Pike
 - Became: D-08
 
 ### Q-01 ·"
-  printf '\n### D-08 · Buyers may choose their seats on a seating map\n\n- Status: decision\n- Date: 11-16-2026\n- Source: MTG-04\n- Area: pages\n- Approver: Avery Lane\n- Approval: "Approved by Avery Lane: buyers may choose their seats on a seating map."\n- From: P-01\n- Affects: none\n' >> "$T/promotion/log.md"
+  decision promotion D-08 "Buyers may choose their seats on a seating map" 11-16-2026 MTG-04 pages "Avery Lane" "Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map." "- From: P-01"
   view promotion; changes promotion
   run promotion "" "" --previous earlier-log.md
 
-  echo "== 9. A status changed by rewriting the earlier entry =="
-  echo "Instead, P-01 is edited in place into a decision: its earlier wording is lost."
+  echo "== 10. A promotion the record doesn't support =="
+  echo "P-03 (the fee waiver) is linked as having become D-06, which approves currency display."
+  copy wrong-promotion
+  edit wrong-promotion log.md "- Proposed by: Jordan Pike
+- Note: everyone" "- Proposed by: Jordan Pike
+- Became: D-06
+- Note: everyone"
+  edit wrong-promotion log.md "- Source: SUP-04" "- Source: SUP-04
+- From: P-03"
+  view wrong-promotion; changes wrong-promotion
+  run wrong-promotion "4" "D-06: From P-03, but its approval record promotes nothing"
+
+  echo "== 11. A promotion linked only one way =="
+  copy one-way-promotion
+  edit one-way-promotion log.md "- Proposed by: Riley Chen
+- Became: D-05" "- Proposed by: Riley Chen"
+  view one-way-promotion; changes one-way-promotion
+  run one-way-promotion "4" "D-05: From P-02, but P-02 doesn't say \"Became: D-05\""
+
+  echo "== 12. A status changed by rewriting the earlier entry =="
+  echo "Instead of case 9, P-01 is edited in place into a decision: its earlier wording is lost."
   copy rewrite
   cp "$T/promotion/sources.md" "$T/rewrite/sources.md"
   edit rewrite log.md "### P-01 · Let buyers choose their seats on a seating map
@@ -191,19 +237,30 @@ Attendees: Avery Lane, Jordan Pike.
 - Source: MTG-04
 - Area: pages
 - Approver: Avery Lane
-- Approval: \"Approved by Avery Lane: buyers may choose their seats on a seating map.\"
+- Approval: \"Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map.\"
 - Affects: none"
   view rewrite; changes rewrite
-  run rewrite "1 History" "\"Status: decision\" was added or changed" --previous earlier-log.md
+  run rewrite "1 4 History" "\"Status: decision\" was added or changed" --previous earlier-log.md
 
-  echo "== 10. A replaced decision that no longer links to its replacement =="
+  echo "== 13. A replaced decision that no longer links to its replacement =="
   copy one-way
   edit one-way log.md "- Affects: SHOP-13
 - Replaced by: D-07" "- Affects: SHOP-13"
   view one-way; changes one-way
   run one-way "5 Stretch" "D-02 doesn't say \"Replaced by: D-07\""
 
-  echo "== 11. A decision that replaces itself =="
+  echo "== 14. A replacement the record doesn't support =="
+  echo "D-02 (the 6-ticket limit) is linked as replaced by D-05, which approves cancelling orders."
+  copy wrong-replacement
+  edit wrong-replacement log.md "- Replaced by: D-07" "- Replaced by: D-05"
+  edit wrong-replacement log.md "- From: P-02" "- From: P-02
+- Replaces: D-02"
+  edit wrong-replacement log.md "- Replaces: D-02
+- Affects: SHOP-13" "- Affects: SHOP-13"
+  view wrong-replacement; changes wrong-replacement
+  run wrong-replacement "5" "D-05: Replaces D-02, but its approval record replaces nothing"
+
+  echo "== 15. A decision that replaces itself =="
   copy self-replace
   edit self-replace log.md "- Source: SUP-04" "- Source: SUP-04
 - Replaces: D-06
@@ -211,21 +268,55 @@ Attendees: Avery Lane, Jordan Pike.
   view self-replace; changes self-replace
   run self-replace "5" "must come after D-06, which it replaces"
 
-  echo "== 12. A source that doesn't exist, and a date that isn't one =="
+  echo "== 16. A source that doesn't exist =="
   copy no-source
   edit no-source log.md "- Source: SUP-04" "- Source: SUP-99"
-  edit no-source log.md "- Date: 10-26-2026" "- Date: 13-26-2026"
   view no-source; changes no-source
   run no-source "6" "source SUP-99 isn't in sources.md"
 
-  echo "== 13. A Current decisions view edited by hand =="
+  echo "== 17. A date that isn't one =="
+  copy bad-date
+  edit bad-date log.md "- Date: 10-26-2026" "- Date: 13-26-2026"
+  view bad-date; changes bad-date
+  run bad-date "6" "date \"13-26-2026\" is not a real MM-DD-YYYY date"
+
+  echo "== 18. A date that doesn't match its record =="
+  copy wrong-date
+  edit wrong-date log.md "- Date: 10-26-2026" "- Date: 10-25-2026"
+  view wrong-date; changes wrong-date
+  run wrong-date "6" "dated 10-25-2026, but SUP-04 was recorded on 10-26-2026"
+
+  echo "== 19. A Current decisions view edited by hand =="
   copy stale-view
   edit stale-view log.md "| D-01 | the service fee is \$2.50 per ticket" "| D-01 | the service fee is \$2.00 per ticket"
   changes stale-view
   run stale-view "7" "the Current decisions view doesn't match the entries"
 
-  echo "== 14. --write-view refuses to write over a log with a problem =="
-  echo "The copy from case 6 (a borrowed approval), with its list emptied, is given --write-view."
+  echo "== 20. A second list of current decisions below the generated one =="
+  copy extra-view
+  edit extra-view log.md "<!-- current-decisions: end -->" "<!-- current-decisions: end -->
+
+| Decision | What |
+|---|---|
+| P-03 | waive the fee |"
+  changes extra-view
+  run extra-view "7" "content after the current-decisions end marker"
+
+  echo "== 21. A work item that rests on a decision that doesn't list it =="
+  copy stretch-link
+  edit stretch-link sources.md "| SHOP-16 | Show the order total on the review page | D-04 |" "| SHOP-16 | Show the order total on the review page | D-04 D-06 |"
+  changes stretch-link
+  run stretch-link "Stretch" "work item SHOP-16 rests on D-06, but D-06 doesn't list it under Affects"
+
+  echo "== 22. A table row the parser could miss =="
+  copy no-pipe
+  edit no-pipe sources.md "| SHOP-17 | Cancel an order from the orders page | D-05 |" "| SHOP-17 | Cancel an order from the orders page | D-05 |
+SHOP-18 | Waive the fee | P-03 |"
+  changes no-pipe
+  run no-pipe "0" "a table line doesn't start with \"|\""
+
+  echo "== 23. --write-view refuses to write over a log with a problem =="
+  echo "The copy from case 7 (a borrowed approval), with its list emptied, is given --write-view."
   copy refuse-write
   cp "$T/borrowed/log.md" "$T/refuse-write/log.md"
   node -e '
@@ -234,9 +325,16 @@ Attendees: Avery Lane, Jordan Pike.
     fs.writeFileSync(f, s.slice(0, s.indexOf(a) + a.length) + "\n" + s.slice(s.indexOf(b)));
   ' "$T/refuse-write/log.md"
   cp "$T/refuse-write/log.md" "$T/refuse-write-before.md"
-  run refuse-write "2" "was NOT written" --write-view
+  run refuse-write "2 7" "was NOT written" --write-view
   if cmp -s "$T/refuse-write-before.md" "$T/refuse-write/log.md"; then echo "The copy's log.md is unchanged, byte for byte."; else echo "UNEXPECTED: the log was written"; FAIL=1; fi
   echo
+
+  echo "== 24. --write-view repairs a stale list, even one naming a proposal =="
+  copy repair
+  edit repair log.md "| D-06 |" "| P-03 | waive the fee | fees | Avery Lane | 10-19-2026 | MTG-02 |
+| D-06 |"
+  run repair "" "Current decisions view rewritten from the entries" --write-view
+  run repair "" ""
 
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
@@ -269,3 +367,4 @@ node -e '
 ' "$OUT" "$LOGS" || { echo "Couldn't put log-check.txt in place."; cleanup; exit 2; }
 cleanup
 echo "Written: log-check.txt"
+

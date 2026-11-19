@@ -43,9 +43,14 @@ approval, however many people agree.
 - A decision names its **Approver**, who must be in the rules' "Who may approve" table, and its
   **Area**, which must be one that person may approve (criterion 2).
 - The **Approval** quotes the approver's own line from the cited source, word for word, and the line
-  must read "Approved by <approver>: …". The checker finds that line in the source; a quote from
-  anyone else, or of agreement, is refused (criteria 2 and 3). Nobody records a decision on someone
-  else's behalf.
+  must read "Approved by <approver> (area: …): …". The checker finds that line in the source; a
+  quote from anyone else, or of agreement, is refused (criteria 2 and 3). Nobody records a decision
+  on someone else's behalf.
+- **The record, not the log entry, says what the approval covers:** its area, and any proposal it
+  promotes or decision it replaces ("(area: ticket limits; replaces: D-02)"). The entry must agree
+  with its record on all of these and on the date, and the approver must hold the record's area. So
+  an entry can't re-label an approval to get past the authority check, or claim a promotion or
+  replacement its approval never made (criteria 2, 4 and 5).
 - **Each approval backs one decision**, and the Current decisions view shows the approver's own
   approved words, not the entry's title: what a reader sees as decided is exactly what was approved,
   and a decision can't borrow another's approval (criteria 2 and 7).
@@ -109,32 +114,44 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 12:26 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
+Recorded on 11-19-2026 at 12:52 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
-expected message, and pass every other check:
+expected message. Every check is the expected failure of at least one case, so a check that stopped
+working would make the demonstration fail.
 
-1. **The real log passes every check:** 13 entries; all seven criteria and the stretch check PASS.
-2. **Agreement recorded as an approval** (the quest's scenario): check 2 fails, "agreement is not
-   an approval" (criteria 2 and 3).
-3. **A decision with no approver:** checks 1 and 2 fail (criteria 1 and 2).
-4. **An approval quote changed from the source** ($2.50 to $2.00): check 2 fails, not in the
-   source word for word (criterion 2).
-5. **An approver outside their authority** (the tech lead approving a fee): check 2 fails.
-6. **A decision borrowing another decision's approval** (a "fee waived" decision citing the $2.50
-   approval): check 2 fails, "uses the same approval as D-01".
-7. **A work item resting on proposal P-03:** check 3 fails, work must rest on an approved decision
-   (criterion 3).
-8. **A correct promotion** (P-01 approved in a new meeting: a new D-08 added at the end, P-01 given
-   `Became: D-08`), checked against the earlier log: every check passes (criterion 4).
-9. **The same promotion done by editing P-01 in place:** check 1 and the history check fail, the
-   history check naming each changed, removed and added line (criteria 1 and 4).
-10. **A replaced decision with its link removed:** check 5 (and the work-item link) fails
-    (criterion 5).
-11. **A decision that replaces itself:** check 5 fails.
-12. **A source that doesn't exist and a 13th month:** check 6 fails (criterion 6).
-13. **A Current decisions view edited by hand:** check 7 fails (criterion 7).
-14. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
+1. **The real log:** 13 entries; every check passes.
+2. **Agreement recorded as an approval** (the quest's scenario): check 2, "agreement is not an
+   approval" (criteria 2 and 3).
+3. **A decision with no approver:** checks 1 and 2.
+4. **An approval quote changed from its source** ($2.50 to $2.00): check 2.
+5. **An approver outside their authority** (a record of the tech lead approving a fee): check 2.
+6. **The same approval filed under a different area** to get past the authority check: check 2,
+   the area doesn't match the record.
+7. **A decision borrowing another decision's approval:** check 2.
+8. **A work item resting on proposal P-03:** check 3 (criterion 3).
+9. **A correct promotion** (P-01, with a record that says it promotes P-01; a new D-08 added at the
+   end; P-01 given `Became: D-08`), checked against the earlier log: every check passes
+   (criterion 4).
+10. **A promotion the record doesn't support** (the fee-waiver proposal "became" the currency
+    decision): check 4.
+11. **A promotion linked only one way:** check 4.
+12. **The case-9 promotion done by editing P-01 in place:** checks 1 and 4 and the history check,
+    which names each changed, removed and added line.
+13. **A replaced decision with its link removed:** check 5 and the work-item check (criterion 5).
+14. **A replacement the record doesn't support** (the ticket limit "replaced" by the cancel
+    decision): check 5.
+15. **A decision that replaces itself:** check 5.
+16. **A source that doesn't exist:** check 6 (criterion 6).
+17. **A date that isn't one:** check 6.
+18. **A date that doesn't match its record:** check 6.
+19. **A Current decisions list edited by hand:** check 7 (criterion 7).
+20. **A second "current decisions" table below the generated one:** check 7.
+21. **A work item resting on a decision that doesn't list it:** the stretch check.
+22. **A table row without a leading "|":** check 0.
+23. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
+24. **`--write-view` on a stale list that even names a proposal:** it rebuilds the list, and the
+    log then passes.
 
 The demonstration writes the log only if every case came out as expected. The real files' SHA-256,
 before and after, is identical.
@@ -148,6 +165,10 @@ before and after, is identical.
   table right is a person's job.
 - **Append-only is checked against a copy someone keeps.** Without `--previous`, the checker can't
   see that an entry was rewritten; in a real repository, Git's history is that earlier copy.
+- **It reads the Markdown this log uses,** with comments, fenced and indented code set aside; it is
+  not a full Markdown parser (other heading styles or HTML tables would not be understood).
+- **`--write-view` and someone else saving at the same moment.** It refuses if the log changed since
+  it was read, but a save in the instant between that last check and the rename could still be lost.
 - **One log.** Decisions made in tickets or chat aren't found; they count only once added to the
   log.
 

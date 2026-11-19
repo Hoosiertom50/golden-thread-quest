@@ -24,8 +24,11 @@ An approval needs **both**:
 
 1. **A named approver with authority** for that kind of decision, from the table below.
 2. **A written record** of their approval: a line in the meeting notes or a comment on a work item
-   in which that person approves it ("Approved by Avery Lane: …"). The entry quotes that line
-   exactly, and names where it is.
+   in which that person approves it, saying what it covers:
+   "Approved by Avery Lane (area: fees): …", and, when it applies, which proposal it promotes or
+   which decision it replaces ("(area: ticket limits; replaces: D-02)"). The entry quotes that line
+   exactly, names where it is, and must agree with it: the same approver, area, proposal and
+   replaced decision, and the date the record was made.
 
 **People agreeing is not an approval.** "Everyone agreed", "sounds good" or a nod in a meeting
 leaves the entry a proposal until someone with authority approves it in writing. Nobody records a
@@ -40,19 +43,22 @@ decision on someone else's behalf: the approval must be in the approver's own wo
 
 Each decision names its **Area**, one of: `fees` (prices and fees), `ticket limits` (how many
 tickets an order may have), `pages` (what the shop's pages show or let a buyer do) and
-`calculation` (how amounts are worked out and stored). A decision approved by anyone else, or by
-one of them outside their areas, is not a decision.
+`calculation` (how amounts are worked out and stored). The area is the one the **record** gives,
+not one the log entry chooses. A decision approved by anyone else, or by one of them outside their
+areas, is not a decision.
 
 ## How a proposal becomes a decision
 
 Entries are never rewritten, like lines in a checkbook. When a proposal is approved:
 
-1. a **new decision** entry is added, with `From: P-nn`;
+1. a **new decision** entry is added, with `From: P-nn`; its approval record must say
+   `promotes: P-nn`;
 2. the proposal stays as it was, and gets one added line: `Became: D-nn`.
 
 ## How a decision is replaced
 
-1. a **new decision** entry is added, with `Replaces: D-nn`;
+1. a **new decision** entry is added, with `Replaces: D-nn`; its approval record must say
+   `replaces: D-nn`;
 2. the old decision stays as it was, and gets one added line: `Replaced by: D-nn`.
 
 The only lines ever added to an existing entry are `Became` and `Replaced by`. Nothing in an entry

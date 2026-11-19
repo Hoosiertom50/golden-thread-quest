@@ -19,7 +19,7 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 |---|---|---|---|---|---|
 | D-01 | the service fee is $2.50 per ticket, charged on every ticket. | fees | Avery Lane | 10-05-2026 | MTG-01 |
 | D-03 | the buyer's name is required, at most 60 characters. | pages | Avery Lane | 10-21-2026 | SHOP-15 |
-| D-04 | the order total is the quantity times the ticket price plus the fee, worked out in whole cents. | calculation | Sam Ortiz | 10-05-2026 | MTG-01 |
+| D-04 | the order total is the quantity times (the ticket price plus the fee), worked out in whole cents. | calculation | Sam Ortiz | 10-05-2026 | MTG-01 |
 | D-05 | an order can be cancelled from the orders page, one order at a time. | pages | Avery Lane | 10-23-2026 | SHOP-17 |
 | D-06 | prices are shown in US dollars, with two decimal places. | pages | Avery Lane | 10-26-2026 | SUP-04 |
 | D-07 | an order may have at most 8 tickets, replacing the limit of 6. | ticket limits | Avery Lane | 11-02-2026 | MTG-03 |
@@ -34,7 +34,7 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 - Source: MTG-01
 - Area: fees
 - Approver: Avery Lane
-- Approval: "Approved by Avery Lane: the service fee is $2.50 per ticket, charged on every ticket."
+- Approval: "Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, charged on every ticket."
 - Affects: SHOP-11 SHOP-12
 
 ### D-02 · An order may have at most 6 tickets
@@ -44,7 +44,7 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 - Source: MTG-01
 - Area: ticket limits
 - Approver: Avery Lane
-- Approval: "Approved by Avery Lane: an order may have at most 6 tickets."
+- Approval: "Approved by Avery Lane (area: ticket limits): an order may have at most 6 tickets."
 - Affects: SHOP-13
 - Replaced by: D-07
 
@@ -55,7 +55,7 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 - Source: SHOP-15
 - Area: pages
 - Approver: Avery Lane
-- Approval: "Approved by Avery Lane: the buyer's name is required, at most 60 characters."
+- Approval: "Approved by Avery Lane (area: pages): the buyer's name is required, at most 60 characters."
 - Affects: SHOP-15
 
 ### D-04 · The order total is worked out in whole cents
@@ -65,7 +65,7 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 - Source: MTG-01
 - Area: calculation
 - Approver: Sam Ortiz
-- Approval: "Approved by Sam Ortiz: the order total is the quantity times the ticket price plus the fee, worked out in whole cents."
+- Approval: "Approved by Sam Ortiz (area: calculation): the order total is the quantity times (the ticket price plus the fee), worked out in whole cents."
 - Affects: SHOP-11 SHOP-16
 
 ### P-01 · Let buyers choose their seats on a seating map
@@ -113,7 +113,7 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 - Source: SHOP-17
 - Area: pages
 - Approver: Avery Lane
-- Approval: "Approved by Avery Lane: an order can be cancelled from the orders page, one order at a time."
+- Approval: "Approved by Avery Lane (area: pages; promotes: P-02): an order can be cancelled from the orders page, one order at a time."
 - From: P-02
 - Affects: SHOP-17
 
@@ -124,7 +124,7 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 - Source: SUP-04
 - Area: pages
 - Approver: Avery Lane
-- Approval: "Approved by Avery Lane: prices are shown in US dollars, with two decimal places."
+- Approval: "Approved by Avery Lane (area: pages): prices are shown in US dollars, with two decimal places."
 - Affects: none
 
 ### D-07 · An order may have at most 8 tickets
@@ -134,7 +134,7 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 - Source: MTG-03
 - Area: ticket limits
 - Approver: Avery Lane
-- Approval: "Approved by Avery Lane: an order may have at most 8 tickets, replacing the limit of 6."
+- Approval: "Approved by Avery Lane (area: ticket limits; replaces: D-02): an order may have at most 8 tickets, replacing the limit of 6."
 - Replaces: D-02
 - Affects: SHOP-13
 

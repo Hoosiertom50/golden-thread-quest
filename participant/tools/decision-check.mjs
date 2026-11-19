@@ -10,15 +10,18 @@
 //                are still the first ones, in the same order, each with the same lines in the same
 //                order, and the only lines added to them are "Became" and "Replaced by".
 //   --write-view rewrites the Current decisions list (only the lines between its two markers)
-//                from the entries, but only if every other check passes; otherwise nothing is
-//                written. The file keeps its line endings and permissions.
+//                from the entries, but only if every check of the entries, sources and work items
+//                passes, and only if the file hasn't changed since it was read. The file keeps
+//                every other byte, its line endings and its permissions.
 //   --print-view prints the list the entries call for, without checking or writing anything.
 //
-// The list shows each decision's approved words, taken from the approver's own line, not the
-// entry's title, so what is shown as decided is exactly what was approved.
+// An approval is a line in a source, "- Approved by <name> (area: <area>[; promotes: P-nn]
+// [; replaces: D-nn]): <words>". The record, not the log entry, says what the approval covers: an
+// entry must agree with its record's approver, area, promoted proposal, replaced decision and date.
+// The list shows each decision's approved words, so what is shown as decided is what was approved.
 //
-// Text inside HTML comments (<!-- -->) and fenced code blocks is ignored: it isn't part of the
-// record a reader sees.
+// Markdown is read in context: text inside HTML comments, fenced code blocks (``` or ~~~, indented
+// up to three spaces) and indented code (four spaces or a tab) isn't part of the record.
 //
 // Exit codes: 0 every check passed, 1 at least one problem, 2 a file couldn't be read or the
 // arguments were wrong.
@@ -50,23 +53,62 @@ const readRaw = (path, what) => {
     process.exit(2);
   }
 };
-const lf = (raw) => raw.replace(/\r\n/g, "\n");
-// The visible text: comments and fenced code blocks blanked out, keeping every line in place.
-const visible = (text) => text
-  .replace(/<!--[\s\S]*?(-->|$)/g, (m) => m.replace(/[^\n]/g, ""))
-  .replace(/^(```|~~~)[^\n]*\n[\s\S]*?(^\1[^\n]*$|(?![\s\S]))/gm, (m) => m.replace(/[^\n]/g, ""));
+
+// ---- Markdown in context ----------------------------------------------------------------------
+// Each line of the text (split on LF; a CR before it is dropped) with its kind: "text", "code"
+// (fenced or indented) or "comment". Code and comment lines are not part of the record.
+const classify = (raw) => {
+  const lines = raw.split("\n").map((l) => l.replace(/\r$/, ""));
+  const out = [];
+  let fence = null;
+  let comment = false;
+  let prevBlank = true;
+  for (const line of lines) {
+    if (fence) {
+      out.push({ line, kind: "code" });
+      const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      continue;
+    }
+    if (comment) {
+      out.push({ line, kind: "comment" });
+      if (line.includes("-->")) comment = false;
+      continue;
+    }
+    const open = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (open) {
+      fence = open[1];
+      out.push({ line, kind: "code" });
+    } else if (prevBlank && /^( {4}|\t)/.test(line) && line.trim() !== "") {
+      out.push({ line, kind: "code" });
+      prevBlank = false;
+      continue;
+    } else if (line.trim().startsWith("<!--")) {
+      out.push({ line, kind: "comment" });
+      if (!line.slice(line.indexOf("<!--") + 4).includes("-->")) comment = true;
+    } else if (line.includes("<!--")) {
+      // Text before a comment on the same line stays; the comment (and the rest, if it doesn't
+      // close) is not part of the record.
+      const close = line.indexOf("-->", line.indexOf("<!--"));
+      out.push({ line: close === -1 ? line.slice(0, line.indexOf("<!--")) : line.slice(0, line.indexOf("<!--")) + line.slice(close + 3), kind: "text" });
+      if (close === -1) comment = true;
+    } else {
+      out.push({ line, kind: "text" });
+    }
+    prevBlank = line.trim() === "" || out[out.length - 1].kind === "code";
+  }
+  return out;
+};
+const visibleLines = (classified) => classified.map((c) => (c.kind === "text" ? c.line : ""));
 
 const logPath = join(dir, "log.md");
 const logRaw = readRaw(logPath, `${shownDir}/log.md`);
-const logText = lf(logRaw);
-const rulesText = visible(lf(readRaw(join(dir, "rules.md"), `${shownDir}/rules.md`)));
-const sourcesText = visible(lf(readRaw(join(dir, "sources.md"), `${shownDir}/sources.md`)));
+const rulesLines = visibleLines(classify(readRaw(join(dir, "rules.md"), `${shownDir}/rules.md`)));
+const sourcesLines = visibleLines(classify(readRaw(join(dir, "sources.md"), `${shownDir}/sources.md`)));
 
-// ---- reading the files ----------------------------------------------------------------------
-// The lines under the one heading `<#…> <exact>`, up to the next heading of that level or higher.
-// Returns { lines, start } or { problem }.
-const section = (text, level, exact, file) => {
-  const lines = text.split("\n");
+// The lines under the one visible heading `<#…> <exact>`, up to the next heading of that level or
+// higher. Returns { lines, start } (start: the heading's line number) or { problem }.
+const section = (lines, level, exact, file) => {
   const head = `${"#".repeat(level)} ${exact}`;
   const at = lines.flatMap((l, i) => (l.trimEnd() === head ? [i] : []));
   if (at.length !== 1) return { problem: `${file} must have exactly one "${head}" heading (found ${at.length})` };
@@ -86,37 +128,59 @@ const cellsOf = (line) => {
   if (/(^|[^\\])\|$/.test(t)) t = t.slice(0, -1);
   return t.split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, "|"));
 };
-const tableRows = (lines) => (lines ?? []).filter((l) => l.trim().startsWith("|")).slice(2).map(cellsOf);
+// The rows of the section's table. Every line of the table must start with "|" (a row without one
+// would show in the table but could be missed), and the table ends at a blank line.
+const tableRows = (lines, what, problems) => {
+  const rows = [];
+  let started = false;
+  for (const l of lines ?? []) {
+    const t = l.trim();
+    if (t === "") {
+      if (started) break;
+      continue;
+    }
+    if (t.startsWith("|")) {
+      started = true;
+      rows.push(t);
+    } else if (started || t.includes("|")) {
+      problems.push(`${what}: a table line doesn't start with "|": ${JSON.stringify(t)}`);
+      if (started) break;
+    }
+  }
+  return rows.slice(2).map(cellsOf);
+};
 const ticks = (c) => [...c.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
 
 const setupProblems = [];
 // rules.md: who may approve which areas.
 const approvers = new Map();
-const who = section(rulesText, 2, "Who may approve", "rules.md");
+const who = section(rulesLines, 2, "Who may approve", "rules.md");
 if (who.problem) setupProblems.push(who.problem);
-for (const row of tableRows(who.lines)) {
+for (const row of tableRows(who.lines, 'rules.md "Who may approve"', setupProblems)) {
   if (!row[0] || row.length < 3) setupProblems.push('rules.md: a "Who may approve" row is incomplete');
   else if (approvers.has(row[0])) setupProblems.push(`rules.md lists ${row[0]} twice`);
   else approvers.set(row[0], ticks(row[2]));
 }
 if (!approvers.size) setupProblems.push('rules.md has no approvers in its "Who may approve" table');
 
-// sources.md: each "## ID · title" section (its visible lines), and the work-items table.
+// sources.md: each "## ID · title, MM-DD-YYYY" section (its visible lines, as written), and the
+// work-items table.
 const sources = new Map();
-const srcLines = sourcesText.split("\n");
-for (let i = 0; i < srcLines.length; i++) {
-  const m = /^## ([A-Z]+-\d+) · .+$/.exec(srcLines[i]);
+for (let i = 0; i < sourcesLines.length; i++) {
+  const m = /^## ([A-Z]+-\d+) · .+$/.exec(sourcesLines[i]);
   if (!m) continue;
   if (sources.has(m[1])) setupProblems.push(`sources.md has two sections for ${m[1]}`);
+  const date = /(\d{2}-\d{2}-\d{4})\s*$/.exec(sourcesLines[i])?.[1] ?? null;
+  if (!date) setupProblems.push(`sources.md: ${m[1]}'s heading doesn't end with its date (MM-DD-YYYY)`);
   const body = [];
-  for (let j = i + 1; j < srcLines.length && !/^#{1,2} /.test(srcLines[j]); j++) body.push(srcLines[j].trim());
-  sources.set(m[1], body);
+  for (let j = i + 1; j < sourcesLines.length && !/^#{1,2} /.test(sourcesLines[j]); j++) body.push(sourcesLines[j]);
+  sources.set(m[1], { date, body });
 }
 if (!sources.size) setupProblems.push("sources.md has no sources");
 const workItems = new Map();
-const wi = section(sourcesText, 2, "Work items", "sources.md");
+const wi = section(sourcesLines, 2, "Work items", "sources.md");
 if (wi.problem) setupProblems.push(wi.problem);
-for (const row of tableRows(wi.lines)) {
+for (const row of tableRows(wi.lines, "sources.md work items", setupProblems)) {
   const [id, , restsOn] = row ?? [];
   if (!/^[A-Z]+-\d+$/.test(id ?? "")) setupProblems.push(`sources.md: a work-items row has no valid ID: ${JSON.stringify(row)}`);
   else if (workItems.has(id)) setupProblems.push(`sources.md lists work item ${id} twice`);
@@ -127,6 +191,19 @@ for (const row of tableRows(wi.lines)) {
   }
 }
 
+// An approval line, split into its parts: { approver, tags: Map, words } or null.
+const parseApproval = (line) => {
+  const m = /^Approved by (.+?) \(([^()]*)\): (.+)$/.exec(line);
+  if (!m) return null;
+  const tags = new Map();
+  for (const part of m[2].split(";")) {
+    const t = /^\s*(area|promotes|replaces): (.+?)\s*$/.exec(part);
+    if (!t || tags.has(t[1])) return null;
+    tags.set(t[1], t[2]);
+  }
+  return tags.has("area") ? { approver: m[1], tags, words: m[3] } : null;
+};
+
 // log.md: the entries under "## Entries", each "### ID · title" with "- Field: value" lines.
 const FIELDS = {
   decision: { required: ["Status", "Date", "Source", "Area", "Approver", "Approval", "Affects"], optional: ["From", "Replaces", "Replaced by", "Note"] },
@@ -134,9 +211,9 @@ const FIELDS = {
   question: { required: ["Status", "Date", "Source", "Asked by"], optional: ["Became", "Note"] },
 };
 const PREFIX = { decision: "D", proposal: "P", question: "Q" };
-const parseEntries = (text, problems, file) => {
+const parseEntries = (lines, problems, file) => {
   const entries = [];
-  const sec = section(visible(text), 2, "Entries", file);
+  const sec = section(lines, 2, "Entries", file);
   if (sec.problem) {
     problems.push(sec.problem);
     return entries;
@@ -172,47 +249,51 @@ const parseEntries = (text, problems, file) => {
 const START = "<!-- current-decisions: start -->";
 const END = "<!-- current-decisions: end -->";
 const status = (e) => e.fields.get("Status");
-// The approved words: the approver's line after "Approved by <name>: ".
-const approvedWords = (e) => {
-  const quote = /^"(.*)"$/.exec(e.fields.get("Approval") ?? "")?.[1] ?? "";
-  const prefix = `Approved by ${e.fields.get("Approver")}: `;
-  return quote.startsWith(prefix) ? quote.slice(prefix.length) : quote;
-};
+const quoteOf = (e) => /^"(.*)"$/.exec(e.fields.get("Approval") ?? "")?.[1];
+const approvedWords = (e) => parseApproval(quoteOf(e) ?? "")?.words ?? quoteOf(e) ?? "";
 const cell = (v) => String(v ?? "").replace(/\|/g, "\\|");
 const buildView = (list) => {
   const live = list.filter((e) => status(e) === "decision" && !e.fields.has("Replaced by"));
   const rows = live.map((e) => `| ${cell(e.id)} | ${cell(approvedWords(e))} | ${cell(e.fields.get("Area"))} | ${cell(e.fields.get("Approver"))} | ${cell(e.fields.get("Date"))} | ${cell(e.fields.get("Source"))} |`);
   return ["| Decision | What was approved (the approver's words) | Area | Approved by | Date | Where |", "|---|---|---|---|---|---|", ...rows].join("\n");
 };
-// The markers: exactly one pair, both inside the "## Current decisions" section, in order.
-const viewOf = (text) => {
-  const sec = section(text, 2, "Current decisions", "log.md");
+// The view in a log's text: exactly one pair of marker comments (real comments, not inside code),
+// both inside the visible "## Current decisions" section, start before end; nothing visible after
+// the end marker in that section, and no table before the start marker.
+const viewOf = (raw) => {
+  const cl = classify(raw);
+  const vis = visibleLines(cl);
+  const sec = section(vis, 2, "Current decisions", "log.md");
   if (sec.problem) return { problem: sec.problem };
-  const lines = text.split("\n");
-  const starts = lines.flatMap((l, i) => (l.trim() === START ? [i] : []));
-  const ends = lines.flatMap((l, i) => (l.trim() === END ? [i] : []));
+  const marks = (m) => cl.flatMap((c, i) => (c.kind === "comment" && c.line.trim() === m ? [i] : []));
+  const starts = marks(START);
+  const ends = marks(END);
   const first = sec.start + 1;
   const last = sec.start + sec.lines.length;
   if (starts.length !== 1 || ends.length !== 1) return { problem: "log.md needs exactly one pair of current-decisions markers" };
-  if (!(first <= starts[0] && starts[0] < ends[0] && ends[0] <= last)) return { problem: 'both current-decisions markers must be inside "## Current decisions", start before end' };
-  return { start: starts[0], end: ends[0], inner: lines.slice(starts[0] + 1, ends[0]).join("\n").trim() };
+  const [s, e] = [starts[0], ends[0]];
+  if (!(first <= s && s < e && e <= last)) return { problem: 'both current-decisions markers must be inside "## Current decisions", start before end' };
+  for (let i = first; i < s; i++) if (vis[i].trim().startsWith("|")) return { problem: "a table before the current-decisions start marker; the list goes between the markers" };
+  for (let i = e + 1; i <= last; i++) if (vis[i].trim() !== "") return { problem: `content after the current-decisions end marker, in the same section: ${JSON.stringify(vis[i].trim())}` };
+  return { start: s, end: e, inner: cl.slice(s + 1, e).map((c) => c.line).join("\n").trim() };
 };
 
 const parseProblems = [];
-const entries = parseEntries(logText, parseProblems, "log.md");
+const entries = parseEntries(visibleLines(classify(logRaw)), parseProblems, "log.md");
 if (mode === "print-view") {
   console.log(buildView(entries));
   process.exit(0);
 }
 
-// ---- the checks -------------------------------------------------------------------------------
+// ---- the checks of the entries, sources and work items ---------------------------------------
 const byId = new Map();
 const index = new Map(entries.map((e, i) => [e.id, i]));
 const results = [];
 const check = (title, fn) => {
-  const problems = [];
-  fn(problems);
-  results.push({ title, problems });
+  const r = { title, problems: [] };
+  fn(r.problems);
+  results.push(r);
+  return r;
 };
 const validDate = (d) => {
   const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(d ?? "");
@@ -228,6 +309,12 @@ const earlier = (a, b) => {
 };
 const ids = (value) => (value ?? "").split(/\s+/).filter(Boolean);
 const before = (a, b) => index.has(a) && index.has(b) && index.get(a) < index.get(b);
+// The record a decision's approval quotes, parsed (null when it can't be found or read).
+const recordOf = (e) => {
+  const quote = quoteOf(e);
+  const src = sources.get(e.fields.get("Source"));
+  return quote !== undefined && src && src.body.includes(`- ${quote}`) ? parseApproval(quote) : null;
+};
 
 check("0. The files can be read as a log", (p) => {
   p.push(...setupProblems, ...parseProblems);
@@ -255,25 +342,28 @@ check("2. A decision records its approver and where it was approved", (p) => {
   const usedBy = new Map(); // approval line -> decision
   for (const e of entries.filter((x) => status(x) === "decision")) {
     const person = e.fields.get("Approver");
-    const area = e.fields.get("Area");
     if (!person) {
       p.push(`${e.id}: no approver is recorded`);
       continue;
     }
-    if (!approvers.has(person)) p.push(`${e.id}: ${JSON.stringify(person)} is not in rules.md's "Who may approve" table`);
-    else if (!approvers.get(person).includes(area)) p.push(`${e.id}: ${person} may not approve area ${JSON.stringify(area ?? "")}`);
-    const quote = /^"(.*)"$/.exec(e.fields.get("Approval") ?? "")?.[1];
+    const quote = quoteOf(e);
     if (quote === undefined) {
       p.push(`${e.id}: the Approval must be the approver's line, quoted`);
       continue;
     }
-    // In the approver's own words: the quoted line must be "Approved by <approver>: <what>".
-    const prefix = `Approved by ${person}: `;
-    if (!quote.startsWith(prefix) || quote.length <= prefix.length) {
-      p.push(`${e.id}: the quoted line is not an approval by ${person} ("Approved by ${person}: …"); agreement is not an approval`);
+    const parsed = parseApproval(quote);
+    if (!parsed || parsed.approver !== person) {
+      p.push(`${e.id}: the quoted line is not an approval by ${person} ("Approved by ${person} (area: …): …"); agreement is not an approval`);
+      continue;
     }
     const src = sources.get(e.fields.get("Source"));
-    if (src && !src.includes(`- ${quote}`)) p.push(`${e.id}: the approval line isn't in ${e.fields.get("Source")}, word for word`);
+    if (src && !src.body.includes(`- ${quote}`)) p.push(`${e.id}: the approval line isn't in ${e.fields.get("Source")}, word for word`);
+    // The record says what the approval covers; the entry must agree, and the approver must hold
+    // that area.
+    const area = parsed.tags.get("area");
+    if (e.fields.get("Area") !== area) p.push(`${e.id}: Area ${JSON.stringify(e.fields.get("Area"))} doesn't match the record's area ${JSON.stringify(area)}`);
+    if (!approvers.has(person)) p.push(`${e.id}: ${JSON.stringify(person)} is not in rules.md's "Who may approve" table`);
+    else if (!approvers.get(person).includes(area)) p.push(`${e.id}: ${person} may not approve area ${JSON.stringify(area)}`);
     // One approval backs one decision: a decision can't borrow another's approval.
     const key = `${e.fields.get("Source")}\n${quote}`;
     if (usedBy.has(key)) p.push(`${e.id}: uses the same approval as ${usedBy.get(key)}; each approval backs one decision`);
@@ -281,17 +371,9 @@ check("2. A decision records its approver and where it was approved", (p) => {
   }
 });
 
-check("3. A proposal is never shown as a decision", (p) => {
+const check3 = check("3. A proposal is never shown as a decision", (p) => {
   for (const e of entries.filter((x) => status(x) === "proposal" || status(x) === "question")) {
     for (const f of ["Approver", "Approval", "Area"]) if (e.fields.has(f)) p.push(`${e.id}: a ${status(e)} has "${f}", which only a decision has`);
-  }
-  const view = viewOf(logText);
-  if (!view.problem) {
-    for (const row of view.inner.split("\n").slice(2)) {
-      const id = (cellsOf(row) ?? [])[0];
-      const e = byId.get(id);
-      if (!e || status(e) !== "decision") p.push(`${id} is in the Current decisions view but is not a decision`);
-    }
   }
   for (const [item, rests] of workItems) {
     for (const id of rests) {
@@ -305,6 +387,12 @@ check("3. A proposal is never shown as a decision", (p) => {
 check("4. Promoting a proposal adds an entry and keeps the history", (p) => {
   for (const e of entries) {
     const from = e.fields.get("From");
+    // Compared with the record only when it is a valid approval (check 2 reports one that isn't).
+    const recpromotes = status(e) === "decision" ? recordOf(e) : null;
+    if (recpromotes) {
+      const promotes = recpromotes.tags.get("promotes");
+      if (promotes !== from && (promotes || from)) p.push(`${e.id}: From ${from ?? "(none)"}, but its approval record promotes ${promotes ?? "nothing"}`);
+    }
     if (from) {
       const src = byId.get(from);
       if (!src) p.push(`${e.id}: From ${from}, which isn't in the log`);
@@ -326,13 +414,19 @@ check("4. Promoting a proposal adds an entry and keeps the history", (p) => {
 
 check("5. A replaced decision links to the one that replaced it", (p) => {
   for (const e of entries) {
+    const old = e.fields.get("Replaces");
+    // Compared with the record only when it is a valid approval (check 2 reports one that isn't).
+    const recreplaces = status(e) === "decision" ? recordOf(e) : null;
+    if (recreplaces) {
+      const replaces = recreplaces.tags.get("replaces");
+      if (replaces !== old && (replaces || old)) p.push(`${e.id}: Replaces ${old ?? "(none)"}, but its approval record replaces ${replaces ?? "nothing"}`);
+    }
     const by = e.fields.get("Replaced by");
     if (by) {
       const n = byId.get(by);
       if (!n || status(n) !== "decision") p.push(`${e.id}: Replaced by ${by}, which isn't a decision in the log`);
       else if (n.fields.get("Replaces") !== e.id) p.push(`${e.id}: Replaced by ${by}, but ${by} doesn't say "Replaces: ${e.id}"`);
     }
-    const old = e.fields.get("Replaces");
     if (old) {
       const o = byId.get(old);
       if (!o || status(o) !== "decision") p.push(`${e.id}: Replaces ${old}, which isn't a decision in the log`);
@@ -349,15 +443,11 @@ check("5. A replaced decision links to the one that replaced it", (p) => {
 check("6. Each entry cites its source (and its date)", (p) => {
   for (const e of entries) {
     const s = e.fields.get("Source");
+    const d = e.fields.get("Date");
     if (s && !sources.has(s)) p.push(`${e.id}: source ${s} isn't in sources.md`);
-    if (e.fields.has("Date") && validDate(e.fields.get("Date")) === null) p.push(`${e.id}: date ${JSON.stringify(e.fields.get("Date"))} is not a real MM-DD-YYYY date`);
+    if (d && validDate(d) === null) p.push(`${e.id}: date ${JSON.stringify(d)} is not a real MM-DD-YYYY date`);
+    else if (d && sources.get(s)?.date && sources.get(s).date !== d) p.push(`${e.id}: dated ${d}, but ${s} was recorded on ${sources.get(s).date}`);
   }
-});
-
-check("7. A reader finds the current decisions without reading the history", (p) => {
-  const v = viewOf(logText);
-  if (v.problem) p.push(v.problem);
-  else if (v.inner !== buildView(entries) && mode !== "write-view") p.push("the Current decisions view doesn't match the entries; run with --write-view");
 });
 
 check("Stretch: decisions link to the work items they affect", (p) => {
@@ -381,7 +471,7 @@ check("Stretch: decisions link to the work items they affect", (p) => {
 if (previous !== null) {
   check("History: the log was only added to since the earlier copy", (p) => {
     const baseProblems = [];
-    const old = parseEntries(lf(readRaw(previous, "the earlier copy of the log")), baseProblems, "the earlier copy");
+    const old = parseEntries(visibleLines(classify(readRaw(previous, "the earlier copy of the log"))), baseProblems, "the earlier copy");
     if (baseProblems.length || !old.length || new Set(old.map((e) => e.id)).size !== old.length) {
       p.push(`the earlier copy can't be used as a baseline: ${baseProblems[0] ?? (old.length ? "an ID is used twice" : "it has no entries")}`);
       return;
@@ -405,46 +495,71 @@ if (previous !== null) {
   });
 }
 
-// ---- report, and the view written only if everything else passes ------------------------------
-const failed = results.reduce((n, r) => n + r.problems.length, 0);
+// ---- writing the view (only when everything above passes), then checking the file as it is ----
+let finalRaw = logRaw;
+let writeNote = "";
 if (mode === "write-view") {
-  const v = viewOf(logText);
-  if (failed || v.problem) {
-    console.log("The Current decisions view was NOT written: fix the problems below first.\n");
+  const before = results.reduce((n, r) => n + r.problems.length, 0);
+  const v = viewOf(logRaw);
+  if (before || v.problem) {
+    writeNote = "The Current decisions view was NOT written: fix the problems below first.";
   } else if (v.inner === buildView(entries)) {
-    console.log("Current decisions view already up to date.\n");
+    writeNote = "Current decisions view already up to date.";
   } else {
-    // Only the lines between the markers change; the rest of the file keeps its exact bytes,
-    // its line endings and its permissions.
-    const eol = logRaw.includes("\r\n") ? "\r\n" : "\n";
-    const rawLines = logRaw.split(eol);
-    const updated = [...rawLines.slice(0, v.start + 1), ...buildView(entries).split("\n"), ...rawLines.slice(v.end)].join(eol);
+    // Only the lines between the markers change. Each line keeps its own line ending; the new
+    // lines use the start marker's.
+    const parts = logRaw.split(/(?<=\n)/);
+    const eol = parts[v.start].endsWith("\r\n") ? "\r\n" : "\n";
+    const updated = [...parts.slice(0, v.start + 1), ...buildView(entries).split("\n").map((l) => l + eol), ...parts.slice(v.end)].join("");
     const tmp = `${logPath}.${process.pid}.new`;
     let created = false;
     try {
       writeFileSync(tmp, updated, { flag: "wx", mode: 0o600 });
       created = true;
       chmodSync(tmp, statSync(logPath).mode & 0o7777);
+      // Someone may have saved the log since it was read: then nothing is replaced.
+      if (readFileSync(logPath, "utf8") !== logRaw) throw Object.assign(new Error(), { changed: true });
       renameSync(tmp, logPath);
       created = false;
-      console.log("Current decisions view rewritten from the entries.\n");
-    } catch {
+      finalRaw = updated;
+      writeNote = "Current decisions view rewritten from the entries.";
+    } catch (err) {
       if (created) {
         try { unlinkSync(tmp); } catch { /* left for a person */ }
       }
-      console.error("Couldn't write the view.");
+      console.error(err.changed ? "log.md changed while the view was being built; nothing was written. Run it again." : "Couldn't write the view.");
       process.exit(2);
     }
   }
 }
+// The view, as the file now stands: its rows must all be decisions, and it must match the entries.
+const view = viewOf(finalRaw);
+if (!view.problem) {
+  for (const row of view.inner.split("\n").slice(2)) {
+    const id = (cellsOf(row) ?? [])[0];
+    const e = byId.get(id);
+    if (!e || status(e) !== "decision") check3.problems.push(`${id} is in the Current decisions view but is not a decision`);
+  }
+}
+check("7. A reader finds the current decisions without reading the history", (p) => {
+  if (view.problem) p.push(view.problem);
+  else if (view.inner !== buildView(entries)) p.push("the Current decisions view doesn't match the entries; run with --write-view");
+});
+// Keep the criteria in order in the report (7 before the stretch and history checks).
+const order = (r) => (/^\d/.test(r.title) ? Number.parseInt(r.title, 10) : r.title.startsWith("Stretch") ? 8 : 9);
+results.sort((a, b) => order(a) - order(b));
+
+// ---- report -----------------------------------------------------------------------------------
+if (writeNote) console.log(`${writeNote}\n`);
+const failed = results.reduce((n, r) => n + r.problems.length, 0);
 const count = (s) => entries.filter((e) => status(e) === s).length;
 console.log(`Decision log check: ${shownDir} (${entries.length} entries: ${count("decision")} decisions, ${count("proposal")} proposals, ${count("question")} questions)`);
 for (const r of results) {
   console.log(`${r.problems.length ? "FAIL" : "PASS"}  ${r.title}`);
   for (const pr of r.problems) console.log(`      - ${pr}`);
 }
-// Stretch goal 2: decisions in force with no work resting on them.
+// Stretch goal 2: decisions in force with no work resting on them, by their approved words.
 const idle = entries.filter((e) => status(e) === "decision" && !e.fields.has("Replaced by") && ![...workItems.values()].some((r) => r.includes(e.id)));
-console.log(`Decisions in force with no work resting on them: ${idle.length ? idle.map((e) => `${e.id} (${e.title})`).join(", ") : "none"}`);
+console.log(`Decisions in force with no work resting on them: ${idle.length ? idle.map((e) => `${e.id} (${approvedWords(e)})`).join(", ") : "none"}`);
 console.log(failed ? `Result: FAIL, ${failed} problem${failed === 1 ? "" : "s"}.` : "Result: PASS, every check passed.");
 process.exitCode = failed ? 1 : 0;
