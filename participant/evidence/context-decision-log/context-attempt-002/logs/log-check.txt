@@ -1,5 +1,5 @@
 context-decision-log: the decision-log check
-Recorded 11-19-2026 01:30 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
+Recorded 11-19-2026 01:46 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
 Each case is a copy of the real files (participant/context/decisions/) in a temp folder with
 one mistake, and its Current decisions list rebuilt so only that mistake can fail. Each must fail
 exactly the checks named, with the message named. Every check (0 to 7, the stretch check and the
@@ -705,7 +705,7 @@ and after:                                         3e413d8f8dd0a4febb953b0018b0d
 identical
 
 == For the reader of this log alone: what was checked against ==
-SHA-256 of participant/tools/decision-check.mjs: 7276fed0c939ce00c89e460c9317ce6a2669569882cc40ce796a7b7669dc2132
+SHA-256 of participant/tools/decision-check.mjs: 4ab8b5ee741240689825c9a339f9b53ebb95786b975590ea50abd24319320742
 SHA-256 of participant/context/decisions/sources.md: 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 The full text of participant/context/decisions/sources.md, the written records every approval
 above is checked against:

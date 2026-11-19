@@ -90,27 +90,29 @@ const classify = (raw) => {
       continue;
     }
     // Comments: every "<!--" and "-->" on the line, in order. What is outside them stays.
+    // Comment delimiters are found on a masked copy, where inline code (outside a comment) is
+    // blanked so a "<!--" inside backticks opens nothing; the text kept is always cut from the
+    // original line, character for character.
+    const masked = line.replace(/`[^`]*`/g, (m) => " ".repeat(m.length));
     let visible = "";
-    // Inline code is text: a "<!--" inside backticks opens nothing.
-    let rest = comment ? line : line.replace(/`[^`]*`/g, (m) => m.replace(/<!--|-->/g, (d) => d.replace(/-/g, "\u2010")));
+    let at = 0;
     let touched = comment;
-    while (rest.length) {
+    while (at < line.length) {
       if (comment) {
-        const close = rest.indexOf("-->");
-        if (close === -1) {
-          rest = "";
-        } else {
-          rest = rest.slice(close + 3);
+        const close = line.indexOf("-->", at);
+        if (close === -1) at = line.length;
+        else {
+          at = close + 3;
           comment = false;
         }
       } else {
-        const openAt = rest.indexOf("<!--");
+        const openAt = masked.indexOf("<!--", at);
         if (openAt === -1) {
-          visible += rest;
-          rest = "";
+          visible += line.slice(at);
+          at = line.length;
         } else {
-          visible += rest.slice(0, openAt);
-          rest = rest.slice(openAt + 4);
+          visible += line.slice(at, openAt);
+          at = openAt + 4;
           comment = true;
           touched = true;
         }

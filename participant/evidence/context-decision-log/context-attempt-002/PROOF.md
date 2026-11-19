@@ -116,7 +116,7 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 1:30 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
+Recorded on 11-19-2026 at 1:46 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
@@ -174,6 +174,8 @@ before and after, is identical.
   table right is a person's job.
 - **Append-only is checked against a copy someone keeps.** Without `--previous`, the checker can't
   see that an entry was rewritten; in a real repository, Git's history is that earlier copy.
+  Blank lines inside an entry aren't compared: adding or removing one doesn't change what the entry
+  says.
 - **It fails closed on Markdown it doesn't use.** The three files may contain only headings that
   start at the beginning of a line, text, "- " bullets, "|" tables and inline code (and, in
   `log.md`, the two marker comments). Code blocks, indented or tab-indented lines, underlined
