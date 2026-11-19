@@ -228,9 +228,10 @@ attempts:
   quest_id: base-camp-ownership-zones
   quest_version: 1
   content_hash: sha256:066c692bb7f87a56c7b802669e47cecf1449ea6eccc1e9a0fb007e8535b5a405
-  state: submitted
+  state: verified
   started_at: '2026-11-19T13:37:09Z'
-  updated_at: '2026-11-19T16:37:36Z'
+  updated_at: '2026-11-19T16:44:31Z'
   evidence_path: participant/evidence/base-camp-ownership-zones/base-attempt-004
   submission_id: submission-20261119163736-ec60d7
-updated_at: '2026-11-19T16:37:36Z'
+  review_id: review-20261119164431-362840
+updated_at: '2026-11-19T16:44:31Z'
