@@ -328,13 +328,14 @@ SHOP-18 | Waive the fee | P-03 |"
   run question "1 4" "D-08: From Q-03, which is a question; only a proposal is promoted"
 
   echo "== 24. An approval hidden in a comment that opens on a line that also closes one =="
-  echo "Readers see no approval in MTG-01 (it sits inside a comment); the checker must not either."
+  echo "Readers see no approval in MTG-01 (it sits inside a comment): the comment is reported, and the"
+  echo "approval doesn't count."
   copy hidden
   edit hidden sources.md "- $FEE" "<!-- first --> <!--
 - $FEE
 -->"
   changes hidden
-  run hidden "2" "D-01: the approval line isn't in MTG-01, word for word"
+  run hidden "0 2" "comments aren't used in the decision files"
 
   echo "== 25. An earlier line changed by one space, checked against the earlier copy =="
   copy one-space

@@ -26,7 +26,7 @@
 // Exit codes: 0 every check passed, 1 at least one problem, 2 a file couldn't be read or the
 // arguments were wrong.
 
-import { chmodSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, lstatSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
 
 const usage = () => {
@@ -91,7 +91,8 @@ const classify = (raw) => {
     }
     // Comments: every "<!--" and "-->" on the line, in order. What is outside them stays.
     let visible = "";
-    let rest = line;
+    // Inline code is text: a "<!--" inside backticks opens nothing.
+    let rest = comment ? line : line.replace(/`[^`]*`/g, (m) => m.replace(/<!--|-->/g, (d) => d.replace(/-/g, "\u2010")));
     let touched = comment;
     while (rest.length) {
       if (comment) {
@@ -123,14 +124,38 @@ const classify = (raw) => {
   }
   return out;
 };
+// Fail closed: the three files may use only simple Markdown (headings starting at the beginning of
+// a line, text, "- " bullets, "|" tables, inline code), and in log.md the two marker comments.
+// Anything else (code blocks, indented or tab-indented lines, headings not at the start of the
+// line, underlined headings, HTML or other comments) is reported rather than interpreted, so no
+// Markdown corner case can make a reader and the checker see different things.
+const lint = (raw, file, markers) => {
+  const problems = [];
+  raw.split("\n").forEach((l, i) => {
+    const line = l.replace(/\r$/, "");
+    const where = `${file} line ${i + 1}`;
+    const masked = line.replace(/`[^`]*`/g, ""); // inline code is text, whatever it holds
+    if (/^ {0,3}(`{3,}|~{3,})/.test(line)) problems.push(`${where}: code blocks aren't used in the decision files`);
+    else if (/^ *\t/.test(line)) problems.push(`${where}: a tab at the start of a line (it can turn a line into code)`);
+    else if (/^ {4,}\S/.test(line)) problems.push(`${where}: a line indented four or more spaces (that is code in Markdown)`);
+    else if (/^ {1,3}#/.test(line)) problems.push(`${where}: a heading must start at the beginning of the line`);
+    else if (/^ {0,3}(=+|-{3,}|\*{3,}|_{3,})\s*$/.test(line)) problems.push(`${where}: underlined headings and horizontal rules aren't used in the decision files`);
+    else if (masked.includes("<!--") || masked.includes("-->")) {
+      if (!(markers && (line.trim() === START || line.trim() === END))) problems.push(`${where}: comments aren't used in the decision files (only the two current-decisions markers in log.md)`);
+    } else if (/<\/?[A-Za-z][^>]*>/.test(masked)) problems.push(`${where}: HTML isn't used in the decision files`);
+  });
+  return problems;
+};
 const visibleLines = (classified) => classified.map((c) => (c.kind === "text" || c.kind === "mixed" ? c.line : ""));
 // The lines written exactly as they are (no comment inside), for word-for-word matching.
 const exactLines = (classified) => classified.map((c) => (c.kind === "text" ? c.line : ""));
 
 const logPath = join(dir, "log.md");
 const logRaw = readRaw(logPath, `${shownDir}/log.md`);
-const rulesLines = visibleLines(classify(readRaw(join(dir, "rules.md"), `${shownDir}/rules.md`)));
-const sourcesClassified = classify(readRaw(join(dir, "sources.md"), `${shownDir}/sources.md`));
+const rulesRaw = readRaw(join(dir, "rules.md"), `${shownDir}/rules.md`);
+const sourcesRaw = readRaw(join(dir, "sources.md"), `${shownDir}/sources.md`);
+const rulesLines = visibleLines(classify(rulesRaw));
+const sourcesClassified = classify(sourcesRaw);
 const sourcesLines = visibleLines(sourcesClassified);
 const sourcesExact = exactLines(sourcesClassified);
 
@@ -158,7 +183,7 @@ const cellsOf = (line) => {
 };
 // The rows of the section's table. Every line of the table must start with "|" (a row without one
 // would show in the table but could be missed), and the table ends at a blank line.
-const tableRows = (lines, what, problems) => {
+const tableRows = (lines, what, problems, header) => {
   const rows = [];
   let state = "before"; // before, in, after the table
   for (const l of lines ?? []) {
@@ -176,16 +201,22 @@ const tableRows = (lines, what, problems) => {
       problems.push(`${what}: a table line doesn't start with "|": ${JSON.stringify(t)}`);
     }
   }
-  return rows.slice(2).map(cellsOf);
+  const head = rows[0] ? cellsOf(rows[0]) : null;
+  if (!head || head.join("|") !== header.join("|")) problems.push(`${what}: the table's columns must be ${header.join(", ")}`);
+  else if (!rows[1] || !cellsOf(rows[1]).every((c) => /^:?-{1,}:?$/.test(c)) || cellsOf(rows[1]).length !== header.length) problems.push(`${what}: the table's second line must be its divider`);
+  else return rows.slice(2).map(cellsOf);
+  return [];
 };
 const ticks = (c) => [...c.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
 
-const setupProblems = [];
+const START = "<!-- current-decisions: start -->";
+const END = "<!-- current-decisions: end -->";
+const setupProblems = [...lint(logRaw, "log.md", true), ...lint(rulesRaw, "rules.md", false), ...lint(sourcesRaw, "sources.md", false)];
 // rules.md: who may approve which areas.
 const approvers = new Map();
 const who = section(rulesLines, 2, "Who may approve", "rules.md");
 if (who.problem) setupProblems.push(who.problem);
-for (const row of tableRows(who.lines, 'rules.md "Who may approve"', setupProblems)) {
+for (const row of tableRows(who.lines, 'rules.md "Who may approve"', setupProblems, ["Approver", "Role", "May approve"])) {
   if (!row[0] || row.length < 3) setupProblems.push('rules.md: a "Who may approve" row is incomplete');
   else if (approvers.has(row[0])) setupProblems.push(`rules.md lists ${row[0]} twice`);
   else approvers.set(row[0], ticks(row[2]));
@@ -209,7 +240,7 @@ if (!sources.size) setupProblems.push("sources.md has no sources");
 const workItems = new Map();
 const wi = section(sourcesLines, 2, "Work items", "sources.md");
 if (wi.problem) setupProblems.push(wi.problem);
-for (const row of tableRows(wi.lines, "sources.md work items", setupProblems)) {
+for (const row of tableRows(wi.lines, "sources.md work items", setupProblems, ["Work item", "What it is", "Rests on"])) {
   const [id, , restsOn] = row ?? [];
   if (!/^[A-Z]+-\d+$/.test(id ?? "")) setupProblems.push(`sources.md: a work-items row has no valid ID: ${JSON.stringify(row)}`);
   else if (workItems.has(id)) setupProblems.push(`sources.md lists work item ${id} twice`);
@@ -263,7 +294,7 @@ const parseEntries = (raw, problems, file) => {
     if (cur && rawLines[n].trim() !== "" && !/^### /.test(line)) cur.raw.push(rawLines[n]);
     const h = /^### (\S+) · (.+)$/.exec(line);
     if (h) {
-      cur = { id: h[1], title: h[2].trim(), fields: new Map(), lines: [], raw: [] };
+      cur = { id: h[1], title: h[2].trim(), fields: new Map(), lines: [], raw: [rawLines[n]] };
       entries.push(cur);
       return;
     }
@@ -292,8 +323,6 @@ const parseEntries = (raw, problems, file) => {
 };
 
 // ---- the current-decisions view --------------------------------------------------------------
-const START = "<!-- current-decisions: start -->";
-const END = "<!-- current-decisions: end -->";
 const status = (e) => e.fields.get("Status");
 const quoteOf = (e) => /^"(.*)"$/.exec(e.fields.get("Approval") ?? "")?.[1];
 const approvedWords = (e) => parseApproval(quoteOf(e) ?? "")?.words ?? quoteOf(e) ?? "";
@@ -324,7 +353,7 @@ const viewOf = (raw) => {
     if (i >= s && i <= e) continue;
     if (vis[i].trim() !== "") return { problem: `content in "## Current decisions" outside the generated list: ${JSON.stringify(vis[i].trim())}` };
   }
-  return { start: s, end: e, inner: cl.slice(s + 1, e).map((c) => c.line).join("\n").trim() };
+  return { start: s, end: e, inner: cl.slice(s + 1, e).map((c) => c.line).join("\n").replace(/^(\s*\n)+/, "").replace(/(\n\s*)+$/, "") };
 };
 
 const parseProblems = [];
@@ -564,6 +593,10 @@ if (mode === "write-view") {
     const updated = [...parts.slice(0, v.start + 1), ...buildView(entries).split("\n").map((l) => l + eol), ...parts.slice(v.end)].join("");
     const tmp = `${logPath}.${process.pid}.new`;
     let created = false;
+    if (lstatSync(logPath).isSymbolicLink()) {
+      console.error("log.md is a link; the view isn't written through it (write the file it points to instead).");
+      process.exit(2);
+    }
     try {
       writeFileSync(tmp, updated, { flag: "wx", mode: 0o600 });
       created = true;

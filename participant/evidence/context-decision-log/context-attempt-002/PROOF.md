@@ -116,7 +116,7 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 1:12 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
+Recorded on 11-19-2026 at 1:30 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
@@ -152,8 +152,8 @@ working would make the demonstration fail.
 21. **A decision listing a work item that doesn't exist:** the stretch check.
 22. **A table row without a leading "|":** check 0.
 23. **A question "promoted" to a decision:** checks 1 and 4; only a proposal is promoted.
-24. **An approval hidden in a comment** (a line that closes one comment and opens another): check 2;
-    what readers can't see doesn't count.
+24. **An approval hidden in a comment** (a line that closes one comment and opens another): checks 0
+    and 2; the comment is reported, and what readers can't see doesn't count.
 25. **An earlier line changed by a single space,** checked against the earlier copy: the history
     check, which compares the lines exactly as written.
 26. **New work for an existing decision added as a new row only,** checked against the earlier
@@ -174,8 +174,14 @@ before and after, is identical.
   table right is a person's job.
 - **Append-only is checked against a copy someone keeps.** Without `--previous`, the checker can't
   see that an entry was rewritten; in a real repository, Git's history is that earlier copy.
-- **It reads the Markdown this log uses,** with comments, fenced and indented code set aside; it is
-  not a full Markdown parser (other heading styles or HTML tables would not be understood).
+- **It fails closed on Markdown it doesn't use.** The three files may contain only headings that
+  start at the beginning of a line, text, "- " bullets, "|" tables and inline code (and, in
+  `log.md`, the two marker comments). Code blocks, indented or tab-indented lines, underlined
+  headings, HTML and other comments are reported as problems rather than interpreted, so a reader
+  and the checker can't see different things; the price is that the files must stay in that simple
+  form.
+- **`--write-view` won't write through a link.** If `log.md` is a symbolic link, it refuses rather
+  than replace the link.
 - **`--write-view` and someone else saving at the same moment.** It refuses if the log changed since
   it was read, but a save in the instant between that last check and the rename could still be lost.
 - **One log.** Decisions made in tickets or chat aren't found; they count only once added to the

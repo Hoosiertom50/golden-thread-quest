@@ -8,13 +8,11 @@ invented meetings, documents and work items. Written by Claude (Claude Code) for
 
 Each source is a `## ID · title, MM-DD-YYYY` section: the date it was recorded. An approval is a
 line of the form
-
-    - Approved by <approver> (area: <area>[; promotes: P-nn][; replaces: D-nn]): <what is approved>
-
+`- Approved by <approver> (area: <area>[; promotes: P-nn][; replaces: D-nn]): <what is approved>`,
 in the approver's own words. The part in brackets is what the record itself says the approval
 covers: its area, and any proposal it promotes or decision it replaces. A log entry quotes the
 whole line exactly, and must agree with it; the checker (`participant/tools/decision-check.mjs`)
-confirms both. A line inside a comment or a code block is not part of the record.
+confirms both. Only plain text, bullets and tables are used here: no comments, code blocks or HTML.
 
 ## MTG-01 · Pricing kickoff, 10-05-2026
 

@@ -1,5 +1,5 @@
 context-decision-log: the decision-log check
-Recorded 11-19-2026 01:12 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
+Recorded 11-19-2026 01:30 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
 Each case is a copy of the real files (participant/context/decisions/) in a temp folder with
 one mistake, and its Current decisions list rebuilt so only that mistake can fail. Each must fail
 exactly the checks named, with the message named. Every check (0 to 7, the stretch check and the
@@ -573,13 +573,16 @@ exit code: 1
 As expected: exactly check(s) 1 4 failed, with "D-08: From Q-03, which is a question; only a proposal is promoted".
 
 == 24. An approval hidden in a comment that opens on a line that also closes one ==
-Readers see no approval in MTG-01 (it sits inside a comment); the checker must not either.
+Readers see no approval in MTG-01 (it sits inside a comment): the comment is reported, and the
+approval doesn't count.
 What was changed in this copy:
   sources.md, after:  <!-- first --> <!--
   sources.md, after:  -->
 $ node decision-check.mjs --dir hidden
 Decision log check: (folder hidden) (13 entries: 7 decisions, 3 proposals, 3 questions)
-PASS  0. The files can be read as a log
+FAIL  0. The files can be read as a log
+      - sources.md line 22: comments aren't used in the decision files (only the two current-decisions markers in log.md)
+      - sources.md line 24: comments aren't used in the decision files (only the two current-decisions markers in log.md)
 PASS  1. Every entry has exactly one status: decision, proposal or question
 FAIL  2. A decision records its approver and where it was approved
       - D-01: the approval line isn't in MTG-01, word for word
@@ -590,9 +593,9 @@ PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (prices are shown in US dollars, with two decimal places.)
-Result: FAIL, 1 problem.
+Result: FAIL, 3 problems.
 exit code: 1
-As expected: exactly check(s) 2 failed, with "D-01: the approval line isn't in MTG-01, word for word".
+As expected: exactly check(s) 0 2 failed, with "comments aren't used in the decision files".
 
 == 25. An earlier line changed by one space, checked against the earlier copy ==
 What was changed in this copy:
@@ -697,13 +700,13 @@ exit code: 0
 As expected: every check passed.
 
 == The real files were only read ==
-SHA-256 of log.md, rules.md and sources.md, before: 3e413d8f8dd0a4febb953b0018b0d39b5968e17d400d01132f8dac7dfcf1af3f 26340d2db9d912ace21cfbb24ce53493fed74495e1991476b3645de96e41303b 8624921c2f0784b2f53436786e96030c784d25dc0d4865391526ff76e3c13d2d
-and after:                                         3e413d8f8dd0a4febb953b0018b0d39b5968e17d400d01132f8dac7dfcf1af3f 26340d2db9d912ace21cfbb24ce53493fed74495e1991476b3645de96e41303b 8624921c2f0784b2f53436786e96030c784d25dc0d4865391526ff76e3c13d2d
+SHA-256 of log.md, rules.md and sources.md, before: 3e413d8f8dd0a4febb953b0018b0d39b5968e17d400d01132f8dac7dfcf1af3f 26340d2db9d912ace21cfbb24ce53493fed74495e1991476b3645de96e41303b 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
+and after:                                         3e413d8f8dd0a4febb953b0018b0d39b5968e17d400d01132f8dac7dfcf1af3f 26340d2db9d912ace21cfbb24ce53493fed74495e1991476b3645de96e41303b 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 identical
 
 == For the reader of this log alone: what was checked against ==
-SHA-256 of participant/tools/decision-check.mjs: 09587b024a40d916804a18b10bfa749bfc579e6acef64b02b45631d7fe123bb2
-SHA-256 of participant/context/decisions/sources.md: 8624921c2f0784b2f53436786e96030c784d25dc0d4865391526ff76e3c13d2d
+SHA-256 of participant/tools/decision-check.mjs: 7276fed0c939ce00c89e460c9317ce6a2669569882cc40ce796a7b7669dc2132
+SHA-256 of participant/context/decisions/sources.md: 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 The full text of participant/context/decisions/sources.md, the written records every approval
 above is checked against:
 ----- sources.md -----
@@ -717,13 +720,11 @@ invented meetings, documents and work items. Written by Claude (Claude Code) for
 
 Each source is a `## ID · title, MM-DD-YYYY` section: the date it was recorded. An approval is a
 line of the form
-
-    - Approved by <approver> (area: <area>[; promotes: P-nn][; replaces: D-nn]): <what is approved>
-
+`- Approved by <approver> (area: <area>[; promotes: P-nn][; replaces: D-nn]): <what is approved>`,
 in the approver's own words. The part in brackets is what the record itself says the approval
 covers: its area, and any proposal it promotes or decision it replaces. A log entry quotes the
 whole line exactly, and must agree with it; the checker (`participant/tools/decision-check.mjs`)
-confirms both. A line inside a comment or a code block is not part of the record.
+confirms both. Only plain text, bullets and tables are used here: no comments, code blocks or HTML.
 
 ## MTG-01 · Pricing kickoff, 10-05-2026
 
