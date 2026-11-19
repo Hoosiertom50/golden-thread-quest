@@ -17,8 +17,8 @@ comes from a real project.
 
 **The log** (`participant/context/decisions/log.md`): 13 entries, 7 decisions, 3 proposals and 3
 questions, each with its date and source (criteria 1 and 6). It includes a replaced decision (D-02,
-"at most 6 tickets", replaced by D-07, "at most 8 tickets"), a promoted proposal (P-02, "one-click
-cancel", became D-05), and the quest's trap: P-03, "waive the fee for 6 or more tickets", which
+"at most 6 tickets", replaced by D-07, "at most 8 tickets"), a promoted proposal (P-02, "let buyers
+cancel an order from the orders page", became D-05), and the quest's trap: P-03, "waive the fee for 6 or more tickets", which
 everyone in a meeting agreed was a good idea but nobody with authority approved, so it stays a
 proposal.
 
@@ -31,7 +31,8 @@ and comments the entries cite, and the work items with the decision each rests o
 
 **The checker** (`participant/tools/decision-check.mjs`): one PASS or FAIL per acceptance
 criterion, naming every problem, plus the two stretch goals. Given an earlier copy of the log, it
-also proves nothing in it was changed or removed. It builds the Current decisions view.
+also proves the log was only added to. It builds the Current decisions view, and only when every
+other check passes.
 
 ## How an approval is told apart from agreement
 
@@ -45,6 +46,9 @@ approval, however many people agree.
   must read "Approved by <approver>: …". The checker finds that line in the source; a quote from
   anyone else, or of agreement, is refused (criteria 2 and 3). Nobody records a decision on someone
   else's behalf.
+- **Each approval backs one decision**, and the Current decisions view shows the approver's own
+  approved words, not the entry's title: what a reader sees as decided is exactly what was approved,
+  and a decision can't borrow another's approval (criteria 2 and 7).
 - Until then the entry stays a **proposal**: it never appears in the Current decisions view, has no
   approver, and no work item may rest on it (criterion 3).
 
@@ -57,11 +61,13 @@ word.
 1. **The made-up project** is the repository's demo shop, never a real one.
 2. **Approval** = a named approver with authority + a written record (above).
 3. **The Current decisions view is built by the checker** from the entries (`--write-view`), never
-   by hand, so it can't disagree with them; a hand-edited view fails (criterion 7).
+   by hand, so it can't disagree with them; a hand-edited view fails, and the checker refuses to
+   write the view over a log with any other problem (criterion 7).
 4. **Entries are never rewritten.** Promoting a proposal adds a new decision (`From: P-nn`) and adds
    one line to the proposal (`Became: D-nn`); replacing a decision adds a new one (`Replaces`) and
-   one line to the old (`Replaced by`). The checker confirms both links point both ways and, given
-   an earlier copy, that nothing in it was changed or removed (criteria 4 and 5).
+   one line to the old (`Replaced by`). The checker confirms both links point both ways, that a new
+   entry comes after the one it promotes or replaces, and, given an earlier copy, that its entries
+   are still first, in order, with only those two kinds of line added (criteria 4 and 5).
 5. **Both stretch goals:** each decision lists the work items it affects and each work item names
    the decision it rests on, checked both ways; the checker lists decisions in force with no work
    resting on them (D-06, "prices in US dollars").
@@ -82,7 +88,9 @@ All paths are under `participant/`.
 - The sources and work items: `context/decisions/sources.md`
 - The checker: `tools/decision-check.mjs`
 - The demonstration that recorded the check: `tools/decision-check-demo.sh`
-- The check's output: `evidence/context-decision-log/context-attempt-002/logs/log-check.txt`
+- The check's output: `evidence/context-decision-log/context-attempt-002/logs/log-check.txt`. It
+  ends with the full text of `sources.md` and the checker's SHA-256, so the approvals can be verified
+  from the evidence alone.
 
 ## How to reproduce the behavior
 
@@ -101,28 +109,35 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 12:01 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
-uncommitted (`logs/log-check.txt`):
+Recorded on 11-19-2026 at 12:26 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
+uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
+and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
+expected message, and pass every other check:
 
 1. **The real log passes every check:** 13 entries; all seven criteria and the stretch check PASS.
-2. **Agreement recorded as an approval** (the quest's scenario): FAIL, "agreement is not an
-   approval" (criteria 2 and 3).
-3. **A decision with no approver:** FAIL (criteria 1 and 2).
-4. **An approval quote changed from the source** ($2.50 to $2.00): FAIL, not in the source word
-   for word (criterion 2).
-5. **An approver outside their authority** (the tech lead approving a fee): FAIL (criterion 2).
-6. **A work item resting on proposal P-03:** FAIL, work must rest on an approved decision
+2. **Agreement recorded as an approval** (the quest's scenario): check 2 fails, "agreement is not
+   an approval" (criteria 2 and 3).
+3. **A decision with no approver:** checks 1 and 2 fail (criteria 1 and 2).
+4. **An approval quote changed from the source** ($2.50 to $2.00): check 2 fails, not in the
+   source word for word (criterion 2).
+5. **An approver outside their authority** (the tech lead approving a fee): check 2 fails.
+6. **A decision borrowing another decision's approval** (a "fee waived" decision citing the $2.50
+   approval): check 2 fails, "uses the same approval as D-01".
+7. **A work item resting on proposal P-03:** check 3 fails, work must rest on an approved decision
    (criterion 3).
-7. **A correct promotion** (P-01 approved in a new meeting: a new D-08 added, P-01 given
-   `Became: D-08`), checked against the earlier log: PASS, nothing earlier changed (criterion 4).
-8. **The same promotion done by editing P-01 in place:** FAIL with 10 problems, the history check
-   naming each changed, removed and added line (criteria 1 and 4).
-9. **A replaced decision with its link removed:** FAIL, the link goes only one way (criterion 5).
-10. **A source that doesn't exist and a 13th month:** FAIL (criterion 6).
-11. **A Current decisions view edited by hand:** FAIL (criterion 7).
+8. **A correct promotion** (P-01 approved in a new meeting: a new D-08 added at the end, P-01 given
+   `Became: D-08`), checked against the earlier log: every check passes (criterion 4).
+9. **The same promotion done by editing P-01 in place:** check 1 and the history check fail, the
+   history check naming each changed, removed and added line (criteria 1 and 4).
+10. **A replaced decision with its link removed:** check 5 (and the work-item link) fails
+    (criterion 5).
+11. **A decision that replaces itself:** check 5 fails.
+12. **A source that doesn't exist and a 13th month:** check 6 fails (criterion 6).
+13. **A Current decisions view edited by hand:** check 7 fails (criterion 7).
+14. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
 
-The demonstration checks every result against its expected exit code (0 pass, 1 fail) and writes
-the log only if all of them match. The real files' SHA-256, before and after, is identical.
+The demonstration writes the log only if every case came out as expected. The real files' SHA-256,
+before and after, is identical.
 
 ## Remaining limitations
 

@@ -61,8 +61,10 @@ is ever changed or removed.
 ## The current decisions
 
 The **Current decisions** list at the top of the log shows only the decisions in force: those not
-replaced. Nobody writes it by hand: the checker builds it from the entries
-(`node participant/tools/decision-check.mjs --write-view`), so it can never disagree with them.
+replaced. For each it shows the approver's own approved words, not the entry's title, so what a
+reader sees as decided is exactly what was approved. Each approval backs one decision only. Nobody writes it by hand: the checker builds it from the entries
+(`node participant/tools/decision-check.mjs --write-view`), and only when every other check passes,
+so it can never show an entry that isn't a valid decision.
 
 ## Work items
 

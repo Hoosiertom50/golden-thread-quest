@@ -1,7 +1,8 @@
 context-decision-log: the decision-log check
-Recorded 11-19-2026 12:01 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
+Recorded 11-19-2026 12:26 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
 Each case is a copy of the real files (participant/context/decisions/) in a temp folder, changed
-as shown; the real files are only read. Folder names below are relative to that temp folder.
+as shown, with its Current decisions list rebuilt so that only the case's own mistake can fail.
+The real files are only read. Folder names below are relative to that temp folder.
 
 == 1. The real log ==
 $ node participant/tools/decision-check.mjs
@@ -20,9 +21,8 @@ Result: PASS, every check passed.
 exit code: 0
 
 == 2. Agreement recorded as an approval (the quest's scenario) ==
-P-03 is turned into a decision whose approval quotes the meeting's agreement, not an approval.
+P-03 is promoted to a decision whose approval quotes the meeting's agreement, not an approval.
 What was changed in this copy:
-  log.md, after:  | D-08 | Waive the service fee for orders of 6 or more tickets | fees | Avery Lane | 10-19-2026 | MTG-02 |
   log.md, after:  - Became: D-08
   log.md, after:  ### D-08 · Waive the service fee for orders of 6 or more tickets
   log.md, after:  - Status: decision
@@ -48,6 +48,7 @@ PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places), D-08 (Waive the service fee for orders of 6 or more tickets)
 Result: FAIL, 1 problem.
 exit code: 1
+As expected: only check(s) 2 failed, with "agreement is not an approval".
 
 == 3. A decision with no approver ==
 What was changed in this copy:
@@ -63,12 +64,12 @@ PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
 PASS  5. A replaced decision links to the one that replaced it
 PASS  6. Each entry cites its source (and its date)
-FAIL  7. A reader finds the current decisions without reading the history
-      - the Current decisions view doesn't match the entries; run with --write-view
+PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places)
-Result: FAIL, 3 problems.
+Result: FAIL, 2 problems.
 exit code: 1
+As expected: only check(s) 1 2 failed, with "no approver is recorded".
 
 == 4. An approval quote that isn't in its source, word for word ==
 What was changed in this copy:
@@ -89,12 +90,11 @@ PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places)
 Result: FAIL, 1 problem.
 exit code: 1
+As expected: only check(s) 2 failed, with "the approval line isn't in MTG-01, word for word".
 
 == 5. An approver outside their authority ==
 Sam Ortiz may approve only 'calculation'; D-04's area is changed to 'fees'.
 What was changed in this copy:
-  log.md, before: | D-04 | The order total is worked out in whole cents | calculation | Sam Ortiz | 10-05-2026 | MTG-01 |
-  log.md, after:  | D-04 | The order total is worked out in whole cents | fees | Sam Ortiz | 10-05-2026 | MTG-01 |
   log.md, before: - Area: calculation
   log.md, after:  - Area: fees
 $ node decision-check.mjs --dir no-authority
@@ -112,8 +112,37 @@ PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places)
 Result: FAIL, 1 problem.
 exit code: 1
+As expected: only check(s) 2 failed, with "Sam Ortiz may not approve area "fees"".
 
-== 6. Work resting on a proposal (a proposal treated as decided) ==
+== 6. A decision borrowing another decision's approval ==
+A new D-08 says the fee is waived, citing D-01's approval of the $2.50 fee.
+What was changed in this copy:
+  log.md, after:  ### D-08 · The service fee is waived for everyone
+  log.md, after:  - Status: decision
+  log.md, after:  - Date: 11-10-2026
+  log.md, after:  - Source: MTG-01
+  log.md, after:  - Area: fees
+  log.md, after:  - Approver: Avery Lane
+  log.md, after:  - Approval: "Approved by Avery Lane: the service fee is $2.50 per ticket, charged on every ticket."
+  log.md, after:  - Affects: none
+$ node decision-check.mjs --dir borrowed
+Decision log check: (folder borrowed) (14 entries: 8 decisions, 3 proposals, 3 questions)
+PASS  0. The files can be read as a log
+PASS  1. Every entry has exactly one status: decision, proposal or question
+FAIL  2. A decision records its approver and where it was approved
+      - D-08: uses the same approval as D-01; each approval backs one decision
+PASS  3. A proposal is never shown as a decision
+PASS  4. Promoting a proposal adds an entry and keeps the history
+PASS  5. A replaced decision links to the one that replaced it
+PASS  6. Each entry cites its source (and its date)
+PASS  7. A reader finds the current decisions without reading the history
+PASS  Stretch: decisions link to the work items they affect
+Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places), D-08 (The service fee is waived for everyone)
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: only check(s) 2 failed, with "uses the same approval as D-01".
+
+== 7. Work resting on a proposal (a proposal treated as decided) ==
 What was changed in this copy:
   sources.md, after:  | SHOP-18 | Waive the fee for 6+ tickets at checkout | P-03 |
 $ node decision-check.mjs --dir work-on-proposal
@@ -131,12 +160,12 @@ PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places)
 Result: FAIL, 1 problem.
 exit code: 1
+As expected: only check(s) 3 failed, with "work item SHOP-18 rests on P-03, a proposal".
 
-== 7. A correct promotion, checked against the earlier copy ==
-Avery Lane approves P-01 in a new meeting: a new decision D-08 is added (From: P-01), and P-01
-gets one added line (Became: D-08). The check compares with the log as it was before.
+== 8. A correct promotion, checked against the earlier copy ==
+Avery Lane approves P-01 in a new meeting: a new decision D-08 is added at the end
+(From: P-01), and P-01 gets one added line (Became: D-08).
 What was changed in this copy:
-  log.md, after:  | D-08 | Buyers may choose their seats on a seating map | pages | Avery Lane | 11-16-2026 | MTG-04 |
   log.md, after:  - Became: D-08
   log.md, after:  ### D-08 · Buyers may choose their seats on a seating map
   log.md, after:  - Status: decision
@@ -161,14 +190,16 @@ PASS  5. A replaced decision links to the one that replaced it
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
-PASS  History: nothing in the earlier copy was changed or removed
+PASS  History: the log was only added to since the earlier copy
 Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places), D-08 (Buyers may choose their seats on a seating map)
 Result: PASS, every check passed.
 exit code: 0
+As expected: every check passed.
 
-== 8. A status changed by rewriting the earlier entry ==
+== 9. A status changed by rewriting the earlier entry ==
 Instead, P-01 is edited in place into a decision: its earlier wording is lost.
 What was changed in this copy:
+  log.md, after:  | P-01 | buyers may choose their seats on a seating map. | pages | Avery Lane | 11-16-2026 | MTG-04 |
   log.md, before: - Status: proposal
   log.md, before: - Date: 10-12-2026
   log.md, before: - Source: DOC-01
@@ -187,29 +218,32 @@ $ node decision-check.mjs --dir rewrite --previous earlier-log.md
 Decision log check: (folder rewrite) (13 entries: 8 decisions, 2 proposals, 3 questions)
 PASS  0. The files can be read as a log
 FAIL  1. Every entry has exactly one status: decision, proposal or question
-      - P-01: a decision's ID starts with D-
+      - P-01: a decision's ID is D- followed by digits
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
 PASS  5. A replaced decision links to the one that replaced it
 PASS  6. Each entry cites its source (and its date)
-FAIL  7. A reader finds the current decisions without reading the history
-      - the Current decisions view doesn't match the entries; run with --write-view
+PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
-FAIL  History: nothing in the earlier copy was changed or removed
-      - P-01: "Status" was changed (was "proposal", now "decision")
-      - P-01: "Date" was changed (was "10-12-2026", now "11-16-2026")
-      - P-01: "Source" was changed (was "DOC-01", now "MTG-04")
-      - P-01: "Proposed by" was removed
-      - P-01: "Area" was added; only "Became" and "Replaced by" may be added to an existing entry
-      - P-01: "Approver" was added; only "Became" and "Replaced by" may be added to an existing entry
-      - P-01: "Approval" was added; only "Became" and "Replaced by" may be added to an existing entry
-      - P-01: "Affects" was added; only "Became" and "Replaced by" may be added to an existing entry
+FAIL  History: the log was only added to since the earlier copy
+      - P-01: "Status: decision" was added or changed; only "Became" and "Replaced by" may be added
+      - P-01: "Date: 11-16-2026" was added or changed; only "Became" and "Replaced by" may be added
+      - P-01: "Source: MTG-04" was added or changed; only "Became" and "Replaced by" may be added
+      - P-01: "Area: pages" was added or changed; only "Became" and "Replaced by" may be added
+      - P-01: "Approver: Avery Lane" was added or changed; only "Became" and "Replaced by" may be added
+      - P-01: "Approval: "Approved by Avery Lane: buyers may choose their seats on a seating map."" was added or changed; only "Became" and "Replaced by" may be added
+      - P-01: "Affects: none" was added or changed; only "Became" and "Replaced by" may be added
+      - P-01: "Status: proposal" was removed, changed or moved
+      - P-01: "Date: 10-12-2026" was removed, changed or moved
+      - P-01: "Source: DOC-01" was removed, changed or moved
+      - P-01: "Proposed by: Jordan Pike" was removed, changed or moved
 Decisions in force with no work resting on them: P-01 (Let buyers choose their seats on a seating map), D-06 (Prices are shown in US dollars, with two decimal places)
-Result: FAIL, 10 problems.
+Result: FAIL, 12 problems.
 exit code: 1
+As expected: only check(s) 1 History failed, with ""Status: decision" was added or changed".
 
-== 9. A replaced decision that no longer links to its replacement ==
+== 10. A replaced decision that no longer links to its replacement ==
 What was changed in this copy:
   log.md, before: - Replaced by: D-07
 $ node decision-check.mjs --dir one-way
@@ -222,15 +256,36 @@ PASS  4. Promoting a proposal adds an entry and keeps the history
 FAIL  5. A replaced decision links to the one that replaced it
       - D-07: Replaces D-02, but D-02 doesn't say "Replaced by: D-07"
 PASS  6. Each entry cites its source (and its date)
-FAIL  7. A reader finds the current decisions without reading the history
-      - the Current decisions view doesn't match the entries; run with --write-view
+PASS  7. A reader finds the current decisions without reading the history
 FAIL  Stretch: decisions link to the work items they affect
       - D-02: affects SHOP-13, but SHOP-13 doesn't rest on D-02
 Decisions in force with no work resting on them: D-02 (An order may have at most 6 tickets), D-06 (Prices are shown in US dollars, with two decimal places)
-Result: FAIL, 3 problems.
+Result: FAIL, 2 problems.
 exit code: 1
+As expected: only check(s) 5 Stretch failed, with "D-02 doesn't say "Replaced by: D-07"".
 
-== 10. A source that doesn't exist, and a date that isn't one ==
+== 11. A decision that replaces itself ==
+What was changed in this copy:
+  log.md, after:  - Replaces: D-06
+  log.md, after:  - Replaced by: D-06
+$ node decision-check.mjs --dir self-replace
+Decision log check: (folder self-replace) (13 entries: 7 decisions, 3 proposals, 3 questions)
+PASS  0. The files can be read as a log
+PASS  1. Every entry has exactly one status: decision, proposal or question
+PASS  2. A decision records its approver and where it was approved
+PASS  3. A proposal is never shown as a decision
+PASS  4. Promoting a proposal adds an entry and keeps the history
+FAIL  5. A replaced decision links to the one that replaced it
+      - D-06: must come after D-06, which it replaces
+PASS  6. Each entry cites its source (and its date)
+PASS  7. A reader finds the current decisions without reading the history
+PASS  Stretch: decisions link to the work items they affect
+Decisions in force with no work resting on them: none
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: only check(s) 5 failed, with "must come after D-06, which it replaces".
+
+== 12. A source that doesn't exist, and a date that isn't one ==
 What was changed in this copy:
   log.md, before: - Date: 10-26-2026
   log.md, before: - Source: SUP-04
@@ -247,17 +302,15 @@ PASS  5. A replaced decision links to the one that replaced it
 FAIL  6. Each entry cites its source (and its date)
       - D-06: source SUP-99 isn't in sources.md
       - D-06: date "13-26-2026" is not a real MM-DD-YYYY date
-FAIL  7. A reader finds the current decisions without reading the history
-      - the Current decisions view doesn't match the entries; run with --write-view
+PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places)
-Result: FAIL, 3 problems.
+Result: FAIL, 2 problems.
 exit code: 1
+As expected: only check(s) 6 failed, with "source SUP-99 isn't in sources.md".
 
-== 11. A Current decisions view edited by hand ==
+== 13. A Current decisions view edited by hand ==
 What was changed in this copy:
-  log.md, before: | D-01 | The service fee is $2.50 per ticket | fees | Avery Lane | 10-05-2026 | MTG-01 |
-  log.md, after:  | D-01 | The service fee is $2.00 per ticket | fees | Avery Lane | 10-05-2026 | MTG-01 |
 $ node decision-check.mjs --dir stale-view
 Decision log check: (folder stale-view) (13 entries: 7 decisions, 3 proposals, 3 questions)
 PASS  0. The files can be read as a log
@@ -273,8 +326,109 @@ PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places)
 Result: FAIL, 1 problem.
 exit code: 1
+As expected: only check(s) 7 failed, with "the Current decisions view doesn't match the entries".
+
+== 14. --write-view refuses to write over a log with a problem ==
+The copy from case 6 (a borrowed approval), with its list emptied, is given --write-view.
+$ node decision-check.mjs --dir refuse-write --write-view
+The Current decisions view was NOT written: fix the problems below first.
+
+Decision log check: (folder refuse-write) (14 entries: 8 decisions, 3 proposals, 3 questions)
+PASS  0. The files can be read as a log
+PASS  1. Every entry has exactly one status: decision, proposal or question
+FAIL  2. A decision records its approver and where it was approved
+      - D-08: uses the same approval as D-01; each approval backs one decision
+PASS  3. A proposal is never shown as a decision
+PASS  4. Promoting a proposal adds an entry and keeps the history
+PASS  5. A replaced decision links to the one that replaced it
+PASS  6. Each entry cites its source (and its date)
+PASS  7. A reader finds the current decisions without reading the history
+PASS  Stretch: decisions link to the work items they affect
+Decisions in force with no work resting on them: D-06 (Prices are shown in US dollars, with two decimal places), D-08 (The service fee is waived for everyone)
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: only check(s) 2 failed, with "was NOT written".
+
+The copy's log.md is unchanged, byte for byte.
 
 == The real files were only read ==
-SHA-256 of log.md, rules.md and sources.md together, before: 87e50e3bbe9bdcbe3000a4e602079227c99566c7c572e9938798522bc528fb1a
-and after:                                                   87e50e3bbe9bdcbe3000a4e602079227c99566c7c572e9938798522bc528fb1a
+SHA-256 of log.md, rules.md and sources.md, before: f9d716e82017296b6276cabcfe74dfabe21b64ef2043e12507ebd9c3bb32da86 50312959d4be6f7222273de7744964c7907fea52034b5a3ac5b6c28119d31056 19a02c6a5cf7aabd01805a75bf45d931b81635820d8269b357921b25c160f771
+and after:                                         f9d716e82017296b6276cabcfe74dfabe21b64ef2043e12507ebd9c3bb32da86 50312959d4be6f7222273de7744964c7907fea52034b5a3ac5b6c28119d31056 19a02c6a5cf7aabd01805a75bf45d931b81635820d8269b357921b25c160f771
 identical
+
+== For the reader of this log alone: what was checked against ==
+SHA-256 of participant/tools/decision-check.mjs: 7b180dcbedab567651ba7fd39bd3080d7379a044867cb55cd9fb559245e4222e
+SHA-256 of participant/context/decisions/sources.md: 19a02c6a5cf7aabd01805a75bf45d931b81635820d8269b357921b25c160f771
+The full text of participant/context/decisions/sources.md, the written records every approval
+above is checked against:
+----- sources.md -----
+# Decision sources
+
+The written records the decision log cites, for the context-decision-log quest. Everything here is
+made up: the demo shop in `participant/tests/playwright/demo-app/`, its invented people (Avery Lane,
+product owner; Sam Ortiz, tech lead; Jordan Pike, designer; Riley Chen, support lead) and its
+invented meetings, documents and work items. Written by Claude (Claude Code) for Tom Carter,
+11-19-2026.
+
+Each source is a `## ID · title` section. An approval in the log quotes one line from its source
+exactly; the checker (`participant/tools/decision-check.mjs`) confirms the line is there.
+
+## MTG-01 · Pricing kickoff, 10-05-2026
+
+Attendees: Avery Lane, Sam Ortiz, Jordan Pike.
+
+- Avery proposed a service fee of $2.50 per ticket, on every ticket.
+- Approved by Avery Lane: the service fee is $2.50 per ticket, charged on every ticket.
+- Jordan asked whether one order should be limited to a number of tickets.
+- Approved by Avery Lane: an order may have at most 6 tickets.
+- Sam: amounts will be kept in whole cents so totals never round wrongly.
+- Approved by Sam Ortiz: the order total is the quantity times the ticket price plus the fee, worked out in whole cents.
+
+## MTG-02 · Checkout review, 10-19-2026
+
+Attendees: Avery Lane, Jordan Pike, Riley Chen.
+
+- Riley asked for a way to cancel an order from the orders page; Jordan suggested one-click cancel.
+- Riley: should a cancelled order give the fee back? Nobody knew yet.
+- Jordan: we could waive the fee for orders of 6 or more tickets. Everyone agreed it was a good idea.
+- Avery: "Let me think about the fee waiver; I'm not approving it today."
+
+## MTG-03 · Ticket limit follow-up, 11-02-2026
+
+Attendees: Avery Lane, Riley Chen.
+
+- Riley reported group buyers asking for more than 6 tickets.
+- Approved by Avery Lane: an order may have at most 8 tickets, replacing the limit of 6.
+- Riley: is there a limit per buyer across several orders? Left open.
+
+## DOC-01 · Ideas list (shared document), 10-12-2026
+
+- Jordan Pike: let buyers choose their seats on a seating map.
+- Riley Chen: do children need their own ticket?
+
+## SHOP-15 · Buyer name on the review page (work item), comment of 10-21-2026
+
+- Approved by Avery Lane: the buyer's name is required, at most 60 characters.
+
+## SHOP-17 · Cancel an order (work item), comment of 10-23-2026
+
+- Approved by Avery Lane: an order can be cancelled from the orders page, one order at a time.
+
+## SUP-04 · Support question about currency, comment of 10-26-2026
+
+- Approved by Avery Lane: prices are shown in US dollars, with two decimal places.
+
+## Work items
+
+The made-up work items, and the decision each one rests on. The checker confirms each rests on a
+decision in force, never on a proposal or a question.
+
+| Work item | What it is | Rests on |
+|---|---|---|
+| SHOP-11 | Show the order total on the event card | D-01 D-04 |
+| SHOP-12 | Show the service fee on the event card | D-01 |
+| SHOP-13 | Limit the ticket quantity on the event card | D-07 |
+| SHOP-15 | Buyer name on the review page | D-03 |
+| SHOP-16 | Show the order total on the review page | D-04 |
+| SHOP-17 | Cancel an order from the orders page | D-05 |
+----- end of sources.md -----

@@ -15,14 +15,14 @@ The decisions in force now (not replaced). Built by the checker from the entries
 it by hand (`node participant/tools/decision-check.mjs --write-view`).
 
 <!-- current-decisions: start -->
-| Decision | What was decided | Area | Approved by | Date | Where |
+| Decision | What was approved (the approver's words) | Area | Approved by | Date | Where |
 |---|---|---|---|---|---|
-| D-01 | The service fee is $2.50 per ticket | fees | Avery Lane | 10-05-2026 | MTG-01 |
-| D-03 | The buyer's name is required, at most 60 characters | pages | Avery Lane | 10-21-2026 | SHOP-15 |
-| D-04 | The order total is worked out in whole cents | calculation | Sam Ortiz | 10-05-2026 | MTG-01 |
-| D-05 | An order can be cancelled from the orders page, one at a time | pages | Avery Lane | 10-23-2026 | SHOP-17 |
-| D-06 | Prices are shown in US dollars, with two decimal places | pages | Avery Lane | 10-26-2026 | SUP-04 |
-| D-07 | An order may have at most 8 tickets | ticket limits | Avery Lane | 11-02-2026 | MTG-03 |
+| D-01 | the service fee is $2.50 per ticket, charged on every ticket. | fees | Avery Lane | 10-05-2026 | MTG-01 |
+| D-03 | the buyer's name is required, at most 60 characters. | pages | Avery Lane | 10-21-2026 | SHOP-15 |
+| D-04 | the order total is the quantity times the ticket price plus the fee, worked out in whole cents. | calculation | Sam Ortiz | 10-05-2026 | MTG-01 |
+| D-05 | an order can be cancelled from the orders page, one order at a time. | pages | Avery Lane | 10-23-2026 | SHOP-17 |
+| D-06 | prices are shown in US dollars, with two decimal places. | pages | Avery Lane | 10-26-2026 | SUP-04 |
+| D-07 | an order may have at most 8 tickets, replacing the limit of 6. | ticket limits | Avery Lane | 11-02-2026 | MTG-03 |
 <!-- current-decisions: end -->
 
 ## Entries
@@ -82,13 +82,14 @@ it by hand (`node participant/tools/decision-check.mjs --write-view`).
 - Source: DOC-01
 - Asked by: Riley Chen
 
-### P-02 · One-click cancel on the orders page
+### P-02 · Let buyers cancel an order from the orders page
 
 - Status: proposal
 - Date: 10-19-2026
 - Source: MTG-02
-- Proposed by: Jordan Pike
+- Proposed by: Riley Chen
 - Became: D-05
+- Note: Jordan Pike's "one-click cancel" was part of the discussion; D-05 approves cancelling one order at a time, not how many clicks it takes.
 
 ### P-03 · Waive the service fee for orders of 6 or more tickets
 
