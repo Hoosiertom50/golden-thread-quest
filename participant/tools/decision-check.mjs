@@ -169,6 +169,9 @@ const lint = (raw, file, markers) => {
       if (!(markers && (line.trim() === START || line.trim() === END))) problems.push(`${where}: comments aren't used in the decision files (only the two current-decisions markers in log.md)`);
     } else if (/<[A-Za-z!?\/]/.test(masked)) problems.push(`${where}: HTML isn't used in the decision files`);
     else if (/^#{1,6}(\t|$)/.test(line) || /^#{1,6} +#* *$/.test(line)) problems.push(`${where}: a heading needs a space and a title after its #'s`);
+    // Markdown also makes a table from rows without a leading "|" ("a | b" over "--- | ---"), so
+    // any line with a "|" outside inline code must be a "|"-led table row, which the checks see.
+    else if (/(^|[^\\])\|/.test(masked) && !line.trim().startsWith("|")) problems.push(`${where}: a line with "|" that isn't a table row starting with "|" (it could render as an unchecked table)`);
   });
   return problems;
 };

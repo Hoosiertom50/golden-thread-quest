@@ -533,6 +533,18 @@ SHOP-18 | Waive the fee | P-03 |"
   changes notes-table
   run notes-table "0" "a table outside its one checked table"
 
+  echo "== 43. A table written without leading pipes =="
+  echo "Markdown shows \"Decision | Status\" over \"--- | ---\" as a table too; it is reported."
+  copy pipeless
+  edit pipeless sources.md "- Riley: should a cancelled order give the fee back? Nobody knew yet." "- Riley: should a cancelled order give the fee back? Nobody knew yet.
+
+Decision | Status
+--- | ---
+P-03 | approved
+"
+  changes pipeless
+  run pipeless "0" "a line with \"|\" that isn't a table row starting with \"|\""
+
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
   echo "SHA-256 of log.md, rules.md and sources.md, before: $BEFORE"

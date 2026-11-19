@@ -123,7 +123,7 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 4:50 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
+Recorded on 11-19-2026 at 5:10 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
@@ -198,6 +198,8 @@ working would make the demonstration fail.
     be out of date and must be deleted, not moved into place, and leaves it untouched.
 42. **A table inside a meeting's notes** listing P-03 as approved: check 0; tables are allowed only
     in their one checked place in each file.
+43. **A table written without leading pipes** ("Decision | Status" over "--- | ---"), which Markdown
+    still shows as a table: check 0.
 
 Every case also requires all the checks to report, in order (PASS or FAIL), so none can silently go
 missing from the report.
@@ -213,7 +215,7 @@ are shorter than the 20 characters a quote must have. The links were already the
 checker's report now spells out each replacement and promotion it verified (above), so the evidence
 for criterion 5 is one specific, quotable line.
 
-Further practice review then tightened the checker (cases 27 to 42 were added). One rule changed
+Further practice review then tightened the checker (cases 27 to 43 were added). One rule changed
 the log: a decision's title must now be exactly its approved words, so four decision headings (D-01,
 D-04, D-05 and D-07) were reworded to their approvers' own words (for example D-04, "The order total
 is worked out in whole cents", is now "The order total is the quantity times (the ticket price plus
