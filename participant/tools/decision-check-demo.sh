@@ -545,6 +545,13 @@ P-03 | approved
   changes pipeless
   run pipeless "0" "a line with \"|\" that isn't a table row starting with \"|\""
 
+  echo "== 44. A valid note using double-backtick inline code =="
+  echo "Markdown inline code may use \`\` as its delimiter; a \"|\" inside it is text, not a table."
+  copy double-tick
+  edit double-tick sources.md "Attendees: Avery Lane, Jordan Pike, Riley Chen." 'Attendees: Avery Lane, Jordan Pike, Riley Chen. (Order codes look like ``A|B``.)'
+  changes double-tick
+  run double-tick "" ""
+
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
   echo "SHA-256 of log.md, rules.md and sources.md, before: $BEFORE"
