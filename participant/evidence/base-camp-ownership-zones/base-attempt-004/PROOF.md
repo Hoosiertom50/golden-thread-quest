@@ -86,7 +86,7 @@ node participant/tools/zone-guard.mjs write <path> "<text>" --root <a sandbox fo
 
 ## What was tested or validated
 
-All recorded on 11-19-2026 at 9:48 AM with Node 22.23.3, at commit 7084e70 with the quest-23 files
+All recorded on 11-19-2026 at 10:12 AM with Node 22.23.3, at commit 7084e70 with the quest-23 files
 uncommitted, in a sandbox holding a copy of the zone layout (`repo/`), the real `zone-rules.md` (its
 SHA-256 matches the repository's, shown in each log), and a folder outside it (`outside/`).
 
@@ -117,6 +117,9 @@ SHA-256 matches the repository's, shown in each log), and a folder outside it (`
   allowed, and nothing was created.
 - The real repository was never written by the demonstration: only the evidence logs changed, and
   the demo-app's `orders.json` is unchanged (`git diff --quiet`).
+- The demonstration checks every guard result against the expected exit code (1 refused, 0
+  written) and moves the logs into place only if all of them, and every fingerprint, came out as
+  expected.
 
 ## Remaining limitations
 
@@ -127,13 +130,18 @@ SHA-256 matches the repository's, shown in each log), and a folder outside it (`
   (or deny direct writes outside `participant/` and `local-data/`), so the guard can't be skipped.
 - **It only creates new files.** Editing, renaming and deleting are outside this quest; a full guard
   would check those the same way.
-- **A folder swapped during a write.** The guard checks the folder before creating the file and
-  checks again after. A folder replaced by a link in that split second is detected and reported (the
-  new empty file is left for a person to check), not prevented. Node has no way to create a file
-  relative to an already-opened folder, which would close that gap.
+- **A folder moved during a write.** The guard steps into the checked folder before creating the
+  file, so swapping a folder on the way for a link can't redirect the write. If the checked folder
+  itself is moved elsewhere in that split second, the guard notices afterwards and removes its own
+  new file (only if it is still that file); it detects that case rather than preventing it.
 - **Capital letters.** macOS treats `Content/` and `content/` as the same folder. The guard resolves
-  folders to their real spelling, so a differently-spelled path to an existing folder is seen as
-  that folder; a path it can't match is in no zone and refused.
+  folders to their real spelling and compares names without regard to capitals, so
+  `participant/.ds_store` is still the Generated `.DS_Store`. On a system where capitals do matter
+  (Linux), a differently-capitalised name is treated as the listed one: that can refuse a write
+  that would be fine there, or, if a folder such as `LOCAL-DATA/` exists, treat it as Private data.
+- **The demonstration script** needs bash, Node and the usual Unix tools (macOS or Linux). It
+  replaces a log only if it is an ordinary file, and moves the logs into place only if every step
+  worked.
 
 ## Sensitive values
 

@@ -36,7 +36,9 @@ When more than one entry matches a path, the most specific wins:
    `.claude/worktrees/` beats `.claude/`);
 3. otherwise `*`.
 
-The same entry listed under two zones makes the table broken.
+Names are compared without regard to capital letters, because macOS treats `.DS_Store` and
+`.ds_store` as the same file. The same entry listed twice (in any capitals) makes the table broken,
+and so does a line inside the table that isn't a table row; the table ends at a blank line.
 
 ## Where does a new file go?
 
@@ -54,13 +56,15 @@ is in and whether an agent may write there.
 
 ## How the guard decides
 
-1. **It resolves the path first.** It follows every `..` and every link to where the write would
-   *really* land. Comparing the text it was given is how `..` and links get through.
+1. **It resolves the path first.** The operating system follows every `..` and every link, in
+   order, to where the write would *really* land. Comparing the text it was given is how `..` and
+   links get through.
 2. **The real path must be inside the repository.** Anything outside is refused.
 3. **It looks up the real path's zone in the table above.** No zone, or a zone where
    **Agent may write** is `no`, means refused. If the table is missing or broken, every write is
    refused.
 4. **It writes only a brand-new file**, into a folder that already exists. It never overwrites,
-   never creates folders, and never follows a link at the last step. A refused write leaves
-   nothing behind, not even an empty file.
+   never creates folders, and never follows a link at the last step. It steps into the checked
+   folder before creating the file, so the folder can't be swapped between the check and the
+   write. A refused write leaves nothing behind, not even an empty file.
 5. **Every refusal names the rule that refused it.**
