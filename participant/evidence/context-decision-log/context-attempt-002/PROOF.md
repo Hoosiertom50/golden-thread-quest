@@ -32,7 +32,8 @@ and comments the entries cite, and the work items with the decision each rests o
 **The checker** (`participant/tools/decision-check.mjs`): one PASS or FAIL per acceptance
 criterion, naming every problem, plus the two stretch goals. Given an earlier copy of the log, it
 also proves the log was only added to. It builds the Current decisions view, and only when every
-other check passes.
+other check passes, writing it to `log.md.new` for a person to check and move into place; it never
+replaces `log.md` itself.
 
 ## How an approval is told apart from agreement
 
@@ -52,9 +53,10 @@ approval, however many people agree.
   an entry can't re-label an approval to get past the authority check, or claim a promotion or
   replacement its approval never made (criteria 2, 4 and 5). Replacing a decision takes it out of
   force, so the replacement's approver must also hold the replaced decision's area.
-- **Each approval backs one decision**, and the Current decisions view shows the approver's own
-  approved words, not the entry's title: what a reader sees as decided is exactly what was approved,
-  and a decision can't borrow another's approval (criteria 2 and 7).
+- **Each approval backs one decision**, and **a decision's title is exactly its approved words**;
+  the Current decisions view shows those words too. So what a reader sees as decided, in the heading
+  or the list, is exactly what was approved, with nothing added or left out, and a decision can't
+  borrow another's approval (criteria 2 and 7).
 - Until then the entry stays a **proposal**: it never appears in the Current decisions view, has no
   approver, and no work item may rest on it (criterion 3).
 
@@ -68,7 +70,9 @@ word.
 2. **Approval** = a named approver with authority + a written record (above).
 3. **The Current decisions view is built by the checker** from the entries (`--write-view`), never
    by hand, so it can't disagree with them; a hand-edited view fails, and the checker refuses to
-   write the view over a log with any other problem (criterion 7).
+   build the view for a log with any other problem (criterion 7). It writes `log.md.new` and never
+   replaces `log.md`, so an edit someone saves meanwhile can't be lost. The list comes before the
+   entries, and `log.md` holds nothing else: no second list or table anywhere.
 4. **Entries are never rewritten.** Promoting a proposal adds a new decision (`From: P-nn`) and adds
    one line to the proposal (`Became: D-nn`); replacing a decision adds a new one (`Replaces`) and
    one line to the old (`Replaced by`). The checker confirms both links point both ways, that a new
@@ -118,7 +122,7 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 3:50 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
+Recorded on 11-19-2026 at 4:12 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
@@ -170,8 +174,19 @@ working would make the demonstration fail.
 29. **Words in the authority table beyond the area names** ("`calculation` (not `fees`)"): checks 0
     and 2; a cell is only area names, so prose can't grant an area.
 30. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
-31. **`--write-view` on a stale list that even names a proposal:** it rebuilds the list, and the
-    log then passes.
+31. **`--write-view` on a stale list that even names a proposal:** it writes `log.md.new` with the
+    list rebuilt, leaves `log.md` unchanged byte for byte, and once the new file is moved into place
+    the log passes.
+32. **A decision title that says something its approval doesn't** (D-06 retitled "Waive the service
+    fee"): check 2.
+33. **An approval that continues onto a second line** ("only after a separate written
+    confirmation"): check 0; an approval is a single line, so no qualifier can hide below it.
+34. **A table above the Current decisions list** showing P-03 as approved: check 0.
+35. **The Current decisions list moved below the entries:** check 0.
+36. **A `###` subsection inside a source:** every check passes; its approvals still belong to that
+    source.
+37. **A decision title that leaves part of its approval out** (D-01 without ", charged on every
+    ticket"): check 2.
 
 The demonstration writes the log only if every case came out as expected. The real files' SHA-256,
 before and after, is identical.
@@ -182,7 +197,15 @@ The first review (11-19-2026, 3:25 PM, needs changes) found criterion 5 not show
 quote for it wasn't accepted, because the log's link lines (`- Replaced by: D-07`, 19 characters)
 are shorter than the 20 characters a quote must have. The links were already there and checked; the
 checker's report now spells out each replacement and promotion it verified (above), so the evidence
-for criterion 5 is one specific, quotable line. Nothing in the log changed.
+for criterion 5 is one specific, quotable line.
+
+Further practice review then tightened the checker (cases 27 to 37 were added). One rule changed
+the log: a decision's title must now be exactly its approved words, so four decision headings (D-01,
+D-04, D-05 and D-07) were reworded to their approvers' own words (for example D-04, "The order total
+is worked out in whole cents", is now "The order total is the quantity times (the ticket price plus
+the fee), worked out in whole cents"); the other three already matched. The only other change to
+`log.md` is its introduction, which now describes `--write-view` and the title rule. No entry's
+status, date, source, approver, approval or links changed.
 
 ## Remaining limitations
 
@@ -201,10 +224,8 @@ for criterion 5 is one specific, quotable line. Nothing in the log changed.
   indented or tab-indented lines, underlined headings, horizontal rules, HTML and other comments are
   reported as problems rather than interpreted, so a reader and the checker can't see different
   things; the price is that the files must stay in that simple form.
-- **`--write-view` won't write through a link.** If `log.md` is a symbolic link, it refuses rather
-  than replace the link.
-- **`--write-view` and someone else saving at the same moment.** It refuses if the log changed since
-  it was read, but a save in the instant between that last check and the rename could still be lost.
+- **`--write-view` leaves one step to a person.** It writes `log.md.new` and never replaces `log.md`
+  (so no edit can be lost); someone has to look at the new file and move it into place.
 - **One log.** Decisions made in tickets or chat aren't found; they count only once added to the
   log.
 

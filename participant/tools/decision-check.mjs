@@ -9,10 +9,11 @@
 //   --previous   also checks that the log was only added to since that earlier copy: its entries
 //                are still the first ones, in the same order, each with the same lines in the same
 //                order, and the only lines added to them are "Became" and "Replaced by".
-//   --write-view rewrites the Current decisions list (only the lines between its two markers)
-//                from the entries, but only if every check of the entries, sources and work items
-//                passes, and only if the file hasn't changed since it was read. The file keeps
-//                every other byte, its line endings and its permissions.
+//   --write-view writes log.md.new: log.md with the Current decisions list (only the lines between
+//                its two markers) rebuilt from the entries, every other byte, line ending and the
+//                file's permissions kept. Only if every check of the entries, sources and work
+//                items passes; log.md itself is never replaced (a person checks log.md.new and
+//                moves it into place), so no edit to log.md can be lost.
 //   --print-view prints the list the entries call for, without checking or writing anything.
 //
 // An approval is a line in a source, "- Approved by <name> (area: <area>[; promotes: P-nn]
@@ -20,13 +21,16 @@
 // entry must agree with its record's approver, area, promoted proposal, replaced decision and date.
 // The list shows each decision's approved words, so what is shown as decided is what was approved.
 //
-// Markdown is read in context: text inside HTML comments, fenced code blocks (``` or ~~~, indented
-// up to three spaces) and indented code (four spaces or a tab) isn't part of the record.
+// The three files must be valid UTF-8 and use only simple Markdown: headings at the start of a line,
+// text, "- " bullets, "|" tables and inline code (plus, in log.md, the two marker comments).
+// Anything else (code blocks, indented lines, underlined headings, quote blocks, HTML, other
+// comments) is reported, not interpreted (fail closed), so a reader and the checker can't see
+// different things. Comments and code are still set aside when reading, as a second guard.
 //
 // Exit codes: 0 every check passed, 1 at least one problem, 2 a file couldn't be read or the
 // arguments were wrong.
 
-import { chmodSync, lstatSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
 
 const usage = () => {
@@ -149,6 +153,7 @@ const lint = (raw, file, markers) => {
     else if (/^ *\t/.test(line)) problems.push(`${where}: a tab at the start of a line (it can turn a line into code)`);
     else if (/^ {4,}\S/.test(line)) problems.push(`${where}: a line indented four or more spaces (that is code in Markdown)`);
     else if (/^ {1,3}#/.test(line)) problems.push(`${where}: a heading must start at the beginning of the line`);
+    else if (/^ {0,3}>/.test(line)) problems.push(`${where}: quote blocks (">") aren't used in the decision files`);
     else if (/^ {0,3}(=+|-+|(\* *){3,}|(_ *){3,})\s*$/.test(line)) problems.push(`${where}: underlined headings and horizontal rules aren't used in the decision files`);
     else if (masked.includes("<!--") || masked.includes("-->")) {
       if (!(markers && (line.trim() === START || line.trim() === END))) problems.push(`${where}: comments aren't used in the decision files (only the two current-decisions markers in log.md)`);
@@ -245,10 +250,18 @@ for (let i = 0; i < sourcesLines.length; i++) {
   const date = /(\d{2}-\d{2}-\d{4})\s*$/.exec(sourcesLines[i])?.[1] ?? null;
   if (!date) setupProblems.push(`sources.md: ${m[1]}'s heading doesn't end with its date (MM-DD-YYYY)`);
   const body = [];
-  for (let j = i + 1; j < sourcesLines.length && !/^ {0,3}#{1,6}(\s|$)/.test(sourcesLines[j]); j++) body.push(sourcesExact[j]);
+  for (let j = i + 1; j < sourcesLines.length && !/^ {0,3}#{1,2}(\s|$)/.test(sourcesLines[j]); j++) body.push(sourcesExact[j]);
   sources.set(m[1], { date, body });
 }
 if (!sources.size) setupProblems.push("sources.md has no sources");
+// A bullet whose next line continues it (anything but a blank line, another "- " bullet or a
+// heading) reads as one longer item: an approval must be a single line, so that is reported.
+sourcesLines.forEach((l, i) => {
+  const next = sourcesLines[i + 1];
+  if (/^- Approved by /.test(l) && next !== undefined && next.trim() !== "" && !/^- /.test(next) && !/^#{1,6}(\s|$)/.test(next)) {
+    setupProblems.push(`sources.md line ${i + 2}: continues the approval on line ${i + 1}; an approval is a single line`);
+  }
+});
 const workItems = new Map();
 const wi = section(sourcesLines, 2, "Work items", "sources.md");
 if (wi.problem) setupProblems.push(wi.problem);
@@ -377,6 +390,19 @@ visibleLines(classify(logRaw)).forEach((l, i) => {
   const ok = h[1] === "#" ? i === visibleLines(classify(logRaw)).findIndex((x) => /^ {0,3}#(\s|$)/.test(x)) : h[2] === "Current decisions" || h[2] === "Entries";
   if (!ok) parseProblems.push(`log.md line ${i + 1}: log.md has only its title, "## Current decisions" and "## Entries"; found ${JSON.stringify(l.trim())}`);
 });
+{
+  const vis = visibleLines(classify(logRaw));
+  const cur = vis.findIndex((l) => l.trimEnd() === "## Current decisions");
+  const ent = vis.findIndex((l) => l.trimEnd() === "## Entries");
+  if (cur !== -1 && ent !== -1 && cur > ent) parseProblems.push('log.md: "## Current decisions" must come before "## Entries", so a reader finds it first');
+  // The only table in log.md is the generated list, between its markers.
+  const cl = classify(logRaw);
+  const s0 = cl.findIndex((c) => c.kind === "comment" && c.raw.trim() === START);
+  const e0 = cl.findIndex((c) => c.kind === "comment" && c.raw.trim() === END);
+  vis.forEach((l, i) => {
+    if (l.trim().startsWith("|") && !(s0 !== -1 && e0 !== -1 && i > s0 && i < e0)) parseProblems.push(`log.md line ${i + 1}: a table outside the generated Current decisions list`);
+  });
+}
 const entries = parseEntries(logRaw, parseProblems, "log.md");
 if (mode === "print-view") {
   console.log(buildView(entries));
@@ -462,6 +488,12 @@ check("2. A decision records its approver and where it was approved", (p) => {
     if (e.fields.get("Area") !== area) p.push(`${e.id}: Area ${JSON.stringify(e.fields.get("Area"))} doesn't match the record's area ${JSON.stringify(area)}`);
     if (!approvers.has(person)) p.push(`${e.id}: ${JSON.stringify(person)} is not in rules.md's "Who may approve" table`);
     else if (!approvers.get(person).includes(area)) p.push(`${e.id}: ${person} may not approve area ${JSON.stringify(area)}`);
+    // The heading says exactly what the approval says: its title is the approved words (a capital
+    // first letter and a final full stop aside), so no title can add to them or leave a qualifier out.
+    const plain = (x) => x.trim().replace(/\.$/, "").toLowerCase();
+    if (plain(e.title) !== plain(parsed.words)) {
+      p.push(`${e.id}: its title ${JSON.stringify(e.title)} isn't the approved words ${JSON.stringify(parsed.words)}`);
+    }
     // One approval backs one decision: a decision can't borrow another's approval.
     const key = `${e.fields.get("Source")}\n${quote}`;
     if (usedBy.has(key)) p.push(`${e.id}: uses the same approval as ${usedBy.get(key)}; each approval backs one decision`);
@@ -592,7 +624,7 @@ if (previous !== null) {
       let j = 0;
       for (const line of n.raw) {
         if (j < o.raw.length && line === o.raw[j]) j++;
-        else if (!/^- (Became|Replaced by): [DP]-\d+$/.test(line)) p.push(`${o.id}: ${JSON.stringify(line)} was added or changed; only "- Became: …" and "- Replaced by: …" may be added`);
+        else if (!/^- (Became|Replaced by): D-\d+$/.test(line)) p.push(`${o.id}: ${JSON.stringify(line)} was added or changed; only "- Became: …" and "- Replaced by: …" may be added`);
       }
       for (; j < o.raw.length; j++) p.push(`${o.id}: ${JSON.stringify(o.raw[j])} was removed, changed or moved`);
     });
@@ -603,41 +635,30 @@ if (previous !== null) {
 let finalRaw = logRaw;
 let writeNote = "";
 if (mode === "write-view") {
-  const before = results.reduce((n, r) => n + r.problems.length, 0);
+  const problemsSoFar = results.reduce((n, r) => n + r.problems.length, 0);
   const v = viewOf(logRaw);
-  if (before || v.problem) {
+  if (problemsSoFar || v.problem) {
     writeNote = "The Current decisions view was NOT written: fix the problems below first.";
   } else if (v.inner === buildView(entries)) {
     writeNote = "Current decisions view already up to date.";
   } else {
     // Only the lines between the markers change. Each line keeps its own line ending; the new
-    // lines use the start marker's.
+    // lines use the start marker's. The result goes to a new file, log.md.new, never over
+    // log.md: a person checks it and moves it into place, so no edit to log.md can be lost.
     const parts = logRaw.split(/(?<=\n)/);
     const eol = parts[v.start].endsWith("\r\n") ? "\r\n" : "\n";
     const updated = [...parts.slice(0, v.start + 1), ...buildView(entries).split("\n").map((l) => l + eol), ...parts.slice(v.end)].join("");
-    const tmp = `${logPath}.${process.pid}.new`;
-    let created = false;
-    if (lstatSync(logPath).isSymbolicLink()) {
-      console.error("log.md is a link; the view isn't written through it (write the file it points to instead).");
-      process.exit(2);
-    }
+    const out = `${logPath}.new`;
     try {
-      writeFileSync(tmp, updated, { flag: "wx", mode: 0o600 });
-      created = true;
-      chmodSync(tmp, statSync(logPath).mode & 0o7777);
-      // Someone may have saved the log since it was read: then nothing is replaced.
-      if (readFileSync(logPath, "utf8") !== logRaw) throw Object.assign(new Error(), { changed: true });
-      renameSync(tmp, logPath);
-      created = false;
-      finalRaw = updated;
-      writeNote = "Current decisions view rewritten from the entries.";
+      writeFileSync(out, updated, { flag: "wx", mode: statSync(logPath).mode & 0o666 });
     } catch (err) {
-      if (created) {
-        try { unlinkSync(tmp); } catch { /* left for a person */ }
-      }
-      console.error(err.changed ? "log.md changed while the view was being built; nothing was written. Run it again." : "Couldn't write the view.");
+      console.error(err.code === "EEXIST"
+        ? "log.md.new already exists: check it and move it into place (or remove it) first; nothing was written."
+        : "Couldn't write log.md.new; nothing was written.");
       process.exit(2);
     }
+    finalRaw = updated;
+    writeNote = `Wrote log.md.new: log.md with its Current decisions list rebuilt from the entries. log.md itself was not changed. The checks below are of log.md.new; if they pass, move it over log.md${isAbsolute(dir) ? " in that folder" : `:\n  mv ${shownDir}/log.md.new ${shownDir}/log.md`}`;
   }
 }
 // The view, as the file now stands: its rows must all be decisions, and it must match the entries.

@@ -11,7 +11,8 @@ are `Became` and `Replaced by`. Check the log with `node participant/tools/decis
 
 The **Current decisions** list below shows the decisions in force now (not replaced), each in its
 approver's own words. The checker builds it from the entries; don't edit it by hand
-(`node participant/tools/decision-check.mjs --write-view`). Work items and the decisions they rest
+(`node participant/tools/decision-check.mjs --write-view` writes `log.md.new` to check and move into
+place). Each decision's title is its approver's own words. Work items and the decisions they rest
 on are listed in `sources.md`.
 
 ## Current decisions
@@ -29,7 +30,7 @@ on are listed in `sources.md`.
 
 ## Entries
 
-### D-01 · The service fee is $2.50 per ticket
+### D-01 · The service fee is $2.50 per ticket, charged on every ticket
 
 - Status: decision
 - Date: 10-05-2026
@@ -60,7 +61,7 @@ on are listed in `sources.md`.
 - Approval: "Approved by Avery Lane (area: pages): the buyer's name is required, at most 60 characters."
 - Affects: SHOP-15
 
-### D-04 · The order total is worked out in whole cents
+### D-04 · The order total is the quantity times (the ticket price plus the fee), worked out in whole cents
 
 - Status: decision
 - Date: 10-05-2026
@@ -108,7 +109,7 @@ on are listed in `sources.md`.
 - Source: MTG-02
 - Asked by: Riley Chen
 
-### D-05 · An order can be cancelled from the orders page, one at a time
+### D-05 · An order can be cancelled from the orders page, one order at a time
 
 - Status: decision
 - Date: 10-23-2026
@@ -129,7 +130,7 @@ on are listed in `sources.md`.
 - Approval: "Approved by Avery Lane (area: pages): prices are shown in US dollars, with two decimal places."
 - Affects: none
 
-### D-07 · An order may have at most 8 tickets
+### D-07 · An order may have at most 8 tickets, replacing the limit of 6
 
 - Status: decision
 - Date: 11-02-2026

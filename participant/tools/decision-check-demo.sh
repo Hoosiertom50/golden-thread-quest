@@ -65,11 +65,11 @@ view() {
     fs.writeFileSync(file, s.slice(0, s.indexOf(a) + a.length) + "\n" + view + "\n" + s.slice(s.indexOf(b)));
   ' "$T/$1/log.md" "$v" || FAIL=1
 }
-# changes <name>: the lines changed from the real files, without file names
+# changes <name>: every line changed from the real files (the rebuilt list's rows included)
 changes() {
   echo "What was changed in this copy:"
   for f in log.md rules.md sources.md; do
-    diff "$REAL/$f" "$T/$1/$f" | grep -E '^[<>] .*[^ ]' | grep -v -E '^[<>] \| (D-|Decision|---)' | sed -e "s/^</  $f, before:/" -e "s/^>/  $f, after: /"
+    diff "$REAL/$f" "$T/$1/$f" | grep -E '^[<>] .*[^ ]' | sed -e "s/^</  $f, before:/" -e "s/^>/  $f, after: /"
   done
 }
 # run <name> "<failing checks>" "<expected message>" [extra arguments...]: runs the checker on a
@@ -167,7 +167,7 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
   echo "A new record has the tech lead approving a fee; the decision citing it says so honestly."
   copy no-authority
   record no-authority "MTG-04 · Fee follow-up, 11-10-2026" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
-  decision no-authority D-08 "Waive the fee for 6 or more tickets" 11-10-2026 MTG-04 fees "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
+  decision no-authority D-08 "The service fee is waived for orders of 6 or more tickets" 11-10-2026 MTG-04 fees "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
   view no-authority; changes no-authority
   run no-authority "2" "Sam Ortiz may not approve area \"fees\""
 
@@ -175,14 +175,14 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
   echo "The same fee approval by the tech lead, filed as a 'calculation' decision to pass the authority check."
   copy wrong-area
   record wrong-area "MTG-04 · Fee follow-up, 11-10-2026" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
-  decision wrong-area D-08 "Waive the fee for 6 or more tickets" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
+  decision wrong-area D-08 "The service fee is waived for orders of 6 or more tickets" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
   view wrong-area; changes wrong-area
   run wrong-area "2" "Area \"calculation\" doesn't match the record's area \"fees\""
 
   echo "== 7. A decision borrowing another decision's approval =="
-  echo "A new D-08 says the fee is waived, citing D-01's approval of the \$2.50 fee."
+  echo "A new D-08 cites D-01's approval of the \$2.50 fee as its own."
   copy borrowed
-  decision borrowed D-08 "The service fee is waived for everyone" 10-05-2026 MTG-01 fees "Avery Lane" "$FEE"
+  decision borrowed D-08 "The service fee is \$2.50 per ticket, charged on every ticket" 10-05-2026 MTG-01 fees "Avery Lane" "$FEE"
   view borrowed; changes borrowed
   run borrowed "2" "uses the same approval as D-01"
 
@@ -198,14 +198,14 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
   echo "D-08 is added at the end (From: P-01), and P-01 gets one added line (Became: D-08)."
   copy promotion
   cp "$REAL/log.md" "$T/earlier-log.md"
-  record promotion "MTG-04 · Seating follow-up, 11-16-2026" "Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map."
+  record promotion "MTG-04 · Seating follow-up, 11-16-2026" "Approved by Avery Lane (area: pages; promotes: P-01): let buyers choose their seats on a seating map."
   edit promotion log.md "- Proposed by: Jordan Pike
 
 ### Q-01 ·" "- Proposed by: Jordan Pike
 - Became: D-08
 
 ### Q-01 ·"
-  decision promotion D-08 "Buyers may choose their seats on a seating map" 11-16-2026 MTG-04 pages "Avery Lane" "Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map." "- From: P-01"
+  decision promotion D-08 "Let buyers choose their seats on a seating map" 11-16-2026 MTG-04 pages "Avery Lane" "Approved by Avery Lane (area: pages; promotes: P-01): let buyers choose their seats on a seating map." "- From: P-01"
   view promotion; changes promotion
   run promotion "" "" --previous earlier-log.md
 
@@ -244,7 +244,7 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
 - Source: MTG-04
 - Area: pages
 - Approver: Avery Lane
-- Approval: \"Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map.\"
+- Approval: \"Approved by Avery Lane (area: pages; promotes: P-01): let buyers choose their seats on a seating map.\"
 - Affects: none"
   view rewrite; changes rewrite
   run rewrite "1 4 History" "\"- Status: decision\" was added or changed" --previous earlier-log.md
@@ -307,7 +307,7 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
 |---|---|
 | P-03 | waive the fee |"
   changes extra-view
-  run extra-view "7" "content in \"## Current decisions\" outside the generated list"
+  run extra-view "0 7" "content in \"## Current decisions\" outside the generated list"
 
   echo "== 21. A decision listing a work item that doesn't exist =="
   copy stretch-link
@@ -330,7 +330,7 @@ SHOP-18 | Waive the fee | P-03 |"
 - Asked by: Riley Chen" "- Source: MTG-03
 - Asked by: Riley Chen
 - Became: D-08"
-  decision question D-08 "No per-buyer limit" 11-16-2026 MTG-04 "ticket limits" "Avery Lane" "Approved by Avery Lane (area: ticket limits; promotes: Q-03): there is no limit per buyer across orders." "- From: Q-03"
+  decision question D-08 "There is no limit per buyer across orders" 11-16-2026 MTG-04 "ticket limits" "Avery Lane" "Approved by Avery Lane (area: ticket limits; promotes: Q-03): there is no limit per buyer across orders." "- From: Q-03"
   view question; changes question
   run question "1 4" "D-08: From Q-03, which is a question; only a proposal is promoted"
 
@@ -373,7 +373,7 @@ SHOP-18 | Waive the fee | P-03 |"
 - Replaced by: D-08
 
 ### D-02"
-  decision wrong-authority D-08 "Totals without a fee" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: calculation; replaces: D-01): totals include no service fee." "- Replaces: D-01"
+  decision wrong-authority D-08 "Totals include no service fee" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: calculation; replaces: D-01): totals include no service fee." "- Replaces: D-01"
   edit wrong-authority sources.md "| SHOP-11 | Show the order total on the event card | D-01 D-04 |" "| SHOP-11 | Show the order total on the event card | D-04 D-08 |"
   edit wrong-authority sources.md "| SHOP-12 | Show the service fee on the event card | D-01 |" "| SHOP-12 | Show the service fee on the event card | D-08 |"
   view wrong-authority; changes wrong-authority
@@ -407,11 +407,65 @@ SHOP-18 | Waive the fee | P-03 |"
   echo
 
   echo "== 31. --write-view repairs a stale list, even one naming a proposal =="
+  echo "It writes log.md.new and leaves log.md alone; the log.md.new is then moved into place and checked."
   copy repair
   edit repair log.md "| D-06 |" "| P-03 | waive the fee | fees | Avery Lane | 10-19-2026 | MTG-02 |
 | D-06 |"
-  run repair "" "Current decisions view rewritten from the entries" --write-view
+  cp "$T/repair/log.md" "$T/repair-before.md"
+  run repair "" "Wrote log.md.new" --write-view
+  if cmp -s "$T/repair-before.md" "$T/repair/log.md"; then echo "log.md itself is unchanged, byte for byte."; else echo "UNEXPECTED: log.md was changed"; FAIL=1; fi
+  mv "$T/repair/log.md.new" "$T/repair/log.md"
+  echo "\$ mv repair/log.md.new repair/log.md"
   run repair "" ""
+
+  echo "== 32. A decision title that says something its approval doesn't =="
+  echo "D-06 is retitled \"Waive the service fee\"; its approval is about showing prices in US dollars."
+  copy wrong-title
+  edit wrong-title log.md "### D-06 · Prices are shown in US dollars, with two decimal places" "### D-06 · Waive the service fee"
+  changes wrong-title
+  run wrong-title "2" "its title \"Waive the service fee\" isn't the approved words"
+
+  echo "== 37. A decision title that leaves part of the approval out =="
+  echo "D-01's title drops \", charged on every ticket\": shorter, but no longer exactly what was approved."
+  copy short-title
+  edit short-title log.md "### D-01 · The service fee is \$2.50 per ticket, charged on every ticket" "### D-01 · The service fee is \$2.50 per ticket"
+  changes short-title
+  run short-title "2" "its title \"The service fee is \$2.50 per ticket\" isn't the approved words"
+
+  echo "== 33. An approval that continues onto a second line =="
+  copy continued
+  edit continued sources.md "- $FEE" "- $FEE
+  only after a separate written confirmation."
+  changes continued
+  run continued "0" "continues the approval on line"
+
+  echo "== 34. A table above the Current decisions list =="
+  copy preamble-table
+  edit preamble-table log.md "## Current decisions" "| Decision | Status |
+|---|---|
+| P-03 | approved |
+
+## Current decisions"
+  changes preamble-table
+  run preamble-table "0" "a table outside the generated Current decisions list"
+
+  echo "== 35. The Current decisions list moved below the entries =="
+  copy moved-view
+  node -e '
+    const fs = require("fs"), f = process.argv[1], s = fs.readFileSync(f, "utf8");
+    const a = s.indexOf("## Current decisions"), b = s.indexOf("## Entries");
+    fs.writeFileSync(f, s.slice(0, a) + s.slice(b).replace(/\n*$/, "\n\n") + s.slice(a, b).replace(/\n*$/, "\n"));
+  ' "$T/moved-view/log.md"
+  run moved-view "0" "\"## Current decisions\" must come before \"## Entries\""
+
+  echo "== 36. A ### subsection inside a source =="
+  echo "MTG-01's approvals are put under a \"### Approvals\" subheading; they still belong to MTG-01."
+  copy subsection
+  edit subsection sources.md "- Avery proposed a service fee" "### Approvals
+
+- Avery proposed a service fee"
+  changes subsection
+  run subsection "" ""
 
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
@@ -429,10 +483,15 @@ SHOP-18 | Waive the fee | P-03 |"
   echo "----- end of sources.md -----"
 } > "$OUT" 2>&1
 
-if grep -qF -- "$T" "$OUT"; then echo "The log contains the temp folder's real name; nothing is written."; FAIL=1; fi
+if grep -qF -- "$T" "$OUT"; then
+  # Not shown: it holds this computer's temp folder name.
+  echo "The log contains the temp folder's real name; nothing is written or shown."
+  cleanup
+  exit 1
+fi
 if [ "$FAIL" != 0 ]; then
-  echo "Something unexpected happened; nothing was written. The log:"
-  cat "$OUT"
+  echo "Something unexpected happened; nothing was written. The log (temp folder names hidden):"
+  while IFS= read -r line || [ -n "$line" ]; do printf '%s\n' "${line//"$T"/<temp>}"; done < "$OUT"
   cleanup
   exit 1
 fi
