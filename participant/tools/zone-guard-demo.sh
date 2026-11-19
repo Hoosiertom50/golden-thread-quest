@@ -59,6 +59,10 @@ ln -s ../content "$S/repo/participant/content-link"             # a folder link 
 ln -s ../../../outside/escape.md "$S/repo/participant/notes/escape.md"  # a link where the file would go
 
 TEXT="Notes: draft seating plan, table 4 has two open seats."
+redact() {  # redact <text> <replacement>: replaces every copy of <text>, as plain text (no patterns)
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do printf '%s\n' "${line//"$1"/$2}"; done
+}
 sha() { node -e 'process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$1"; }
 run() {  # run <expected exit code> <guard arguments...>: shows the command, its output and exit code
   local want=$1 shown="" a code
@@ -184,10 +188,11 @@ header() {
 # ---------------------------------------------------------------- os-lock.txt
 locked() {  # locked <expected exit code> <shell command>: runs it inside the lock, from repo/
   # ($ZG in a command is the guard, zone-guard.mjs, so its full path never appears in the log.)
-  local code
+  local code out
   echo "\$ bash zone-run.sh sh -c '$2'"
-  (cd "$S/repo" && ZG="$GUARD" bash "$RUNLOCKED" sh -c "$2") 2>&1 | sed "s|$S/||g"
-  code=${PIPESTATUS[0]}
+  out=$(cd "$S/repo" && ZG="$GUARD" bash "$RUNLOCKED" sh -c "$2" 2>&1)
+  code=$?
+  [ -z "$out" ] || printf '%s\n' "$out" | redact "$S/" ""
   echo "exit code: $code"
   if [ "$code" != "$1" ]; then echo "UNEXPECTED: exit code $1 was expected"; FAIL=1; fi
   echo
@@ -197,7 +202,13 @@ locked() {  # locked <expected exit code> <shell command>: runs it inside the lo
   echo "zone-run.sh runs a command inside a macOS sandbox made by 'zone-guard.mjs profile' from the same"
   echo "Zones table: every file write is refused except into the zones where an agent may write."
   echo "The profile for the sandbox's repo/ (its folder shown as <repo>):"
-  (cd "$S/repo" && node "$GUARD" profile) | sed "s|$S/repo|<repo>|g; s/^/  /"
+  # The profile writes the folder with " and \ escaped, so the same escaping is hidden.
+  SB_REPO=$(printf '%s/.' "$S/repo" | sed 's/[\\"]/\\&/g'); SB_REPO=${SB_REPO%/.}
+  if PROFILE_TEXT=$(cd "$S/repo" && node "$GUARD" profile); then
+    printf '%s\n' "$PROFILE_TEXT" | redact "$SB_REPO" "<repo>" | while IFS= read -r l; do echo "  $l"; done
+  else
+    echo "UNEXPECTED: no profile"; FAIL=1
+  fi
   echo
   mkdir -p "$S/repo/participant/test-results"
   echo "(participant/test-results/ was just created, to show what only the guard knows; see 13.)"
@@ -286,6 +297,11 @@ locked() {  # locked <expected exit code> <shell command>: runs it inside the lo
   echo "  (end of list)"
 } > "$OUT/zone-report.txt" 2>&1
 
+# A last check: no log may contain the sandbox's real folder (this computer's temp folder).
+if grep -rqF -- "$T" "$OUT"; then
+  echo "A log contains the sandbox's real folder name; nothing is published."
+  FAIL=1
+fi
 if [ "$FAIL" != 0 ]; then
   echo "Something unexpected happened; no logs were moved. The logs:"
   cat "$OUT"/*.txt

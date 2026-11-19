@@ -107,7 +107,7 @@ bash participant/tools/zone-run.sh --root <a sandbox folder> \
 
 ## What was tested or validated
 
-All recorded on 11-19-2026 at 10:55 AM with Node 22.23.3, at commit 7084e70 with the quest-23 files
+All recorded on 11-19-2026 at 11:10 AM with Node 22.23.3, at commit 7084e70 with the quest-23 files
 uncommitted, in a sandbox holding a copy of the zone layout (`repo/`), the real `zone-rules.md` (its
 SHA-256 matches the repository's, shown in each log), and a folder outside it (`outside/`).
 

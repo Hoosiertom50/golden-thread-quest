@@ -1,5 +1,5 @@
 base-camp-ownership-zones: allowed writes
-Recorded 11-19-2026 10:55 AM with Node v22.23.3, by participant/tools/zone-guard-demo.sh.
+Recorded 11-19-2026 11:10 AM with Node v22.23.3, by participant/tools/zone-guard-demo.sh.
 Sandbox: a new temp folder holding repo/ (the zone layout, with the real zone-rules.md copied in)
 and outside/ (a folder outside that repository). Paths below are relative to the sandbox.
 The rules copy is identical to participant/context/zone-rules.md:

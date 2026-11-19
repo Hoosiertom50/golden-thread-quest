@@ -1,5 +1,5 @@
 base-camp-ownership-zones: refused writes
-Recorded 11-19-2026 10:55 AM with Node v22.23.3, by participant/tools/zone-guard-demo.sh.
+Recorded 11-19-2026 11:10 AM with Node v22.23.3, by participant/tools/zone-guard-demo.sh.
 Sandbox: a new temp folder holding repo/ (the zone layout, with the real zone-rules.md copied in)
 and outside/ (a folder outside that repository). Paths below are relative to the sandbox.
 The rules copy is identical to participant/context/zone-rules.md:
@@ -26,7 +26,7 @@ The rules copy is identical to participant/context/zone-rules.md:
 ./repo/tools
 
 Fingerprint before (every entry: kind, mode, owner, size, contents, link target):
-  11 folders, 3 files, 3 links; fingerprint SHA-256 d5d571a41529dc30f4ea0a6805bb5f16c5656f3d7f1f1c63e663285ceae5a407
+  11 folders, 3 files, 3 links; fingerprint SHA-256 818ccdc14831f0296d54ef09e7677f597bdbb30b8b338a3cbe8900cc53c2b91f
 
 == 1. Into a program-owned zone ==
 $ node zone-guard.mjs write content/notes.md "Notes: draft seating plan, table 4 has two open seats."
@@ -137,7 +137,7 @@ exit code: 1
 ./repo/tools
 
 Fingerprint after:
-  11 folders, 3 files, 3 links; fingerprint SHA-256 d5d571a41529dc30f4ea0a6805bb5f16c5656f3d7f1f1c63e663285ceae5a407
+  11 folders, 3 files, 3 links; fingerprint SHA-256 818ccdc14831f0296d54ef09e7677f597bdbb30b8b338a3cbe8900cc53c2b91f
 
 RESULT: the before and after lists are identical. No file, empty file or partial file was
 created anywhere in the sandbox, inside or outside the repository, and nothing changed.
