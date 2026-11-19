@@ -31,7 +31,7 @@
 // Output never shows the computer's folders: paths are shown relative to the repository.
 
 import { randomBytes } from "node:crypto";
-import { closeSync, constants, linkSync, lstatSync, openSync, readFileSync, readlinkSync, realpathSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, constants, linkSync, lstatSync, openSync, readFileSync, realpathSync, unlinkSync, writeSync } from "node:fs";
 import { isAbsolute, relative, sep } from "node:path";
 
 const RULES_FILE = "participant/context/zone-rules.md";
@@ -41,7 +41,7 @@ const fold = (s) => s.normalize("NFC").toLowerCase(); // names compared without 
 
 // ---- arguments -------------------------------------------------------------------------------
 const usage = () => {
-  console.error("Usage:\n  node participant/tools/zone-guard.mjs write <path> <text> [--root <folder>]\n  node participant/tools/zone-guard.mjs zone <path> [--root <folder>]");
+  console.error("Usage:\n  node participant/tools/zone-guard.mjs write <path> <text> [--root <folder>]\n  node participant/tools/zone-guard.mjs zone <path> [--root <folder>]\n  node participant/tools/zone-guard.mjs profile [--root <folder>]");
   process.exit(2);
 };
 const args = process.argv.slice(2);
@@ -52,8 +52,9 @@ if (args.length >= 2 && args[args.length - 2] === "--root") {
   args.splice(args.length - 2, 2);
 }
 const [command, target, text] = args;
-if (command === "write" ? args.length !== 3 : command === "zone" ? args.length !== 2 : true) usage();
-if (!target || target.includes("\0")) usage();
+const counts = { write: 3, zone: 2, profile: 1 };
+if (!(command in counts) || args.length !== counts[command]) usage();
+if (command !== "profile" && (!target || target.includes("\0"))) usage();
 
 let root;
 try {
@@ -67,7 +68,7 @@ const inside = (real) => real === root || real.startsWith(`${root}${sep}`);
 const shown = (real) => (real === root ? "." : relative(root, real).split(sep).join("/"));
 // The target as printed: an absolute path is never shown in full (it could show this computer's
 // folders); one inside the repository is shown relative to it.
-const label = !isAbsolute(target)
+const label = command === "profile" ? "" : !isAbsolute(target)
   ? target
   : target.startsWith(`${root}/`)
     ? target.slice(root.length + 1)
@@ -148,6 +149,7 @@ const checkEntry = (e) => {
   const parts = (body.endsWith("/") ? body.slice(0, -1) : body).split("/");
   if (e.startsWith("**/") && parts.length !== 1) return "must name a single folder or file after **/";
   if (parts.some((p) => p === "" || p === "." || p === ".." || p.includes("*") || p.includes("\\"))) return "is not a plain path";
+  if (/[\u0000-\u001f\u007f]/.test(e)) return "contains a control character";
   return null;
 };
 
@@ -213,6 +215,11 @@ const resolveTarget = (given, missingOk) => {
       if (!missingOk || err.code !== "ENOENT" || dirParts.length === 0 || popped === "." || popped === ".." || popped === "") {
         return { error: "is in a folder that doesn't exist", rule: "rule 4: only a new file, in a folder that already exists" };
       }
+      let danglingLink = false;
+      try {
+        danglingLink = lstatSync(dir).isSymbolicLink();
+      } catch { /* really missing */ }
+      if (danglingLink) return { error: "goes through a link whose destination can't be found" };
       rest.unshift(popped);
       dirParts = dirParts.slice(0, -1);
     }
@@ -250,6 +257,36 @@ const refuse = (rule, detail, extra = []) => {
 
 const rules = readRules();
 
+// ---- profile ---------------------------------------------------------------------------------
+// The operating-system lock, made from the same table: a macOS sandbox profile that refuses every
+// file write except into the entries of zones with "Agent may write: yes" (and /dev/null, which
+// shells write to). Run a command inside it with participant/tools/zone-run.sh. It backs the guard
+// up: a write that never goes through the guard (a direct save, a shell redirection) is refused by
+// the system itself, and so is anything a race could slip past the guard outside those folders.
+if (command === "profile") {
+  if (rules.broken) {
+    console.error(`No profile: the rules table is missing or broken (${rules.broken}).`);
+    process.exit(1);
+  }
+  const sb = (path) => `"${path.replace(/[\\"]/g, (c) => `\\${c}`)}"`;
+  const allow = [];
+  for (const z of rules.zones.filter((zone) => zone.agentMayWrite)) {
+    for (const e of z.entries) {
+      if (e === "*" || e.startsWith("**/")) {
+        console.error(`No profile: entry \`${e}\` in the ${z.name} zone can't be expressed as a folder or file of the repository.`);
+        process.exit(1);
+      }
+      allow.push(e.endsWith("/") ? `(subpath ${sb(`${root}/${e.slice(0, -1)}`)})` : `(literal ${sb(`${root}/${e}`)})`);
+    }
+  }
+  if (/[\u0000-\u001f\u007f]/.test(root)) {
+    console.error("No profile: the repository's folder name contains a control character.");
+    process.exit(1);
+  }
+  console.log(["(version 1)", "(allow default)", "(deny file-write*)", `(allow file-write* ${allow.join(" ")} (literal "/dev/null"))`].join("\n"));
+  process.exit();
+}
+
 // ---- zone ------------------------------------------------------------------------------------
 if (command === "zone") {
   const r = resolveTarget(target, true);
@@ -277,23 +314,13 @@ if (command === "zone") {
       isDir = st.isDirectory();
     } catch { /* doesn't exist yet */ }
     if (link) {
-      // Where the link leads: followed fully if its destination exists; otherwise its destination's
-      // folder is resolved and its last name added, so a link to nothing is judged by where it points.
+      // Where the link leads, followed all the way. A link whose destination can't be found (a
+      // missing file, a chain or a loop) is given no zone: there is nothing real to judge.
       try {
         real = realpathSync.native(real);
         isDir = lstatSync(real).isDirectory();
       } catch {
-        try {
-          const to = readlinkSync(real);
-          const raw = to.startsWith("/") ? to : `${r.parent}/${to}`;
-          const cut = raw.lastIndexOf("/");
-          const end = raw.slice(cut + 1);
-          if (end === "" || end === "." || end === "..") throw new Error();
-          real = `${realpathSync.native(raw.slice(0, cut) || "/")}/${end}`.replace(/^\/\//, "/");
-          isDir = false;
-        } catch {
-          unresolved = true;
-        }
+        unresolved = true;
       }
     }
     if (unresolved) {
@@ -383,6 +410,11 @@ function writeNew(r, rel, z, extra) {
     return;
   }
   const temp = `.zone-guard-${randomBytes(8).toString("hex")}.tmp`;
+  const tempZone = zoneOf(rules.zones, shown(`${r.parent}/${temp}`), false);
+  if (!tempZone || tempZone.ambiguous || !tempZone.zone.agentMayWrite) {
+    refuse(rule4, `the hidden temporary file it writes first would land in ${tempZone && !tempZone.ambiguous ? `the ${tempZone.zone.name} zone` : "no zone"}, where an agent may not write`, extra);
+    return;
+  }
   let fd;
   try {
     fd = openSync(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o644);

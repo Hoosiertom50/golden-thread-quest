@@ -7,7 +7,9 @@ answers to one question at a time; Claude wrote the code and this page from them
 
 ## What was built
 
-A write-guard that every agent write goes through, and the zone rules it enforces.
+Two locks on every agent write, both following one set of zone rules: a write-guard that checks
+each write before it happens, and an operating-system lock that refuses any write the guard never
+saw.
 
 **The zone rules** (`participant/context/zone-rules.md`, criteria 1 and 6). Four zones, each with the
 folders it covers, who may write there, whether Git tracks it, and whether an agent may write there
@@ -45,6 +47,17 @@ So `participant/../content/notes.md` and `participant/content-link/notes.md` (a 
 `participant/`. Every refusal names its rule, and the guard creates nothing until every check has
 passed.
 
+**The operating-system lock (Tom's choice, added after the practice review).** The guard only
+checks writes that are handed to it; an agent that saved a file directly, or a shell redirection,
+would skip it. So agent commands, and the guard itself, run inside a macOS sandbox
+(`participant/tools/zone-run.sh`) that refuses every file write except into the zones where an agent
+may write. Its rules are made from the same Zones table (`zone-guard.mjs profile`), so there is
+still one rulebook. The lock knows only folders; the guard knows the finer rules (a test-results
+folder inside `participant/` is Generated). Together they cover criterion 2: a write that goes
+through the guard is checked against every rule, and a write that doesn't is refused by the system
+outside the agent's two zones. The lock also closes the split-second gaps: whatever another program
+swaps on disk during a write, nothing can land outside those two zones.
+
 **Both stretch goals (Tom's choice).** A path in no zone, such as a new top-level folder, is refused,
 and `zone <path>` reports any path's zone and whether an agent may write there, without writing.
 
@@ -62,11 +75,14 @@ All paths are under `participant/`.
 
 - The zone rules: `context/zone-rules.md`
 - The guard: `tools/zone-guard.mjs`
+- The operating-system lock: `tools/zone-run.sh` (its rules from `zone-guard.mjs profile`)
 - The sandbox demonstration that recorded the logs: `tools/zone-guard-demo.sh`
 - Refused writes, then proof nothing was created:
   `evidence/base-camp-ownership-zones/base-attempt-004/logs/refused-write.txt`
 - The same write into participant-owned folders, succeeding:
   `evidence/base-camp-ownership-zones/base-attempt-004/logs/allowed-write.txt`
+- Direct writes that skip the guard, refused by the lock:
+  `evidence/base-camp-ownership-zones/base-attempt-004/logs/os-lock.txt`
 - Stretch goals (the zone report, and a broken or missing table):
   `evidence/base-camp-ownership-zones/base-attempt-004/logs/zone-report.txt`
 
@@ -79,17 +95,19 @@ bash participant/tools/zone-guard-demo.sh <a new logs folder>
 ```
 
 It builds a throwaway sandbox in a new temp folder (Tom's choice, so nothing is ever aimed at a real
-program file), runs every case below, writes the three logs and deletes only that temp folder. The
-guard can also be run on its own:
+program file), runs every case below, writes the four logs and deletes only that temp folder. It
+needs macOS (the lock uses `sandbox-exec`). The tools can also be run on their own:
 
 ```sh
 node participant/tools/zone-guard.mjs zone <path>
-node participant/tools/zone-guard.mjs write <path> "<text>" --root <a sandbox folder>
+node participant/tools/zone-guard.mjs profile
+bash participant/tools/zone-run.sh --root <a sandbox folder> \
+  node participant/tools/zone-guard.mjs write <path> "<text>" --root <a sandbox folder>
 ```
 
 ## What was tested or validated
 
-All recorded on 11-19-2026 at 10:29 AM with Node 22.23.3, at commit 7084e70 with the quest-23 files
+All recorded on 11-19-2026 at 10:55 AM with Node 22.23.3, at commit 7084e70 with the quest-23 files
 uncommitted, in a sandbox holding a copy of the zone layout (`repo/`), the real `zone-rules.md` (its
 SHA-256 matches the repository's, shown in each log), and a folder outside it (`outside/`).
 
@@ -114,37 +132,50 @@ SHA-256 matches the repository's, shown in each log), and a folder outside it (`
   `participant/`, `participant/notes/` and `local-data/`. Writing `participant/notes.md` again with
   different text was refused (rule 4: the guard never overwrites), and the file still holds its first
   text. Only those three new files appeared; every other entry is unchanged.
+- **The operating-system lock** (`logs/os-lock.txt`, criterion 2). Ten direct writes that never went
+  through the guard were refused by macOS itself ("Operation not permitted"): into `content/`,
+  appending to a program file, a new top-level file, into `generated/`, a new folder in no zone,
+  `..` out of the repository, through each of the two links, a copy into `content/`, and deleting a
+  program file. Direct writes into `participant/` and `local-data/` worked. A direct write into a
+  test-results folder inside `participant/` got past the lock, which knows only folders, and the
+  guard, run inside the lock, refused the same write (Generated). The guard wrote into
+  `participant/` from inside the lock and refused `content/`. Only the four allowed files appeared;
+  the rest of the sandbox's fingerprint list is unchanged.
 - **Stretch goals** (`logs/zone-report.txt`). `zone` reported the right zone for nine paths,
   including a test-results folder inside `participant/` (Generated) and the paths through both links.
   A table with an invalid value, and then a missing table, each refused a write that is normally
   allowed, and nothing was created.
 - The real repository was never written by the demonstration: only the evidence logs changed, and
   the demo-app's `orders.json` is unchanged (`git diff --quiet`).
-- The demonstration checks every guard result against the expected exit code (1 refused, 0
-  written) and moves the logs into place only if all of them, and every fingerprint, came out as
+- The demonstration checks every result against the expected exit code (1 refused, 0 written) and moves the logs into place only if all of them, and every fingerprint, came out as
   expected.
 
 ## Remaining limitations
 
 - **It checks where, never what.** A raw private file copied into `participant/` is allowed (see
   Tom's answer above). A person, and the quest app's secret scan, must catch that.
-- **It protects only writes that go through it.** An agent that saves a file directly, without the
-  guard, isn't stopped. Next step: make the agent's own settings allow writes only through the guard
-  (or deny direct writes outside `participant/` and `local-data/`), so the guard can't be skipped.
+- **The lock covers commands started through `zone-run.sh`.** An agent whose own file tools write
+  without going through a command (an editor tool built into the agent) is outside it; those tools
+  need the same rule in the agent's own settings (deny writes outside `participant/` and
+  `local-data/`). And the lock knows only folders: inside them, a direct write that skips the guard
+  can still land in a Generated folder such as `participant/tests/playwright/test-results/`.
 - **It only creates new files.** Editing, renaming and deleting are outside this quest; a full guard
   would check those the same way.
-- **A folder moved during a write.** The guard steps into the checked folder before creating the
-  file, so swapping a folder on the way for a link can't redirect the write. If the checked folder
-  itself is moved elsewhere in that split second, the guard notices, stops and reports it (exit 1),
-  leaving the file for a person to check: it detects that case rather than preventing it. Its
-  hidden temporary file is removed by its random name; if that fails, the guard says so.
+- **Another program changing things during a write.** The guard steps into the checked folder
+  before creating the file, so swapping a folder on the way for a link can't redirect the write. A
+  program changing files in that same folder at the same split second (replacing the guard's hidden
+  temporary file, or the rulebook) could still change what is written, within the agent's two zones:
+  the lock keeps it from landing anywhere else. If the checked folder is moved meanwhile, the guard
+  stops and says so (exit 1).
 - **Capital letters.** macOS treats `Content/` and `content/` as the same folder. The guard resolves
   folders to their real spelling and compares names without regard to capitals, so
   `participant/.ds_store` is still the Generated `.DS_Store`. On a system where capitals do matter
   (Linux), a differently-capitalised name is treated as the listed one: that can refuse a write
   that would be fine there, or, if a folder such as `LOCAL-DATA/` exists, treat it as Private data.
-- **The demonstration script** needs bash, Node and the usual Unix tools (macOS or Linux). It
-  replaces a log only if it is an ordinary file, and moves the logs into place only if every step
+- **macOS only.** The lock uses `sandbox-exec`, which Apple marks as deprecated but still ships. On
+  Linux the same profile idea would need another tool (bubblewrap, Landlock).
+- **The demonstration script** needs macOS, bash, Node and the usual Unix tools. It
+  replaces a log only if it is an ordinary file, and puts the logs in place only if every step
   worked.
 
 ## Sensitive values

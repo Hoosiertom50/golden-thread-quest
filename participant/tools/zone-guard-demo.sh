@@ -6,22 +6,27 @@
 #
 #   bash participant/tools/zone-guard-demo.sh <logs folder>   (from the repository's top folder)
 #
-# It writes three logs into <logs folder>: refused-write.txt, allowed-write.txt, zone-report.txt.
+# It writes four logs into <logs folder>: refused-write.txt, allowed-write.txt, os-lock.txt and
+# zone-report.txt.
 # They are built inside the sandbox first and moved into place only if every step worked (each
 # guard result as expected, every fingerprint taken). An existing log is replaced only if it is an
 # ordinary file: a link standing there is refused, never followed. Exit codes: 0 all as expected,
-# 1 something unexpected (no logs moved), 2 setup error. Needs bash, Node and the usual Unix tools
-# (macOS or Linux); the sandbox goes in $TMPDIR (or /tmp).
+# 1 something unexpected (no logs moved), 2 setup error. Needs macOS (the lock uses sandbox-exec),
+# bash, Node and the usual Unix tools; the sandbox goes in $TMPDIR (or /tmp).
 set -u -o pipefail
-REPO=$(pwd -P)
+# Physical paths, kept exact even if a folder name ends in a newline ($(...) drops those).
+REPO=$(cd -P . && printf '%s/.' "$PWD") || exit 2
+REPO=${REPO%/.}
 GUARD="$REPO/participant/tools/zone-guard.mjs"
 FP="$REPO/participant/tools/workspace-fingerprint.mjs"
+RUNLOCKED="$REPO/participant/tools/zone-run.sh"
 RULES="$REPO/participant/context/zone-rules.md"
-[ -f "$GUARD" ] && [ -f "$FP" ] && [ -f "$RULES" ] || { echo "Run this from the repository's top folder."; exit 2; }
+[ -f "$GUARD" ] && [ -f "$FP" ] && [ -f "$RUNLOCKED" ] && [ -f "$RULES" ] || { echo "Run this from the repository's top folder."; exit 2; }
 [ $# -eq 1 ] || { echo "Usage: bash participant/tools/zone-guard-demo.sh <logs folder>"; exit 2; }
 mkdir -p "$1" || exit 2
-LOGS=$(cd "$1" && pwd -P) || exit 2
-NAMES="refused-write.txt allowed-write.txt zone-report.txt"
+LOGS=$(cd -P -- "$1" && printf '%s/.' "$PWD") || exit 2
+LOGS=${LOGS%/.}
+NAMES="refused-write.txt allowed-write.txt os-lock.txt zone-report.txt"
 for n in $NAMES; do
   if [ -L "$LOGS/$n" ] || { [ -e "$LOGS/$n" ] && [ ! -f "$LOGS/$n" ]; }; then
     echo "$n in the logs folder is not an ordinary file; stopping."; exit 2
@@ -176,6 +181,85 @@ header() {
   fi
 } > "$OUT/allowed-write.txt" 2>&1
 
+# ---------------------------------------------------------------- os-lock.txt
+locked() {  # locked <expected exit code> <shell command>: runs it inside the lock, from repo/
+  # ($ZG in a command is the guard, zone-guard.mjs, so its full path never appears in the log.)
+  local code
+  echo "\$ bash zone-run.sh sh -c '$2'"
+  (cd "$S/repo" && ZG="$GUARD" bash "$RUNLOCKED" sh -c "$2") 2>&1 | sed "s|$S/||g"
+  code=${PIPESTATUS[0]}
+  echo "exit code: $code"
+  if [ "$code" != "$1" ]; then echo "UNEXPECTED: exit code $1 was expected"; FAIL=1; fi
+  echo
+}
+{
+  header "the operating-system lock (writes that skip the guard)"
+  echo "zone-run.sh runs a command inside a macOS sandbox made by 'zone-guard.mjs profile' from the same"
+  echo "Zones table: every file write is refused except into the zones where an agent may write."
+  echo "The profile for the sandbox's repo/ (its folder shown as <repo>):"
+  (cd "$S/repo" && node "$GUARD" profile) | sed "s|$S/repo|<repo>|g; s/^/  /"
+  echo
+  mkdir -p "$S/repo/participant/test-results"
+  echo "(participant/test-results/ was just created, to show what only the guard knows; see 13.)"
+  echo
+  (cd "$S" && find . -print | LC_ALL=C sort) > "$FPDIR/lock-list-before.txt"
+  fingerprint lock-before > /dev/null
+  echo "== Direct writes that never go through the guard =="
+  echo "-- 1. Into a program folder --"
+  locked 1 'echo x > content/direct.md'
+  echo "-- 2. Appending to an existing program file --"
+  locked 1 'echo more >> content/quest.md'
+  echo "-- 3. A new file at the top of the repository --"
+  locked 1 'touch direct.md'
+  echo "-- 4. Into the Generated zone --"
+  locked 1 'echo x > generated/direct.md'
+  echo "-- 5. A new folder in no zone --"
+  locked 1 'mkdir scratch2'
+  echo "-- 6. Using .. to leave the repository --"
+  locked 1 'echo x > participant/../../outside/direct.md'
+  echo "-- 7. Through the link that leads outside --"
+  locked 1 'echo x > participant/outside-link/direct.md'
+  echo "-- 8. Through the link into content/ --"
+  locked 1 'echo x > participant/content-link/direct.md'
+  echo "-- 9. Copying into a program folder --"
+  locked 1 'cp README.md content/copy.md'
+  echo "-- 10. Deleting a program file --"
+  locked 1 'node -e "require(\"fs\").unlinkSync(\"content/quest.md\")" 2>&1 | grep -o "EPERM: operation not permitted"; exit 1'
+  echo "-- 11. Into participant/ (allowed) --"
+  locked 0 'echo x > participant/direct.md'
+  echo "-- 12. Into local-data/ (allowed) --"
+  locked 0 'echo x > local-data/direct.md'
+  echo "-- 13. The lock knows only folders; the guard knows the finer rules --"
+  echo "(a Generated folder inside participant/: the lock lets a direct write through, the guard refuses it)"
+  locked 0 'echo x > participant/test-results/direct.md'
+  locked 1 'node "$ZG" write participant/test-results/via-guard.md x'
+  echo "== The guard itself, run inside the lock =="
+  locked 0 'node "$ZG" write participant/via-guard.md "written through the guard, inside the lock"'
+  locked 1 'node "$ZG" write content/via-guard.md x'
+  echo "== What changed =="
+  (cd "$S" && find . -print | LC_ALL=C sort) > "$FPDIR/lock-list-after.txt"
+  echo "New entries (exactly the four allowed writes: 11, 12, 13 and the guard's):"
+  comm -13 "$FPDIR/lock-list-before.txt" "$FPDIR/lock-list-after.txt" | sed 's/^/  /'
+  echo "  (end of list)"
+  echo "Removed entries:"
+  comm -23 "$FPDIR/lock-list-before.txt" "$FPDIR/lock-list-after.txt" | sed 's/^/  /'
+  echo "  (end of list)"
+  echo "content/quest.md still holds: $(cat "$S/repo/content/quest.md")"
+  fingerprint lock-after > /dev/null
+  EXPECT_NEW='"(repo/participant/direct\.md|repo/local-data/direct\.md|repo/participant/test-results/direct\.md|repo/participant/via-guard\.md)"$'
+  LOCK_DIRS='^dir .* "(repo/participant|repo/local-data|repo/participant/test-results)"$'
+  grep -v -E "$EXPECT_NEW" "$FPDIR/lock-after.txt" | grep -v -E "$LOCK_DIRS" > "$FPDIR/lock-after-rest.txt"
+  grep -v -E "$LOCK_DIRS" "$FPDIR/lock-before.txt" > "$FPDIR/lock-before-rest.txt"
+  if [ -s "$FPDIR/lock-before-rest.txt" ] && cmp -s "$FPDIR/lock-before-rest.txt" "$FPDIR/lock-after-rest.txt"; then
+    echo "RESULT: apart from those four new files (and their folders' own entries), the fingerprint list"
+    echo "of the whole sandbox, inside and outside the repository, is unchanged."
+  else
+    echo "RESULT: SOMETHING ELSE CHANGED:"
+    diff "$FPDIR/lock-before-rest.txt" "$FPDIR/lock-after-rest.txt"
+    FAIL=1
+  fi
+} > "$OUT/os-lock.txt" 2>&1
+
 # ---------------------------------------------------------------- zone-report.txt (stretch)
 {
   header "zone report and a broken rules table (stretch goals)"
@@ -208,11 +292,16 @@ if [ "$FAIL" != 0 ]; then
   cleanup
   exit 1
 fi
+# Publishing: each log is copied into a new file in the logs folder, then renamed over its final
+# name. A rename replaces whatever entry stands at that name (even a link to a folder) and never
+# follows it, so a log can't end up anywhere but in the logs folder.
 for n in $NAMES; do
-  if [ -L "$LOGS/$n" ] || { [ -e "$LOGS/$n" ] && [ ! -f "$LOGS/$n" ]; }; then
-    echo "$n in the logs folder is not an ordinary file; stopping."; cleanup; exit 2
-  fi
-  mv -f -- "$OUT/$n" "$LOGS/$n" || { cleanup; exit 2; }
+  node -e '
+    const fs = require("fs"), [src, dir, name] = process.argv.slice(1);
+    const tmp = `${dir}/.${name}.${process.pid}.new`;
+    fs.copyFileSync(src, tmp, fs.constants.COPYFILE_EXCL);
+    try { fs.renameSync(tmp, `${dir}/${name}`); } catch (e) { fs.unlinkSync(tmp); throw e; }
+  ' "$OUT/$n" "$LOGS" "$n" || { echo "Couldn't put $n in place."; cleanup; exit 2; }
 done
 cleanup
 echo "Logs written: $NAMES"

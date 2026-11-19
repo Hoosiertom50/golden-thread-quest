@@ -69,3 +69,13 @@ is in and whether an agent may write there.
    write. It writes into a hidden temporary file first and then puts it in place in one step, so a
    half-written file never appears. A refused write leaves nothing behind, not even an empty file.
 5. **Every refusal names the rule that refused it.**
+
+## The second lock: the operating system
+
+The guard checks only the writes handed to it. So agent commands, and the guard itself, run inside
+a macOS sandbox, `bash participant/tools/zone-run.sh <command>`, that refuses **every** file write
+except into the entries of zones where **Agent may write** is `yes`. Its rules are made from the
+Zones table above (`node participant/tools/zone-guard.mjs profile`), so this file stays the only
+rulebook. The lock knows only those folders; the guard knows the finer rules inside them (a cache
+or test report in `participant/` is still Generated). A write that skips the guard is refused by the
+system outside the agent's zones; a write through the guard is checked against every rule.
