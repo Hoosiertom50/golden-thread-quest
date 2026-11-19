@@ -640,9 +640,29 @@ if (writeNote) console.log(`${writeNote}\n`);
 const failed = results.reduce((n, r) => n + r.problems.length, 0);
 const count = (s) => entries.filter((e) => status(e) === s).length;
 console.log(`Decision log check: ${shownDir} (${entries.length} entries: ${count("decision")} decisions, ${count("proposal")} proposals, ${count("question")} questions)`);
+// What a passing check 4 or 5 verified, spelled out link by link, so a reader can see each
+// promotion and replacement it confirmed, not just the word PASS.
+const linkWords = (e) => (status(e) === "decision" ? approvedWords(e) : e.title);
+const verified = (r) => {
+  if (r.problems.length) return [];
+  if (r.title.startsWith("4.")) {
+    return entries.filter((e) => status(e) === "decision" && e.fields.has("From")).map((e) => {
+      const from = byId.get(e.fields.get("From"));
+      return `verified: proposal ${from.id} "${linkWords(from)}" became decision ${e.id} "${linkWords(e)}"; ${from.id} says "Became: ${e.id}", ${e.id} says "From: ${from.id}", and ${e.id}'s approval record says it promotes ${from.id}`;
+    });
+  }
+  if (r.title.startsWith("5.")) {
+    return entries.filter((e) => status(e) === "decision" && e.fields.has("Replaces")).map((e) => {
+      const old = byId.get(e.fields.get("Replaces"));
+      return `verified: superseded decision ${old.id} "${linkWords(old)}" links to ${e.id}, the decision that replaced it, "${linkWords(e)}"; ${old.id} says "Replaced by: ${e.id}", ${e.id} says "Replaces: ${old.id}", and ${e.id}'s approval record says it replaces ${old.id}`;
+    });
+  }
+  return [];
+};
 for (const r of results) {
   console.log(`${r.problems.length ? "FAIL" : "PASS"}  ${r.title}`);
   for (const pr of r.problems) console.log(`      - ${pr}`);
+  for (const line of verified(r)) console.log(`      ${line}`);
 }
 // Stretch goal 2: decisions in force with no work resting on them, by their approved words.
 const idle = entries.filter((e) => status(e) === "decision" && !e.fields.has("Replaced by") && ![...workItems.values()].some((r) => r.includes(e.id)));

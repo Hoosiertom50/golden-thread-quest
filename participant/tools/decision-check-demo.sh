@@ -127,7 +127,14 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
   echo "\$ node participant/tools/decision-check.mjs"
   out=$(cd "$REPO" && node "$CHECK" 2>&1); code=$?
   printf '%s\nexit code: %s\n' "$out" "$code"
-  if [ "$code" = 0 ]; then echo "As expected: every check passed."; else echo "UNEXPECTED: exit code 0 was expected"; FAIL=1; fi
+  if [ "$code" = 0 ] \
+    && printf '%s\n' "$out" | grep -qF 'verified: superseded decision D-02' \
+    && printf '%s\n' "$out" | grep -qF 'verified: proposal P-02'; then
+    echo "As expected: every check passed, and the report names the replacement D-02 to D-07 and the"
+    echo "promotion P-02 to D-05 it verified."
+  else
+    echo "UNEXPECTED: exit code 0 and both verified links were expected"; FAIL=1
+  fi
   echo
 
   echo "== 2. Agreement recorded as an approval (the quest's scenario) =="

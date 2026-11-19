@@ -1,5 +1,5 @@
 context-decision-log: the decision-log check
-Recorded 11-19-2026 01:46 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
+Recorded 11-19-2026 03:30 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
 Each case is a copy of the real files (participant/context/decisions/) in a temp folder with
 one mistake, and its Current decisions list rebuilt so only that mistake can fail. Each must fail
 exactly the checks named, with the message named. Every check (0 to 7, the stretch check and the
@@ -15,14 +15,17 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
 Decisions in force with no work resting on them: D-06 (prices are shown in US dollars, with two decimal places.)
 Result: PASS, every check passed.
 exit code: 0
-As expected: every check passed.
+As expected: every check passed, and the report names the replacement D-02 to D-07 and the
+promotion P-02 to D-05 it verified.
 
 == 2. Agreement recorded as an approval (the quest's scenario) ==
 P-03 is promoted to a decision whose "approval" quotes the meeting's agreement.
@@ -45,7 +48,10 @@ FAIL  2. A decision records its approver and where it was approved
       - D-08: the quoted line is not an approval by Avery Lane ("Approved by Avery Lane (area: …): …"); agreement is not an approval
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
+      verified: proposal P-03 "Waive the service fee for orders of 6 or more tickets" became decision D-08 "Jordan: we could waive the fee for orders of 6 or more tickets. Everyone agreed it was a good idea."; P-03 says "Became: D-08", D-08 says "From: P-03", and D-08's approval record says it promotes P-03
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -66,7 +72,9 @@ FAIL  2. A decision records its approver and where it was approved
       - D-03: no approver is recorded
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -87,7 +95,9 @@ FAIL  2. A decision records its approver and where it was approved
       - D-01: the approval line isn't in MTG-01, word for word
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -117,7 +127,9 @@ FAIL  2. A decision records its approver and where it was approved
       - D-08: Sam Ortiz may not approve area "fees"
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -148,7 +160,9 @@ FAIL  2. A decision records its approver and where it was approved
       - D-08: Sam Ortiz may not approve area "fees"
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -176,7 +190,9 @@ FAIL  2. A decision records its approver and where it was approved
       - D-08: uses the same approval as D-01; each approval backs one decision
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -196,7 +212,9 @@ PASS  2. A decision records its approver and where it was approved
 FAIL  3. A proposal is never shown as a decision
       - work item SHOP-18 rests on P-03, a proposal: work must rest on an approved decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -228,7 +246,10 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
+      verified: proposal P-01 "Let buyers choose their seats on a seating map" became decision D-08 "buyers may choose their seats on a seating map."; P-01 says "Became: D-08", D-08 says "From: P-01", and D-08's approval record says it promotes P-01
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -252,6 +273,7 @@ PASS  3. A proposal is never shown as a decision
 FAIL  4. Promoting a proposal adds an entry and keeps the history
       - D-06: From P-03, but its approval record promotes nothing
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -272,6 +294,7 @@ PASS  3. A proposal is never shown as a decision
 FAIL  4. Promoting a proposal adds an entry and keeps the history
       - D-05: From P-02, but P-02 doesn't say "Became: D-05"
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -307,6 +330,7 @@ PASS  3. A proposal is never shown as a decision
 FAIL  4. Promoting a proposal adds an entry and keeps the history
       - P-01: From (none), but its approval record promotes P-01
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -337,6 +361,7 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 FAIL  5. A replaced decision links to the one that replaced it
       - D-07: Replaces D-02, but D-02 doesn't say "Replaced by: D-07"
 PASS  6. Each entry cites its source (and its date)
@@ -362,6 +387,7 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 FAIL  5. A replaced decision links to the one that replaced it
       - D-05: Replaces D-02, but its approval record replaces nothing
       - D-07: Replaces (none), but its approval record replaces D-02
@@ -384,6 +410,7 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 FAIL  5. A replaced decision links to the one that replaced it
       - D-06: Replaces D-06, but its approval record replaces nothing
       - D-06: must come after D-06, which it replaces
@@ -406,7 +433,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 FAIL  6. Each entry cites its source (and its date)
       - D-06: source SUP-99 isn't in sources.md
 PASS  7. A reader finds the current decisions without reading the history
@@ -427,7 +456,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 FAIL  6. Each entry cites its source (and its date)
       - D-06: date "13-26-2026" is not a real MM-DD-YYYY date
 PASS  7. A reader finds the current decisions without reading the history
@@ -448,7 +479,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 FAIL  6. Each entry cites its source (and its date)
       - D-06: dated 10-25-2026, but SUP-04 was recorded on 10-26-2026
 PASS  7. A reader finds the current decisions without reading the history
@@ -467,7 +500,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 FAIL  7. A reader finds the current decisions without reading the history
       - the Current decisions view doesn't match the entries; run with --write-view
@@ -488,7 +523,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 FAIL  7. A reader finds the current decisions without reading the history
       - content in "## Current decisions" outside the generated list: "| Decision | What |"
@@ -509,7 +546,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 FAIL  Stretch: decisions link to the work items they affect
@@ -530,7 +569,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -564,6 +605,7 @@ PASS  3. A proposal is never shown as a decision
 FAIL  4. Promoting a proposal adds an entry and keeps the history
       - D-08: From Q-03, which is a question; only a proposal is promoted
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -588,7 +630,9 @@ FAIL  2. A decision records its approver and where it was approved
       - D-01: the approval line isn't in MTG-01, word for word
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -608,7 +652,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -630,7 +676,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -652,7 +700,9 @@ FAIL  2. A decision records its approver and where it was approved
       - D-08: uses the same approval as D-01; each approval backs one decision
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 FAIL  7. A reader finds the current decisions without reading the history
       - the Current decisions view doesn't match the entries; run with --write-view
@@ -674,7 +724,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -690,7 +742,9 @@ PASS  1. Every entry has exactly one status: decision, proposal or question
 PASS  2. A decision records its approver and where it was approved
 PASS  3. A proposal is never shown as a decision
 PASS  4. Promoting a proposal adds an entry and keeps the history
+      verified: proposal P-02 "Let buyers cancel an order from the orders page" became decision D-05 "an order can be cancelled from the orders page, one order at a time."; P-02 says "Became: D-05", D-05 says "From: P-02", and D-05's approval record says it promotes P-02
 PASS  5. A replaced decision links to the one that replaced it
+      verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02
 PASS  6. Each entry cites its source (and its date)
 PASS  7. A reader finds the current decisions without reading the history
 PASS  Stretch: decisions link to the work items they affect
@@ -705,7 +759,7 @@ and after:                                         3e413d8f8dd0a4febb953b0018b0d
 identical
 
 == For the reader of this log alone: what was checked against ==
-SHA-256 of participant/tools/decision-check.mjs: 4ab8b5ee741240689825c9a339f9b53ebb95786b975590ea50abd24319320742
+SHA-256 of participant/tools/decision-check.mjs: 41fb05d30496495f7857d2f5125c6701d5f564203b8890e12ae0301d219eae6b
 SHA-256 of participant/context/decisions/sources.md: 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 The full text of participant/context/decisions/sources.md, the written records every approval
 above is checked against:

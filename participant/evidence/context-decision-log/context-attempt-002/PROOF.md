@@ -18,9 +18,9 @@ comes from a real project.
 **The log** (`participant/context/decisions/log.md`): 13 entries, 7 decisions, 3 proposals and 3
 questions, each with its date and source (criteria 1 and 6). It includes a replaced decision (D-02,
 "at most 6 tickets", replaced by D-07, "at most 8 tickets"), a promoted proposal (P-02, "let buyers
-cancel an order from the orders page", became D-05), and the quest's trap: P-03, "waive the fee for 6 or more tickets", which
-everyone in a meeting agreed was a good idea but nobody with authority approved, so it stays a
-proposal.
+cancel an order from the orders page", became D-05), and the quest's trap: P-03, "waive the fee for
+6 or more tickets", which everyone in a meeting agreed was a good idea but nobody with authority
+approved, so it stays a proposal.
 
 **The rules** (`participant/context/decisions/rules.md`): what makes an entry a decision, who may
 approve which areas (a made-up product owner for fees, ticket limits and pages; a made-up tech lead
@@ -116,13 +116,16 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 1:46 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
+Recorded on 11-19-2026 at 3:30 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
 working would make the demonstration fail.
 
-1. **The real log:** 13 entries; every check passes.
+1. **The real log:** 13 entries; every check passes. For checks 4 and 5 the report also names each
+   link it verified. For criterion 5 it prints:
+   `verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02`.
+   The demonstration requires both verified lines (D-02 to D-07, and P-02 to D-05) to appear.
 2. **Agreement recorded as an approval** (the quest's scenario): check 2, "agreement is not an
    approval" (criteria 2 and 3).
 3. **A decision with no approver:** checks 1 and 2.
@@ -164,6 +167,14 @@ working would make the demonstration fail.
 
 The demonstration writes the log only if every case came out as expected. The real files' SHA-256,
 before and after, is identical.
+
+## Changes after the first review
+
+The first review (11-19-2026, 3:25 PM, needs changes) found criterion 5 not shown: the reviewer's
+quote for it wasn't accepted, because the log's link lines (`- Replaced by: D-07`, 19 characters)
+are shorter than the 20 characters a quote must have. The links were already there and checked; the
+checker's report now spells out each replacement and promotion it verified (above), so the evidence
+for criterion 5 is one specific, quotable line. Nothing in the log changed.
 
 ## Remaining limitations
 
