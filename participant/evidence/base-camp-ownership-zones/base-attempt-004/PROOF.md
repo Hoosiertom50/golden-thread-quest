@@ -29,13 +29,16 @@ in `zone-rules.md`, read fresh on every run (Tom's choice): the rules people rea
 tool enforces can't disagree, and a missing or broken table refuses every write.
 
 **How it handles a path trying to leave the folder.** It doesn't trust the text it is given. It
-first follows every `..` and every link to where the file would *really* land, the way a mail clerk
-checks the address on a map rather than the envelope. Then it compares that real path:
+first has the operating system follow every `..` and every link, in order, to where the file would
+*really* land, the way a mail clerk checks the address on a map rather than the envelope. Then it
+compares that real path:
 
 1. the real path must be inside the repository, or the write is refused (rule 2);
 2. its zone must be in the table and allow agent writes, or the write is refused (rule 3);
 3. the file is created only as a brand-new file, in a folder that already exists, and a link
-   standing at the last step is never followed (rule 4).
+   standing at the last step is never followed (rule 4). The guard steps into the checked folder,
+   writes a hidden temporary file there, and then puts it in place at the real name in one step
+   that refuses if anything already stands there. Nothing half-written ever appears.
 
 So `participant/../content/notes.md` and `participant/content-link/notes.md` (a link into
 `content/`) are both seen as `content/notes.md` and refused, even though their text starts with
@@ -86,7 +89,7 @@ node participant/tools/zone-guard.mjs write <path> "<text>" --root <a sandbox fo
 
 ## What was tested or validated
 
-All recorded on 11-19-2026 at 10:12 AM with Node 22.23.3, at commit 7084e70 with the quest-23 files
+All recorded on 11-19-2026 at 10:29 AM with Node 22.23.3, at commit 7084e70 with the quest-23 files
 uncommitted, in a sandbox holding a copy of the zone layout (`repo/`), the real `zone-rules.md` (its
 SHA-256 matches the repository's, shown in each log), and a folder outside it (`outside/`).
 
@@ -132,8 +135,9 @@ SHA-256 matches the repository's, shown in each log), and a folder outside it (`
   would check those the same way.
 - **A folder moved during a write.** The guard steps into the checked folder before creating the
   file, so swapping a folder on the way for a link can't redirect the write. If the checked folder
-  itself is moved elsewhere in that split second, the guard notices afterwards and removes its own
-  new file (only if it is still that file); it detects that case rather than preventing it.
+  itself is moved elsewhere in that split second, the guard notices, stops and reports it (exit 1),
+  leaving the file for a person to check: it detects that case rather than preventing it. Its
+  hidden temporary file is removed by its random name; if that fails, the guard says so.
 - **Capital letters.** macOS treats `Content/` and `content/` as the same folder. The guard resolves
   folders to their real spelling and compares names without regard to capitals, so
   `participant/.ds_store` is still the Generated `.DS_Store`. On a system where capitals do matter

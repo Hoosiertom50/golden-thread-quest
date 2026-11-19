@@ -30,7 +30,8 @@
 // Exit codes: 0 written (or zone reported), 1 refused, 2 usage error.
 // Output never shows the computer's folders: paths are shown relative to the repository.
 
-import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, realpathSync, unlinkSync, writeSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { closeSync, constants, linkSync, lstatSync, openSync, readFileSync, readlinkSync, realpathSync, unlinkSync, writeSync } from "node:fs";
 import { isAbsolute, relative, sep } from "node:path";
 
 const RULES_FILE = "participant/context/zone-rules.md";
@@ -64,6 +65,13 @@ try {
 }
 const inside = (real) => real === root || real.startsWith(`${root}${sep}`);
 const shown = (real) => (real === root ? "." : relative(root, real).split(sep).join("/"));
+// The target as printed: an absolute path is never shown in full (it could show this computer's
+// folders); one inside the repository is shown relative to it.
+const label = !isAbsolute(target)
+  ? target
+  : target.startsWith(`${root}/`)
+    ? target.slice(root.length + 1)
+    : "(an absolute path outside the repository)";
 
 // ---- the rulebook ----------------------------------------------------------------------------
 // Returns { zones: [{ name, agentMayWrite, entries }] } or { broken: "<why>" }.
@@ -172,7 +180,7 @@ const zoneOf = (zones, rel, isDir) => {
         continue;
       }
       const hit = e.endsWith("/") ? f.startsWith(e) || (isDir && `${f}/` === e) : f === e && !isDir;
-      if (hit && (!best || e.length > best.entry.length)) best = { zone: z, entry };
+      if (hit && (!best || e.length > best.len)) best = { zone: z, entry, len: e.length };
     }
   }
   return anywhere ?? best ?? top ?? null;
@@ -232,7 +240,7 @@ const tidyText = (given) => {
 };
 
 const refuse = (rule, detail, extra = []) => {
-  console.log(`REFUSED: ${q(target)}`);
+  console.log(`REFUSED: ${q(label)}`);
   for (const line of extra) console.log(`  ${line}`);
   console.log(`  rule: ${rule}`);
   console.log(`  why: ${detail}`);
@@ -249,32 +257,55 @@ if (command === "zone") {
     console.log(`Rules table missing or broken: ${rules.broken}. Every write would be refused.`);
     process.exitCode = 1;
   } else if (r.folderOnly) {
-    console.log(`${q(target)} ends in "." or "..": ask about the folder by its name instead.`);
+    console.log(`${q(label)} ends in "." or "..": ask about the folder by its name instead.`);
     process.exitCode = 1;
   } else if (r.error) {
-    console.log(`${q(target)} ${r.error}.`);
+    console.log(`${q(label)} ${r.error}.`);
     process.exitCode = 1;
   } else {
     // A link standing at the last step is followed here, so a linked folder is reported where it
     // really leads. (A write there is refused anyway: the guard never writes through a link.)
     let real = r.real;
     let exists = false;
-    let isDir = false;
+    let isDir = target.endsWith("/"); // for a path that doesn't exist yet: a folder if it ends in "/"
     let link = false;
+    let unresolved = false;
     try {
       const st = lstatSync(real);
       exists = true;
       link = st.isSymbolicLink();
-      if (link) real = realpathSync.native(real);
-      isDir = lstatSync(real).isDirectory();
-    } catch { /* doesn't exist yet (or a link to nothing): treated as a file */ }
-    if (!inside(real)) {
-      console.log(`${q(target)} leads outside the repository: in no zone, and never writable.`);
+      isDir = st.isDirectory();
+    } catch { /* doesn't exist yet */ }
+    if (link) {
+      // Where the link leads: followed fully if its destination exists; otherwise its destination's
+      // folder is resolved and its last name added, so a link to nothing is judged by where it points.
+      try {
+        real = realpathSync.native(real);
+        isDir = lstatSync(real).isDirectory();
+      } catch {
+        try {
+          const to = readlinkSync(real);
+          const raw = to.startsWith("/") ? to : `${r.parent}/${to}`;
+          const cut = raw.lastIndexOf("/");
+          const end = raw.slice(cut + 1);
+          if (end === "" || end === "." || end === "..") throw new Error();
+          real = `${realpathSync.native(raw.slice(0, cut) || "/")}/${end}`.replace(/^\/\//, "/");
+          isDir = false;
+        } catch {
+          unresolved = true;
+        }
+      }
+    }
+    if (unresolved) {
+      console.log(`${q(label)} is a link whose destination can't be found: in no zone, and never writable.`);
+      process.exitCode = 1;
+    } else if (!inside(real)) {
+      console.log(`${q(label)} leads outside the repository: in no zone, and never writable.`);
       process.exitCode = 1;
     } else {
       const rel = shown(real);
       const z = zoneOf(rules.zones, rel, isDir);
-      if (fold(rel) !== fold(target.replace(/\/+$/, "")) && describe(target, rel)) console.log(`${q(target)} really lands at ${q(rel)}.`);
+      if (fold(rel) !== fold(target.replace(/\/+$/, "")) && describe(target, rel)) console.log(`${q(label)} really lands at ${q(rel)}.`);
       if (!z) console.log(`${q(rel)} is in no zone: an agent may not write there until it is added to the rules.`);
       else if (z.ambiguous) console.log(`${q(rel)} matches entries of two zones (${z.ambiguous.join(", ")}): the rules are ambiguous, so writing is refused.`);
       else console.log(`${q(rel)} is in the ${z.zone.name} zone (entry \`${z.entry}\`). Agent may write: ${z.zone.agentMayWrite ? "yes" : "no"}.`);
@@ -314,9 +345,13 @@ if (rules.broken) {
 }
 
 // Rule 4. Moving into the checked folder pins it: from then on the file is created in that very
-// folder, by its bare name, whatever happens to the path that led to it. Before and after, the
-// folder must still be found at the checked path; otherwise the guard's own new file is removed.
+// folder, by name, whatever happens to the path that led to it. The text is written into a new
+// hidden file with a random name first, then put in place at the real name in one step (a hard
+// link, which refuses if anything at all already stands at that name). So nothing half-written
+// ever appears at the real name, and a failure never has to delete anything there: only the
+// guard's own hidden file is ever removed.
 function writeNew(r, rel, z, extra) {
+  const rule4 = "rule 4: only a brand-new file, never overwriting or following a link";
   try {
     process.chdir(r.parent);
   } catch (err) {
@@ -334,54 +369,76 @@ function writeNew(r, rel, z, extra) {
     refuse("rule 4: only a new file, in a folder that already exists", "the folder changed while it was being checked", extra);
     return;
   }
-  let fd;
-  try {
-    fd = openSync(r.name, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o644);
-  } catch (err) {
-    const why = err.code === "EEXIST" ? "something (a file, folder or link) already stands at that path" : `the file couldn't be created (${err.code})`;
-    refuse("rule 4: only a brand-new file, never overwriting or following a link", why, extra);
-    return;
-  }
-  let ok = false;
-  let problem = "";
-  let mine = null; // the identity of the file this run created
-  const isMine = () => {
+  const taken = () => {
     try {
-      const b = lstatSync(r.name);
-      return mine !== null && b.ino === mine.ino && b.dev === mine.dev;
+      lstatSync(r.name);
+      return true;
     } catch {
       return false;
     }
   };
+  // Refused before anything is created, so a refusal leaves nothing behind.
+  if (taken()) {
+    refuse(rule4, "something (a file, folder or link) already stands at that path", extra);
+    return;
+  }
+  const temp = `.zone-guard-${randomBytes(8).toString("hex")}.tmp`;
+  let fd;
   try {
-    mine = fstatSync(fd);
-    const bytes = Buffer.from(text, "utf8");
+    fd = openSync(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o644);
+  } catch (err) {
+    refuse(rule4, `the file couldn't be created (${err.code})`, extra);
+    return;
+  }
+  const bytes = Buffer.from(text, "utf8");
+  let problem = "";
+  try {
     let done = 0;
     while (done < bytes.length) done += writeSync(fd, bytes, done, bytes.length - done);
-    // The folder must still be where it was checked, and the file at that name must be this one.
-    if (here() !== r.parent) problem = "the folder was moved while writing";
-    else if (!isMine()) problem = "the new file was replaced while writing";
-    else {
-      ok = true;
-      console.log(`WRITTEN: ${q(rel)} (${bytes.length} bytes)`);
-      console.log(`  zone: ${z.zone.name} (entry \`${z.entry}\`), Agent may write: yes`);
-    }
   } catch (err) {
     problem = `writing failed (${err.code ?? "error"})`;
-  } finally {
-    closeSync(fd);
   }
-  if (!ok) {
-    // Removed by its bare name in the pinned folder, and only if it is still the file this run
-    // created: nothing else can be deleted.
-    let removed = false;
-    if (isMine()) {
-      try {
-        unlinkSync(r.name);
-        removed = true;
-      } catch { /* left for a person */ }
+  try {
+    closeSync(fd);
+  } catch (err) {
+    problem ||= `closing the file failed (${err.code ?? "error"})`;
+  }
+  if (!problem && here() !== r.parent) problem = "the folder was moved while writing";
+  let placed = false;
+  if (!problem) {
+    try {
+      linkSync(temp, r.name);
+      placed = true;
+    } catch (err) {
+      problem = err.code === "EEXIST" ? "something appeared at that path while writing" : `the file couldn't be put in place (${err.code})`;
     }
-    console.log(`FAILED: ${q(target)}: ${problem}; ${removed ? "the new file was removed" : `the new file couldn't be removed, check ${q(rel)} by hand`}.`);
+  }
+  let tempLeft = false;
+  try {
+    unlinkSync(temp); // only ever the guard's own hidden file
+  } catch {
+    tempLeft = true;
+  }
+  const leftover = tempLeft ? ` A hidden file ${q(temp)} was left in that folder; delete it by hand.` : "";
+  if (!placed) {
+    if (problem.startsWith("something appeared")) refuse(rule4, problem, extra);
+    else {
+      console.log(`FAILED: ${q(label)}: ${problem}; nothing was put at ${q(rel)}.`);
+      process.exitCode = 1;
+    }
+    if (leftover) console.log(`  ${leftover.trim()}`);
+    return;
+  }
+  if (here() !== r.parent) {
+    // Placed in the checked folder, which was moved meanwhile: leave it for a person to look at.
+    console.log(`STOPPED: ${q(label)}: the folder was moved while the file was being put in place; check where ${q(rel)}'s folder is now.${leftover}`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`WRITTEN: ${q(rel)} (${bytes.length} bytes)`);
+  console.log(`  zone: ${z.zone.name} (entry \`${z.entry}\`), Agent may write: yes`);
+  if (leftover) {
+    console.log(`  ${leftover.trim()}`);
     process.exitCode = 1;
   }
 }

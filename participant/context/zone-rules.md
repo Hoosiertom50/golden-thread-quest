@@ -66,5 +66,6 @@ is in and whether an agent may write there.
 4. **It writes only a brand-new file**, into a folder that already exists. It never overwrites,
    never creates folders, and never follows a link at the last step. It steps into the checked
    folder before creating the file, so the folder can't be swapped between the check and the
-   write. A refused write leaves nothing behind, not even an empty file.
+   write. It writes into a hidden temporary file first and then puts it in place in one step, so a
+   half-written file never appears. A refused write leaves nothing behind, not even an empty file.
 5. **Every refusal names the rule that refused it.**

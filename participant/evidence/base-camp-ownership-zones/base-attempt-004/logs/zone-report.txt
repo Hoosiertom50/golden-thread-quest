@@ -1,10 +1,10 @@
 base-camp-ownership-zones: zone report and a broken rules table (stretch goals)
-Recorded 11-19-2026 10:12 AM with Node v22.23.3, by participant/tools/zone-guard-demo.sh.
+Recorded 11-19-2026 10:29 AM with Node v22.23.3, by participant/tools/zone-guard-demo.sh.
 Sandbox: a new temp folder holding repo/ (the zone layout, with the real zone-rules.md copied in)
 and outside/ (a folder outside that repository). Paths below are relative to the sandbox.
 The rules copy is identical to participant/context/zone-rules.md:
-  repository: 0b52bce952274e50f013ceed6515c02e05a35f36172b887eb859cfdaa5f09a7c
-  sandbox:    0b52bce952274e50f013ceed6515c02e05a35f36172b887eb859cfdaa5f09a7c
+  repository: 4a770bba4c98fbfb410d1948f577bec3861325c8f553416fbfef90e0f0e78aa0
+  sandbox:    4a770bba4c98fbfb410d1948f577bec3861325c8f553416fbfef90e0f0e78aa0
 
 == zone <path>: which zone, and may an agent write there (writes nothing) ==
 $ node zone-guard.mjs zone content/quest.md
