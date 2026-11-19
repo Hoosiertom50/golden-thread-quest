@@ -123,7 +123,7 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 5:45 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
+Recorded on 11-19-2026 at 6:02 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
@@ -206,6 +206,8 @@ working would make the demonstration fail.
     an escaped backtick never starts inline code, and is itself reported.
 46. **The log's introduction naming an entry** ("P-03, the fee waiver, is approved."): check 0;
     above the Current decisions list, no text may name an entry.
+47. **The introduction naming an entry in disguise** (`P\-03` and `P-**03**`, both displayed as
+    P-03): check 0; the text is compared as displayed.
 
 Every case also requires all the checks to report, in order (PASS or FAIL), so none can silently go
 missing from the report.
@@ -221,7 +223,7 @@ are shorter than the 20 characters a quote must have. The links were already the
 checker's report now spells out each replacement and promotion it verified (above), so the evidence
 for criterion 5 is one specific, quotable line.
 
-Further practice review then tightened the checker (cases 27 to 46 were added). One rule changed
+Further practice review then tightened the checker (cases 27 to 47 were added). One rule changed
 the log: a decision's title must now be exactly its approved words, so four decision headings (D-01,
 D-04, D-05 and D-07) were reworded to their approvers' own words (for example D-04, "The order total
 is worked out in whole cents", is now "The order total is the quantity times (the ticket price plus
@@ -234,8 +236,10 @@ status, date, source, approver, approval or links changed.
 - **The checker trusts the sources file.** It confirms an approval line is in the cited notes, not
   that the meeting happened or that the person really said it. In a real project the source would
   be a link to minutes or a ticket comment a person can open.
-- **"Authority" is only the table.** Who may approve what is whatever `rules.md` says; keeping that
-  table right is a person's job.
+- **"Authority" is only the table, and the area is what the record says.** Who may approve what is
+  whatever `rules.md` says, and an approval's area is the one its written record states. Whether the
+  approved words really belong to that area (a fee change tagged "pages", say) is a person's
+  judgement; keeping the table and the records right is a person's job.
 - **Append-only is checked against a copy someone keeps.** Without `--previous`, the checker can't
   see that an entry was rewritten; in a real repository, Git's history is that earlier copy.
   Blank lines inside an entry aren't compared: adding or removing one doesn't change what the entry

@@ -1,5 +1,5 @@
 context-decision-log: the decision-log check
-Recorded 11-19-2026 05:45 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
+Recorded 11-19-2026 06:02 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
 Each case is a copy of the real files (participant/context/decisions/) in a temp folder with
 one mistake, and its Current decisions list rebuilt so only that mistake can fail. Each must fail
 exactly the checks named, with the message named. Every check (0 to 7, the stretch check and the
@@ -1151,13 +1151,34 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 0 failed, with "names an entry above the Current decisions list".
 
+== 47. The introduction naming an entry in disguise ==
+"P\-03" and "P-**03**" both display as P-03; the check reads the text as displayed.
+What was changed in this copy:
+  log.md, after:  P\-03, the fee waiver, is approved; so is P-**03**.
+$ node decision-check.mjs --dir disguised
+Decision log check: (folder disguised) (13 entries: 7 decisions, 3 proposals, 3 questions)
+FAIL  0. The files can be read as a log
+      - log.md line 18: names an entry above the Current decisions list; entries are named only in the list and under "## Entries"
+PASS  1. Every entry has exactly one status: decision, proposal or question
+PASS  2. A decision records its approver and where it was approved
+PASS  3. A proposal is never shown as a decision
+PASS  4. Promoting a proposal adds an entry and keeps the history
+PASS  5. A replaced decision links to the one that replaced it
+PASS  6. Each entry cites its source (and its date)
+PASS  7. A reader finds the current decisions without reading the history
+PASS  Stretch: decisions link to the work items they affect
+Decisions in force with no work resting on them: not listed, because the log has problems.
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) 0 failed, with "names an entry above the Current decisions list".
+
 == The real files were only read ==
 SHA-256 of log.md, rules.md and sources.md, before: 364a24898504654da8a1c1bdd329c5610bb63f7854dbbbe7cd6dfc11d9d66cf2 b222a4aebcba35af76aa10218775e34f211da1f449f25a3df839eb7fba01c595 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 and after:                                         364a24898504654da8a1c1bdd329c5610bb63f7854dbbbe7cd6dfc11d9d66cf2 b222a4aebcba35af76aa10218775e34f211da1f449f25a3df839eb7fba01c595 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 identical
 
 == For the reader of this log alone: what was checked against ==
-SHA-256 of participant/tools/decision-check.mjs: 5f361397f20a2a6cab59049ddcb539ace2d5f0e2a92b2b2925a65222d5bee595
+SHA-256 of participant/tools/decision-check.mjs: b90198ed1540b7874adfed331a16331977eed0e93082041beb19ea3aa65f4727
 SHA-256 of participant/context/decisions/sources.md: 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 The full text of participant/context/decisions/sources.md, the written records every approval
 above is checked against:

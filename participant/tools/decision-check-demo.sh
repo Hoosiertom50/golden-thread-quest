@@ -568,6 +568,15 @@ P-03 | approved
   changes intro-claim
   run intro-claim "0" "names an entry above the Current decisions list"
 
+  echo "== 47. The introduction naming an entry in disguise =="
+  echo "\"P\\-03\" and \"P-**03**\" both display as P-03; the check reads the text as displayed."
+  copy disguised
+  edit disguised log.md "## Current decisions" 'P\-03, the fee waiver, is approved; so is P-**03**.
+
+## Current decisions'
+  changes disguised
+  run disguised "0" "names an entry above the Current decisions list"
+
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
   echo "SHA-256 of log.md, rules.md and sources.md, before: $BEFORE"

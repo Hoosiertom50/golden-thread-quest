@@ -441,7 +441,9 @@ visibleLines(classify(logRaw)).forEach((l, i) => {
     if (l.trim().startsWith("|") && !(s0 !== -1 && e0 !== -1 && i > s0 && i < e0)) parseProblems.push(`log.md line ${i + 1}: a table outside the generated Current decisions list`);
     // Above the list, no text may name an entry: a claim about a decision belongs in the checked
     // places (the list and the entries), not in prose nobody checks.
-    if (cur !== -1 && i < cur && /\b[DPQ]-\d+\b/.test(l)) parseProblems.push(`log.md line ${i + 1}: names an entry above the Current decisions list; entries are named only in the list and under "## Entries"`);
+    // Compared as displayed: escapes, emphasis, entities and look-alike characters can't hide one.
+    const shownAs = l.normalize("NFKC").replace(/[^A-Za-z0-9\s]/g, "");
+    if (cur !== -1 && i < cur && /(^|[^A-Za-z0-9])[DPQ]\s*\d/i.test(shownAs)) parseProblems.push(`log.md line ${i + 1}: names an entry above the Current decisions list; entries are named only in the list and under "## Entries"`);
   });
 }
 const entries = parseEntries(logRaw, parseProblems, "log.md");
