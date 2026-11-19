@@ -65,11 +65,11 @@ view() {
     fs.writeFileSync(file, s.slice(0, s.indexOf(a) + a.length) + "\n" + view + "\n" + s.slice(s.indexOf(b)));
   ' "$T/$1/log.md" "$v" || FAIL=1
 }
-# changes <name>: the lines changed from the real files, without file names
+# changes <name>: every line changed from the real files (the rebuilt list's rows included)
 changes() {
   echo "What was changed in this copy:"
   for f in log.md rules.md sources.md; do
-    diff "$REAL/$f" "$T/$1/$f" | grep -E '^[<>] .*[^ ]' | grep -v -E '^[<>] \| (D-|Decision|---)' | sed -e "s/^</  $f, before:/" -e "s/^>/  $f, after: /"
+    diff "$REAL/$f" "$T/$1/$f" | grep -E '^[<>] .*[^ ]' | sed -e "s/^</  $f, before:/" -e "s/^>/  $f, after: /"
   done
 }
 # run <name> "<failing checks>" "<expected message>" [extra arguments...]: runs the checker on a
@@ -86,6 +86,12 @@ run() {
   echo "exit code: $code"
   failing=$(printf '%s\n' "$out" | sed -n -E 's/^FAIL  ([0-9]+|[A-Za-z]+)[.:].*/\1/p' | tr '\n' ' ' | sed 's/ $//')
   if [ "$failing" != "$want" ]; then echo "UNEXPECTED: checks failing were \"$failing\", expected \"$want\""; ok=0; fi
+  # Every check must report, in order, PASS or FAIL: none may silently go missing.
+  local all reported a
+  all="0 1 2 3 4 5 6 7 Stretch"
+  for a in "$@"; do [ "$a" = "--previous" ] && all="$all History"; done
+  reported=$(printf '%s\n' "$out" | sed -n -E 's/^(PASS|FAIL)  ([0-9]+|[A-Za-z]+)[.:].*/\2/p' | tr '\n' ' ' | sed 's/ $//')
+  if [ "$reported" != "$all" ]; then echo "UNEXPECTED: the checks reported were \"$reported\", expected \"$all\""; ok=0; fi
   if [ -n "$msg" ] && ! printf '%s\n' "$out" | grep -qF -- "$msg"; then echo "UNEXPECTED: the message \"$msg\" is missing"; ok=0; fi
   if [ -z "$want" ] && [ "$code" != 0 ]; then echo "UNEXPECTED: exit code 0 was expected"; ok=0; fi
   if [ -n "$want" ] && [ "$code" != 1 ]; then echo "UNEXPECTED: exit code 1 was expected"; ok=0; fi
@@ -127,7 +133,14 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
   echo "\$ node participant/tools/decision-check.mjs"
   out=$(cd "$REPO" && node "$CHECK" 2>&1); code=$?
   printf '%s\nexit code: %s\n' "$out" "$code"
-  if [ "$code" = 0 ]; then echo "As expected: every check passed."; else echo "UNEXPECTED: exit code 0 was expected"; FAIL=1; fi
+  if [ "$code" = 0 ] \
+    && printf '%s\n' "$out" | grep -qF 'verified: superseded decision D-02' \
+    && printf '%s\n' "$out" | grep -qF 'verified: proposal P-02'; then
+    echo "As expected: every check passed, and the report names the replacement D-02 to D-07 and the"
+    echo "promotion P-02 to D-05 it verified."
+  else
+    echo "UNEXPECTED: exit code 0 and both verified links were expected"; FAIL=1
+  fi
   echo
 
   echo "== 2. Agreement recorded as an approval (the quest's scenario) =="
@@ -160,7 +173,7 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
   echo "A new record has the tech lead approving a fee; the decision citing it says so honestly."
   copy no-authority
   record no-authority "MTG-04 · Fee follow-up, 11-10-2026" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
-  decision no-authority D-08 "Waive the fee for 6 or more tickets" 11-10-2026 MTG-04 fees "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
+  decision no-authority D-08 "The service fee is waived for orders of 6 or more tickets" 11-10-2026 MTG-04 fees "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
   view no-authority; changes no-authority
   run no-authority "2" "Sam Ortiz may not approve area \"fees\""
 
@@ -168,14 +181,14 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
   echo "The same fee approval by the tech lead, filed as a 'calculation' decision to pass the authority check."
   copy wrong-area
   record wrong-area "MTG-04 · Fee follow-up, 11-10-2026" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
-  decision wrong-area D-08 "Waive the fee for 6 or more tickets" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
+  decision wrong-area D-08 "The service fee is waived for orders of 6 or more tickets" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: fees): the service fee is waived for orders of 6 or more tickets."
   view wrong-area; changes wrong-area
   run wrong-area "2" "Area \"calculation\" doesn't match the record's area \"fees\""
 
   echo "== 7. A decision borrowing another decision's approval =="
-  echo "A new D-08 says the fee is waived, citing D-01's approval of the \$2.50 fee."
+  echo "A new D-08 cites D-01's approval of the \$2.50 fee as its own."
   copy borrowed
-  decision borrowed D-08 "The service fee is waived for everyone" 10-05-2026 MTG-01 fees "Avery Lane" "$FEE"
+  decision borrowed D-08 "The service fee is \$2.50 per ticket, charged on every ticket" 10-05-2026 MTG-01 fees "Avery Lane" "$FEE"
   view borrowed; changes borrowed
   run borrowed "2" "uses the same approval as D-01"
 
@@ -191,14 +204,14 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
   echo "D-08 is added at the end (From: P-01), and P-01 gets one added line (Became: D-08)."
   copy promotion
   cp "$REAL/log.md" "$T/earlier-log.md"
-  record promotion "MTG-04 · Seating follow-up, 11-16-2026" "Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map."
+  record promotion "MTG-04 · Seating follow-up, 11-16-2026" "Approved by Avery Lane (area: pages; promotes: P-01): let buyers choose their seats on a seating map."
   edit promotion log.md "- Proposed by: Jordan Pike
 
 ### Q-01 ·" "- Proposed by: Jordan Pike
 - Became: D-08
 
 ### Q-01 ·"
-  decision promotion D-08 "Buyers may choose their seats on a seating map" 11-16-2026 MTG-04 pages "Avery Lane" "Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map." "- From: P-01"
+  decision promotion D-08 "Let buyers choose their seats on a seating map" 11-16-2026 MTG-04 pages "Avery Lane" "Approved by Avery Lane (area: pages; promotes: P-01): let buyers choose their seats on a seating map." "- From: P-01"
   view promotion; changes promotion
   run promotion "" "" --previous earlier-log.md
 
@@ -237,7 +250,7 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
 - Source: MTG-04
 - Area: pages
 - Approver: Avery Lane
-- Approval: \"Approved by Avery Lane (area: pages; promotes: P-01): buyers may choose their seats on a seating map.\"
+- Approval: \"Approved by Avery Lane (area: pages; promotes: P-01): let buyers choose their seats on a seating map.\"
 - Affects: none"
   view rewrite; changes rewrite
   run rewrite "1 4 History" "\"- Status: decision\" was added or changed" --previous earlier-log.md
@@ -300,7 +313,7 @@ FEE='Approved by Avery Lane (area: fees): the service fee is $2.50 per ticket, c
 |---|---|
 | P-03 | waive the fee |"
   changes extra-view
-  run extra-view "7" "content in \"## Current decisions\" outside the generated list"
+  run extra-view "0 7" "content in \"## Current decisions\" outside the generated list"
 
   echo "== 21. A decision listing a work item that doesn't exist =="
   copy stretch-link
@@ -323,7 +336,7 @@ SHOP-18 | Waive the fee | P-03 |"
 - Asked by: Riley Chen" "- Source: MTG-03
 - Asked by: Riley Chen
 - Became: D-08"
-  decision question D-08 "No per-buyer limit" 11-16-2026 MTG-04 "ticket limits" "Avery Lane" "Approved by Avery Lane (area: ticket limits; promotes: Q-03): there is no limit per buyer across orders." "- From: Q-03"
+  decision question D-08 "There is no limit per buyer across orders" 11-16-2026 MTG-04 "ticket limits" "Avery Lane" "Approved by Avery Lane (area: ticket limits; promotes: Q-03): there is no limit per buyer across orders." "- From: Q-03"
   view question; changes question
   run question "1 4" "D-08: From Q-03, which is a question; only a proposal is promoted"
 
@@ -356,7 +369,36 @@ SHOP-18 | Waive the fee | P-03 |"
   changes new-work
   run new-work "" "" --previous new-work-earlier.md
 
-  echo "== 27. --write-view refuses to write over a log with a problem =="
+  echo "== 27. A replacement by someone without authority over the replaced decision =="
+  echo "The tech lead's calculation decision claims to replace D-01, the product owner's fee decision."
+  copy wrong-authority
+  record wrong-authority "MTG-04 · Totals follow-up, 11-10-2026" "Approved by Sam Ortiz (area: calculation; replaces: D-01): totals include no service fee."
+  edit wrong-authority log.md "- Affects: SHOP-11 SHOP-12
+
+### D-02" "- Affects: SHOP-11 SHOP-12
+- Replaced by: D-08
+
+### D-02"
+  decision wrong-authority D-08 "Totals include no service fee" 11-10-2026 MTG-04 calculation "Sam Ortiz" "Approved by Sam Ortiz (area: calculation; replaces: D-01): totals include no service fee." "- Replaces: D-01"
+  edit wrong-authority sources.md "| SHOP-11 | Show the order total on the event card | D-01 D-04 |" "| SHOP-11 | Show the order total on the event card | D-04 D-08 |"
+  edit wrong-authority sources.md "| SHOP-12 | Show the service fee on the event card | D-01 |" "| SHOP-12 | Show the service fee on the event card | D-08 |"
+  view wrong-authority; changes wrong-authority
+  run wrong-authority "5" "D-08: replaces D-01, an area \"fees\" decision, but Sam Ortiz may not approve area \"fees\""
+
+  echo "== 28. A second \"current decisions\" section further down the log =="
+  copy second-section
+  printf '\n## Current decisions (continued)\n\n| Decision | What |\n|---|---|\n| P-03 | waive the fee |\n' >> "$T/second-section/log.md"
+  changes second-section
+  run second-section "0" "log.md has only its title, \"## Current decisions\" and \"## Entries\""
+
+  echo "== 29. Words in the authority table beyond the area names =="
+  echo "\"\`calculation\` (not \`fees\`)\" reads as a denial; the checker must not read it as granting fees."
+  copy authority-prose
+  edit authority-prose rules.md "| Sam Ortiz | Tech lead (made up) | \`calculation\` |" "| Sam Ortiz | Tech lead (made up) | \`calculation\` (not \`fees\`) |"
+  changes authority-prose
+  run authority-prose "0 2" "must be only area names in backticks"
+
+  echo "== 30. --write-view refuses to write over a log with a problem =="
   echo "The copy from case 7 (a borrowed approval), with its list emptied, is given --write-view."
   copy refuse-write
   cp "$T/borrowed/log.md" "$T/refuse-write/log.md"
@@ -370,12 +412,170 @@ SHOP-18 | Waive the fee | P-03 |"
   if cmp -s "$T/refuse-write-before.md" "$T/refuse-write/log.md"; then echo "The copy's log.md is unchanged, byte for byte."; else echo "UNEXPECTED: the log was written"; FAIL=1; fi
   echo
 
-  echo "== 28. --write-view repairs a stale list, even one naming a proposal =="
+  echo "== 31. --write-view repairs a stale list, even one naming a proposal =="
+  echo "It writes log.md.new and leaves log.md alone; the log.md.new is then moved into place and checked."
   copy repair
   edit repair log.md "| D-06 |" "| P-03 | waive the fee | fees | Avery Lane | 10-19-2026 | MTG-02 |
 | D-06 |"
-  run repair "" "Current decisions view rewritten from the entries" --write-view
+  cp "$T/repair/log.md" "$T/repair-before.md"
+  run repair "" "Wrote log.md.new" --write-view
+  if cmp -s "$T/repair-before.md" "$T/repair/log.md"; then echo "log.md itself is unchanged, byte for byte."; else echo "UNEXPECTED: log.md was changed"; FAIL=1; fi
+  mv "$T/repair/log.md.new" "$T/repair/log.md"
+  echo "\$ mv repair/log.md.new repair/log.md"
   run repair "" ""
+
+  echo "== 32. A decision title that says something its approval doesn't =="
+  echo "D-06 is retitled \"Waive the service fee\"; its approval is about showing prices in US dollars."
+  copy wrong-title
+  edit wrong-title log.md "### D-06 · Prices are shown in US dollars, with two decimal places" "### D-06 · Waive the service fee"
+  changes wrong-title
+  run wrong-title "2" "its title \"Waive the service fee\" isn't the approved words"
+
+  echo "== 33. A lone carriage return hiding a work-item row =="
+  echo "A row added after a bare CR (an old Mac line break): some readers show it as a line, so it's refused."
+  copy bare-cr
+  node -e '
+    const fs = require("fs"), f = process.argv[1], s = fs.readFileSync(f, "utf8");
+    const row = "| SHOP-17 | Cancel an order from the orders page | D-05 |";
+    fs.writeFileSync(f, s.replace(row, row + "\r| SHOP-18 | Waive fee | P-03 |"));
+  ' "$T/bare-cr/sources.md"
+  echo "\$ node decision-check.mjs --dir bare-cr"
+  out=$(cd "$T" && node "$CHECK" --dir "$T/bare-cr" 2>&1); code=$?
+  printf '%s\nexit code: %s\n' "${out//"$T/"/}" "$code"
+  if [ "$code" = 2 ] && printf '%s\n' "$out" | grep -qF "carriage return that isn't followed by a line feed"; then
+    echo "As expected: refused (exit code 2) before anything was checked."
+  else
+    echo "UNEXPECTED: exit code 2 and the carriage-return message were expected"; FAIL=1
+  fi
+  echo
+
+  echo "== 34. An indented paragraph after a blank line, under an approval =="
+  copy blank-continued
+  edit blank-continued sources.md "- $FEE" "- $FEE
+
+  Only after separate confirmation."
+  changes blank-continued
+  run blank-continued "0" "an indented line after the approval on line"
+
+  echo "== 35. A decision title differing only in capital letters inside it =="
+  copy title-case
+  edit title-case log.md "### D-06 · Prices are shown in US dollars, with two decimal places" "### D-06 · Prices are shown in us dollars, with two decimal places"
+  changes title-case
+  run title-case "2" "its title \"Prices are shown in us dollars, with two decimal places\" isn't the approved words"
+
+  echo "== 36. A decision title that leaves part of the approval out =="
+  echo "D-01's title drops \", charged on every ticket\": shorter, but no longer exactly what was approved."
+  copy short-title
+  edit short-title log.md "### D-01 · The service fee is \$2.50 per ticket, charged on every ticket" "### D-01 · The service fee is \$2.50 per ticket"
+  changes short-title
+  run short-title "2" "its title \"The service fee is \$2.50 per ticket\" isn't the approved words"
+
+  echo "== 37. An approval that continues onto a second line =="
+  copy continued
+  edit continued sources.md "- $FEE" "- $FEE
+  only after a separate written confirmation."
+  changes continued
+  run continued "0" "continues the approval on line"
+
+  echo "== 38. A table above the Current decisions list =="
+  copy preamble-table
+  edit preamble-table log.md "## Current decisions" "| Decision | Status |
+|---|---|
+| P-03 | approved |
+
+## Current decisions"
+  changes preamble-table
+  run preamble-table "0" "a table outside the generated Current decisions list"
+
+  echo "== 39. The Current decisions list moved below the entries =="
+  copy moved-view
+  node -e '
+    const fs = require("fs"), f = process.argv[1], s = fs.readFileSync(f, "utf8");
+    const a = s.indexOf("## Current decisions"), b = s.indexOf("## Entries");
+    fs.writeFileSync(f, s.slice(0, a) + s.slice(b).replace(/\n*$/, "\n\n") + s.slice(a, b).replace(/\n*$/, "\n"));
+  ' "$T/moved-view/log.md"
+  run moved-view "0" "\"## Current decisions\" must come before \"## Entries\""
+
+  echo "== 40. A ### subsection inside a source =="
+  echo "MTG-01's approvals are put under a \"### Approvals\" subheading; they still belong to MTG-01."
+  copy subsection
+  edit subsection sources.md "- Avery proposed a service fee" "### Approvals
+
+- Avery proposed a service fee"
+  changes subsection
+  run subsection "" ""
+
+  echo "== 41. A leftover log.md.new from an earlier run =="
+  echo "It may be out of date, so --write-view refuses and says to delete it, not to move it into place."
+  copy leftover
+  edit leftover log.md "| D-06 |" "| P-03 | waive the fee | fees | Avery Lane | 10-19-2026 | MTG-02 |
+| D-06 |"
+  printf 'an older log.md.new\n' > "$T/leftover/log.md.new"
+  echo "\$ node decision-check.mjs --dir leftover --write-view"
+  out=$(cd "$T" && node "$CHECK" --dir "$T/leftover" --write-view 2>&1); code=$?
+  printf '%s\nexit code: %s\n' "${out//"$T/"/}" "$code"
+  if [ "$code" = 2 ] && printf '%s\n' "$out" | grep -qF "may be out of date: don't move it into place" && [ "$(cat "$T/leftover/log.md.new")" = "an older log.md.new" ]; then
+    echo "As expected: refused (exit code 2), and the old log.md.new was left untouched."
+  else
+    echo "UNEXPECTED: exit code 2, the out-of-date message and an untouched log.md.new were expected"; FAIL=1
+  fi
+  echo
+
+  echo "== 42. A table inside a meeting's notes =="
+  echo "A table in MTG-02 listing P-03 as approved: tables belong only in the checked places."
+  copy notes-table
+  edit notes-table sources.md "- Riley: should a cancelled order give the fee back? Nobody knew yet." "- Riley: should a cancelled order give the fee back? Nobody knew yet.
+
+| Decision | Status |
+|---|---|
+| P-03 | approved |
+"
+  changes notes-table
+  run notes-table "0" "a table outside its one checked table"
+
+  echo "== 43. A table written without leading pipes =="
+  echo "Markdown shows \"Decision | Status\" over \"--- | ---\" as a table too; it is reported."
+  copy pipeless
+  edit pipeless sources.md "- Riley: should a cancelled order give the fee back? Nobody knew yet." "- Riley: should a cancelled order give the fee back? Nobody knew yet.
+
+Decision | Status
+--- | ---
+P-03 | approved
+"
+  changes pipeless
+  run pipeless "0" "a line with \"|\" that isn't a table row starting with \"|\""
+
+  echo "== 44. A valid note using double-backtick inline code =="
+  echo "Markdown inline code may use \`\` as its delimiter; a \"|\" inside it is text, not a table."
+  copy double-tick
+  edit double-tick sources.md "Attendees: Avery Lane, Jordan Pike, Riley Chen." 'Attendees: Avery Lane, Jordan Pike, Riley Chen. (Order codes look like ``A|B``.)'
+  changes double-tick
+  run double-tick "" ""
+
+  echo "== 45. An escaped backtick used to hide a qualifier in a comment =="
+  echo "A reader sees the comment as hidden; the escaped backtick must not make the checker treat it as code."
+  copy escaped-tick
+  edit escaped-tick sources.md "- $FEE" "- $FEE \\\`<!-- only for staff -->\`"
+  changes escaped-tick
+  run escaped-tick "0 2" "an escaped backtick"
+
+  echo "== 46. The log's introduction naming an entry =="
+  echo "A sentence above the list saying P-03 is approved: entries are named only in the list and the entries."
+  copy intro-claim
+  edit intro-claim log.md "## Current decisions" "P-03, the fee waiver, is approved.
+
+## Current decisions"
+  changes intro-claim
+  run intro-claim "0" "names an entry above the Current decisions list"
+
+  echo "== 47. The introduction naming an entry in disguise =="
+  echo "\"P\\-03\" and \"P-**03**\" both display as P-03; the check reads the text as displayed."
+  copy disguised
+  edit disguised log.md "## Current decisions" 'P\-03, the fee waiver, is approved; so is P-**03**.
+
+## Current decisions'
+  changes disguised
+  run disguised "0" "names an entry above the Current decisions list"
 
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
@@ -393,10 +593,15 @@ SHOP-18 | Waive the fee | P-03 |"
   echo "----- end of sources.md -----"
 } > "$OUT" 2>&1
 
-if grep -qF -- "$T" "$OUT"; then echo "The log contains the temp folder's real name; nothing is written."; FAIL=1; fi
+if grep -qF -- "$T" "$OUT"; then
+  # Not shown: it holds this computer's temp folder name.
+  echo "The log contains the temp folder's real name; nothing is written or shown."
+  cleanup
+  exit 1
+fi
 if [ "$FAIL" != 0 ]; then
-  echo "Something unexpected happened; nothing was written. The log:"
-  cat "$OUT"
+  echo "Something unexpected happened; nothing was written. The log (temp folder names hidden):"
+  while IFS= read -r line || [ -n "$line" ]; do printf '%s\n' "${line//"$T"/<temp>}"; done < "$OUT"
   cleanup
   exit 1
 fi

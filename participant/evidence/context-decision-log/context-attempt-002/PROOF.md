@@ -32,7 +32,8 @@ and comments the entries cite, and the work items with the decision each rests o
 **The checker** (`participant/tools/decision-check.mjs`): one PASS or FAIL per acceptance
 criterion, naming every problem, plus the two stretch goals. Given an earlier copy of the log, it
 also proves the log was only added to. It builds the Current decisions view, and only when every
-other check passes.
+other check passes, writing it to `log.md.new` for a person to check and move into place; it never
+replaces `log.md` itself.
 
 ## How an approval is told apart from agreement
 
@@ -50,10 +51,12 @@ approval, however many people agree.
   promotes or decision it replaces ("(area: ticket limits; replaces: D-02)"). The entry must agree
   with its record on all of these and on the date, and the approver must hold the record's area. So
   an entry can't re-label an approval to get past the authority check, or claim a promotion or
-  replacement its approval never made (criteria 2, 4 and 5).
-- **Each approval backs one decision**, and the Current decisions view shows the approver's own
-  approved words, not the entry's title: what a reader sees as decided is exactly what was approved,
-  and a decision can't borrow another's approval (criteria 2 and 7).
+  replacement its approval never made (criteria 2, 4 and 5). Replacing a decision takes it out of
+  force, so the replacement's approver must also hold the replaced decision's area.
+- **Each approval backs one decision**, and **a decision's title is exactly its approved words**;
+  the Current decisions view shows those words too. So what a reader sees as decided, in the heading
+  or the list, is exactly what was approved, with nothing added or left out, and a decision can't
+  borrow another's approval (criteria 2 and 7).
 - Until then the entry stays a **proposal**: it never appears in the Current decisions view, has no
   approver, and no work item may rest on it (criterion 3).
 
@@ -67,16 +70,20 @@ word.
 2. **Approval** = a named approver with authority + a written record (above).
 3. **The Current decisions view is built by the checker** from the entries (`--write-view`), never
    by hand, so it can't disagree with them; a hand-edited view fails, and the checker refuses to
-   write the view over a log with any other problem (criterion 7).
+   build the view for a log with any other problem (criterion 7). It writes `log.md.new` and never
+   replaces `log.md` itself; it prints the SHA-256 of the `log.md` it read, and whoever moves
+   `log.md.new` into place first checks that `log.md` still has it (otherwise they run it again). The list comes before the
+   entries, and `log.md` holds nothing else: no second list or table anywhere.
 4. **Entries are never rewritten.** Promoting a proposal adds a new decision (`From: P-nn`) and adds
    one line to the proposal (`Became: D-nn`); replacing a decision adds a new one (`Replaces`) and
    one line to the old (`Replaced by`). The checker confirms both links point both ways, that a new
    entry comes after the one it promotes or replaces, and, given an earlier copy, that its entries
    are still first, in order, with only those two kinds of line added (criteria 4 and 5).
 5. **Both stretch goals:** the work-items table in `sources.md` names the decisions each made-up
-   work item rests on (new work is a new row, so no decision is rewritten to link it), and a
-   decision may list the work it affects, which must agree; work may rest only on a decision in
-   force. The checker lists decisions in force with no work resting on them (D-06, "prices in US
+   work item rests on (new work is a new row, so no decision is rewritten to link it). A decision may
+   also list the work it affected when it was written (a snapshot, like the rest of the entry); each
+   item it lists must be in the table and, while the decision is in force, rest on it. Work may rest
+   only on a decision in force. The checker lists decisions in force with no work resting on them (D-06, "prices in US
    dollars").
 
 ## Which decision I would least want to be asked about
@@ -116,13 +123,16 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 1:46 PM with Node 22.23.3, at commit f1dae45 with the quest-24 files
+Recorded on 11-19-2026 at 6:02 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
 working would make the demonstration fail.
 
-1. **The real log:** 13 entries; every check passes.
+1. **The real log:** 13 entries; every check passes. When every check passes, the report also names
+   each link checks 4 and 5 verified. For criterion 5 it prints:
+   `verified: superseded decision D-02 "an order may have at most 6 tickets." links to D-07, the decision that replaced it, "an order may have at most 8 tickets, replacing the limit of 6."; D-02 says "Replaced by: D-07", D-07 says "Replaces: D-02", and D-07's approval record says it replaces D-02`.
+   The demonstration requires both verified lines (D-02 to D-07, and P-02 to D-05) to appear.
 2. **Agreement recorded as an approval** (the quest's scenario): check 2, "agreement is not an
    approval" (criteria 2 and 3).
 3. **A decision with no approver:** checks 1 and 2.
@@ -158,36 +168,97 @@ working would make the demonstration fail.
     check, which compares the lines exactly as written.
 26. **New work for an existing decision added as a new row only,** checked against the earlier
     copy: every check passes, so linking work never means rewriting a decision.
-27. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
-28. **`--write-view` on a stale list that even names a proposal:** it rebuilds the list, and the
-    log then passes.
+27. **A replacement by someone without authority over the replaced decision** (the tech lead's
+    calculation decision "replacing" the product owner's fee decision): check 5.
+28. **A second "current decisions" section further down the log:** check 0; `log.md` has only its
+    title and its two sections.
+29. **Words in the authority table beyond the area names** ("`calculation` (not `fees`)"): checks 0
+    and 2; a cell is only area names, so prose can't grant an area.
+30. **`--write-view` on a log with a problem:** it refuses, and the file is unchanged byte for byte.
+31. **`--write-view` on a stale list that even names a proposal:** it writes `log.md.new` with the
+    list rebuilt, leaves `log.md` unchanged byte for byte, and once the new file is moved into place
+    the log passes.
+32. **A decision title that says something its approval doesn't** (D-06 retitled "Waive the service
+    fee"): check 2.
+33. **A lone carriage return hiding a work-item row** (an old Mac line break): the checker refuses
+    the file (exit 2) before checking anything.
+34. **An indented paragraph after a blank line, under an approval** (still part of that list item
+    in Markdown): check 0.
+35. **A decision title differing only in capital letters inside it** ("us dollars"): check 2; only
+    the first letter's case is ignored.
+36. **A decision title that leaves part of its approval out** (D-01 without ", charged on every
+    ticket"): check 2.
+37. **An approval that continues onto a second line** ("only after a separate written
+    confirmation"): check 0; an approval is a single line, so no qualifier can hide below it.
+38. **A table above the Current decisions list** showing P-03 as approved: check 0.
+39. **The Current decisions list moved below the entries:** check 0.
+40. **A `###` subsection inside a source:** every check passes; its approvals still belong to that
+    source.
+41. **A leftover `log.md.new` from an earlier run:** `--write-view` refuses (exit 2), says it may
+    be out of date and must be deleted, not moved into place, and leaves it untouched.
+42. **A table inside a meeting's notes** listing P-03 as approved: check 0; tables are allowed only
+    in their one checked place in each file.
+43. **A table written without leading pipes** ("Decision | Status" over "--- | ---"), which Markdown
+    still shows as a table: check 0.
+44. **A valid note using double-backtick inline code** (``` ``A|B`` ```): every check passes; a "|"
+    inside inline code is text, not a table.
+45. **An escaped backtick used to hide a qualifier in a comment** after an approval: checks 0 and 2;
+    an escaped backtick never starts inline code, and is itself reported.
+46. **The log's introduction naming an entry** ("P-03, the fee waiver, is approved."): check 0;
+    above the Current decisions list, no text may name an entry.
+47. **The introduction naming an entry in disguise** (`P\-03` and `P-**03**`, both displayed as
+    P-03): check 0; the text is compared as displayed.
+
+Every case also requires all the checks to report, in order (PASS or FAIL), so none can silently go
+missing from the report.
 
 The demonstration writes the log only if every case came out as expected. The real files' SHA-256,
 before and after, is identical.
+
+## Changes after the first review
+
+The first review (11-19-2026, 3:25 PM, needs changes) found criterion 5 not shown: the reviewer's
+quote for it wasn't accepted, because the log's link lines (`- Replaced by: D-07`, 19 characters)
+are shorter than the 20 characters a quote must have. The links were already there and checked; the
+checker's report now spells out each replacement and promotion it verified (above), so the evidence
+for criterion 5 is one specific, quotable line.
+
+Further practice review then tightened the checker (cases 27 to 47 were added). One rule changed
+the log: a decision's title must now be exactly its approved words, so four decision headings (D-01,
+D-04, D-05 and D-07) were reworded to their approvers' own words (for example D-04, "The order total
+is worked out in whole cents", is now "The order total is the quantity times (the ticket price plus
+the fee), worked out in whole cents"); the other three already matched. The only other change to
+`log.md` is its introduction, which now describes `--write-view` and the title rule. No entry's
+status, date, source, approver, approval or links changed.
 
 ## Remaining limitations
 
 - **The checker trusts the sources file.** It confirms an approval line is in the cited notes, not
   that the meeting happened or that the person really said it. In a real project the source would
   be a link to minutes or a ticket comment a person can open.
-- **"Authority" is only the table.** Who may approve what is whatever `rules.md` says; keeping that
-  table right is a person's job.
+- **"Authority" is only the table, and the area is what the record says.** Who may approve what is
+  whatever `rules.md` says, and an approval's area is the one its written record states. Whether the
+  approved words really belong to that area (a fee change tagged "pages", say) is a person's
+  judgement; keeping the table and the records right is a person's job.
 - **Append-only is checked against a copy someone keeps.** Without `--previous`, the checker can't
   see that an entry was rewritten; in a real repository, Git's history is that earlier copy.
   Blank lines inside an entry aren't compared: adding or removing one doesn't change what the entry
   says.
-- **It fails closed on Markdown it doesn't use.** The three files may contain only headings that
-  start at the beginning of a line, text, "- " bullets, "|" tables and inline code (and, in
-  `log.md`, the two marker comments). Code blocks, indented or tab-indented lines, underlined
-  headings, HTML and other comments are reported as problems rather than interpreted, so a reader
-  and the checker can't see different things; the price is that the files must stay in that simple
-  form.
-- **`--write-view` won't write through a link.** If `log.md` is a symbolic link, it refuses rather
-  than replace the link.
-- **`--write-view` and someone else saving at the same moment.** It refuses if the log changed since
-  it was read, but a save in the instant between that last check and the rename could still be lost.
+- **It fails closed on Markdown it doesn't use.** The three files must be valid UTF-8 and may
+  contain only headings that start at the beginning of a line (with a space and a title), text,
+  "- " bullets, "|" tables and inline code (and, in `log.md`, the two marker comments). Code blocks,
+  indented or tab-indented lines, underlined headings, horizontal rules, HTML and other comments are
+  reported as problems rather than interpreted, so a reader and the checker can't see different
+  things; the price is that the files must stay in that simple form.
+- **`--write-view` leaves one step to a person.** It writes `log.md.new` and never replaces `log.md`
+  itself. Moving the new file into place is a person's job, and they must first check that `log.md`
+  still has the SHA-256 the checker printed: if it was edited in between and they skip that check,
+  the edit would be lost.
 - **One log.** Decisions made in tickets or chat aren't found; they count only once added to the
   log.
+- **Free text is read by a person.** The checker reads the entries, approvals, tables and the list;
+  it can't judge plain sentences (in a meeting's notes, say). It does stop the log's introduction
+  from naming any entry, so a claim about a specific decision can only live where it is checked.
 
 ## Sensitive values
 

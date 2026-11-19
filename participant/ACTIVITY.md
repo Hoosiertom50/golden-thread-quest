@@ -151,3 +151,8 @@ Every change this application made to your files, newest last.
 - `2026-11-19T20:17:55Z` context-decision-log: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-19T20:17:55Z` Submitted context-decision-log for review as submission-20261119201755-9af643.
 - `2026-11-19T20:25:43Z` Review of context-decision-log: needs_changes by Claude (automated reviewer).
+- `2026-11-19T20:31:00Z` context-decision-log: needs_changes → in_progress (Resume after a reviewer asked for changes.)
+- `2026-11-19T23:31:19Z` context-decision-log: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-19T23:31:33Z` context-decision-log: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-19T23:31:51Z` context-decision-log: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-19T23:31:51Z` Submitted context-decision-log for review as submission-20261119233151-1d3cf0.

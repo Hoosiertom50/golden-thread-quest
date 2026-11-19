@@ -45,7 +45,8 @@ Each decision names its **Area**, one of: `fees` (prices and fees), `ticket limi
 tickets an order may have), `pages` (what the shop's pages show or let a buyer do) and
 `calculation` (how amounts are worked out and stored). The area is the one the **record** gives,
 not one the log entry chooses. A decision approved by anyone else, or by one of them outside their
-areas, is not a decision.
+areas, is not a decision. Replacing a decision takes it out of force, so the replacement's approver
+must also be allowed to approve the replaced decision's area.
 
 ## How a proposal becomes a decision
 
@@ -70,14 +71,20 @@ The **Current decisions** list at the top of the log shows only the decisions in
 replaced. For each it shows the approver's own approved words, not the entry's title, so what a
 reader sees as decided is exactly what was approved. Each approval backs one decision only. Nobody writes it by hand: the checker builds it from the entries
 (`node participant/tools/decision-check.mjs --write-view`), and only when every other check passes,
-so it can never show an entry that isn't a valid decision.
+so it can never show an entry that isn't a valid decision. It writes the result to `log.md.new` and
+never replaces `log.md` itself. It prints the SHA-256 of the `log.md` it read; whoever moves
+`log.md.new` into place first checks that `log.md` still has that SHA-256. If it doesn't (someone
+edited it in between), or a `log.md.new` is left over from an earlier run, they delete `log.md.new`
+and run `--write-view` again; an old one is never moved into place. A decision's title is exactly its approver's words, so its heading can't say
+more or less than was approved.
 
 ## Work items
 
 The work-items table in `sources.md` is where work and decisions are linked: each made-up work
 item names the decisions it rests on. New work is a new row, so no decision entry is ever rewritten
-to link it. A decision may also list the work it affects (`Affects: SHOP-nn`, or `none`); when it
-does, the table must agree.
+to link it. A decision may also list the work it affected when it was written (`Affects: SHOP-nn`,
+or `none`): a snapshot, like the rest of the entry. Each item it lists must be in the table and, while
+the decision is in force, rest on it; work added later appears only in the table.
 
 A work item must rest on a decision in force, never on a proposal, a question or a replaced
 decision: that is how an idea quietly becomes "the decision" without anyone approving it. Only a
