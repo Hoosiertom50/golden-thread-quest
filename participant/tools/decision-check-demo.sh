@@ -86,6 +86,12 @@ run() {
   echo "exit code: $code"
   failing=$(printf '%s\n' "$out" | sed -n -E 's/^FAIL  ([0-9]+|[A-Za-z]+)[.:].*/\1/p' | tr '\n' ' ' | sed 's/ $//')
   if [ "$failing" != "$want" ]; then echo "UNEXPECTED: checks failing were \"$failing\", expected \"$want\""; ok=0; fi
+  # Every check must report, in order, PASS or FAIL: none may silently go missing.
+  local all reported a
+  all="0 1 2 3 4 5 6 7 Stretch"
+  for a in "$@"; do [ "$a" = "--previous" ] && all="$all History"; done
+  reported=$(printf '%s\n' "$out" | sed -n -E 's/^(PASS|FAIL)  ([0-9]+|[A-Za-z]+)[.:].*/\2/p' | tr '\n' ' ' | sed 's/ $//')
+  if [ "$reported" != "$all" ]; then echo "UNEXPECTED: the checks reported were \"$reported\", expected \"$all\""; ok=0; fi
   if [ -n "$msg" ] && ! printf '%s\n' "$out" | grep -qF -- "$msg"; then echo "UNEXPECTED: the message \"$msg\" is missing"; ok=0; fi
   if [ -z "$want" ] && [ "$code" != 0 ]; then echo "UNEXPECTED: exit code 0 was expected"; ok=0; fi
   if [ -n "$want" ] && [ "$code" != 1 ]; then echo "UNEXPECTED: exit code 1 was expected"; ok=0; fi
@@ -425,21 +431,53 @@ SHOP-18 | Waive the fee | P-03 |"
   changes wrong-title
   run wrong-title "2" "its title \"Waive the service fee\" isn't the approved words"
 
-  echo "== 37. A decision title that leaves part of the approval out =="
+  echo "== 33. A lone carriage return hiding a work-item row =="
+  echo "A row added after a bare CR (an old Mac line break): some readers show it as a line, so it's refused."
+  copy bare-cr
+  node -e '
+    const fs = require("fs"), f = process.argv[1], s = fs.readFileSync(f, "utf8");
+    const row = "| SHOP-17 | Cancel an order from the orders page | D-05 |";
+    fs.writeFileSync(f, s.replace(row, row + "\r| SHOP-18 | Waive fee | P-03 |"));
+  ' "$T/bare-cr/sources.md"
+  echo "\$ node decision-check.mjs --dir bare-cr"
+  out=$(cd "$T" && node "$CHECK" --dir "$T/bare-cr" 2>&1); code=$?
+  printf '%s\nexit code: %s\n' "${out//"$T/"/}" "$code"
+  if [ "$code" = 2 ] && printf '%s\n' "$out" | grep -qF "carriage return that isn't followed by a line feed"; then
+    echo "As expected: refused (exit code 2) before anything was checked."
+  else
+    echo "UNEXPECTED: exit code 2 and the carriage-return message were expected"; FAIL=1
+  fi
+  echo
+
+  echo "== 34. An indented paragraph after a blank line, under an approval =="
+  copy blank-continued
+  edit blank-continued sources.md "- $FEE" "- $FEE
+
+  Only after separate confirmation."
+  changes blank-continued
+  run blank-continued "0" "an indented line after the approval on line"
+
+  echo "== 35. A decision title differing only in capital letters inside it =="
+  copy title-case
+  edit title-case log.md "### D-06 · Prices are shown in US dollars, with two decimal places" "### D-06 · Prices are shown in us dollars, with two decimal places"
+  changes title-case
+  run title-case "2" "its title \"Prices are shown in us dollars, with two decimal places\" isn't the approved words"
+
+  echo "== 36. A decision title that leaves part of the approval out =="
   echo "D-01's title drops \", charged on every ticket\": shorter, but no longer exactly what was approved."
   copy short-title
   edit short-title log.md "### D-01 · The service fee is \$2.50 per ticket, charged on every ticket" "### D-01 · The service fee is \$2.50 per ticket"
   changes short-title
   run short-title "2" "its title \"The service fee is \$2.50 per ticket\" isn't the approved words"
 
-  echo "== 33. An approval that continues onto a second line =="
+  echo "== 37. An approval that continues onto a second line =="
   copy continued
   edit continued sources.md "- $FEE" "- $FEE
   only after a separate written confirmation."
   changes continued
   run continued "0" "continues the approval on line"
 
-  echo "== 34. A table above the Current decisions list =="
+  echo "== 38. A table above the Current decisions list =="
   copy preamble-table
   edit preamble-table log.md "## Current decisions" "| Decision | Status |
 |---|---|
@@ -449,7 +487,7 @@ SHOP-18 | Waive the fee | P-03 |"
   changes preamble-table
   run preamble-table "0" "a table outside the generated Current decisions list"
 
-  echo "== 35. The Current decisions list moved below the entries =="
+  echo "== 39. The Current decisions list moved below the entries =="
   copy moved-view
   node -e '
     const fs = require("fs"), f = process.argv[1], s = fs.readFileSync(f, "utf8");
@@ -458,7 +496,7 @@ SHOP-18 | Waive the fee | P-03 |"
   ' "$T/moved-view/log.md"
   run moved-view "0" "\"## Current decisions\" must come before \"## Entries\""
 
-  echo "== 36. A ### subsection inside a source =="
+  echo "== 40. A ### subsection inside a source =="
   echo "MTG-01's approvals are put under a \"### Approvals\" subheading; they still belong to MTG-01."
   copy subsection
   edit subsection sources.md "- Avery proposed a service fee" "### Approvals

@@ -71,7 +71,8 @@ word.
 3. **The Current decisions view is built by the checker** from the entries (`--write-view`), never
    by hand, so it can't disagree with them; a hand-edited view fails, and the checker refuses to
    build the view for a log with any other problem (criterion 7). It writes `log.md.new` and never
-   replaces `log.md`, so an edit someone saves meanwhile can't be lost. The list comes before the
+   replaces `log.md` itself; it prints the SHA-256 of the `log.md` it read, and whoever moves
+   `log.md.new` into place first checks that `log.md` still has it (otherwise they run it again). The list comes before the
    entries, and `log.md` holds nothing else: no second list or table anywhere.
 4. **Entries are never rewritten.** Promoting a proposal adds a new decision (`From: P-nn`) and adds
    one line to the proposal (`Became: D-nn`); replacing a decision adds a new one (`Replaces`) and
@@ -122,7 +123,7 @@ temp folder. The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-19-2026 at 4:12 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
+Recorded on 11-19-2026 at 4:32 PM with Node 22.23.3, at commit b0530b6 with the after-review changes
 uncommitted (`logs/log-check.txt`). Each broken case is a copy of the real files with one mistake
 and its Current decisions list rebuilt, and must fail exactly the checks named for it, with the
 expected message. Every check is the expected failure of at least one case, so a check that stopped
@@ -179,14 +180,23 @@ working would make the demonstration fail.
     the log passes.
 32. **A decision title that says something its approval doesn't** (D-06 retitled "Waive the service
     fee"): check 2.
-33. **An approval that continues onto a second line** ("only after a separate written
-    confirmation"): check 0; an approval is a single line, so no qualifier can hide below it.
-34. **A table above the Current decisions list** showing P-03 as approved: check 0.
-35. **The Current decisions list moved below the entries:** check 0.
-36. **A `###` subsection inside a source:** every check passes; its approvals still belong to that
-    source.
-37. **A decision title that leaves part of its approval out** (D-01 without ", charged on every
+33. **A lone carriage return hiding a work-item row** (an old Mac line break): the checker refuses
+    the file (exit 2) before checking anything.
+34. **An indented paragraph after a blank line, under an approval** (still part of that list item
+    in Markdown): check 0.
+35. **A decision title differing only in capital letters inside it** ("us dollars"): check 2; only
+    the first letter's case is ignored.
+36. **A decision title that leaves part of its approval out** (D-01 without ", charged on every
     ticket"): check 2.
+37. **An approval that continues onto a second line** ("only after a separate written
+    confirmation"): check 0; an approval is a single line, so no qualifier can hide below it.
+38. **A table above the Current decisions list** showing P-03 as approved: check 0.
+39. **The Current decisions list moved below the entries:** check 0.
+40. **A `###` subsection inside a source:** every check passes; its approvals still belong to that
+    source.
+
+Every case also requires all the checks to report, in order (PASS or FAIL), so none can silently go
+missing from the report.
 
 The demonstration writes the log only if every case came out as expected. The real files' SHA-256,
 before and after, is identical.
@@ -199,7 +209,7 @@ are shorter than the 20 characters a quote must have. The links were already the
 checker's report now spells out each replacement and promotion it verified (above), so the evidence
 for criterion 5 is one specific, quotable line.
 
-Further practice review then tightened the checker (cases 27 to 37 were added). One rule changed
+Further practice review then tightened the checker (cases 27 to 40 were added). One rule changed
 the log: a decision's title must now be exactly its approved words, so four decision headings (D-01,
 D-04, D-05 and D-07) were reworded to their approvers' own words (for example D-04, "The order total
 is worked out in whole cents", is now "The order total is the quantity times (the ticket price plus
@@ -225,7 +235,9 @@ status, date, source, approver, approval or links changed.
   reported as problems rather than interpreted, so a reader and the checker can't see different
   things; the price is that the files must stay in that simple form.
 - **`--write-view` leaves one step to a person.** It writes `log.md.new` and never replaces `log.md`
-  (so no edit can be lost); someone has to look at the new file and move it into place.
+  itself. Moving the new file into place is a person's job, and they must first check that `log.md`
+  still has the SHA-256 the checker printed: if it was edited in between and they skip that check,
+  the edit would be lost.
 - **One log.** Decisions made in tickets or chat aren't found; they count only once added to the
   log.
 

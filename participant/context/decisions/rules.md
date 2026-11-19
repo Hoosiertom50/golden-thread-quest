@@ -72,8 +72,9 @@ replaced. For each it shows the approver's own approved words, not the entry's t
 reader sees as decided is exactly what was approved. Each approval backs one decision only. Nobody writes it by hand: the checker builds it from the entries
 (`node participant/tools/decision-check.mjs --write-view`), and only when every other check passes,
 so it can never show an entry that isn't a valid decision. It writes the result to `log.md.new` and
-never replaces `log.md` itself: a person checks the new file and moves it into place, so no edit to
-the log can be lost. A decision's title is exactly its approver's words, so its heading can't say
+never replaces `log.md` itself. It prints the SHA-256 of the `log.md` it read; whoever moves
+`log.md.new` into place first checks that `log.md` still has that SHA-256, and if it doesn't (someone
+edited it in between), runs `--write-view` again instead. A decision's title is exactly its approver's words, so its heading can't say
 more or less than was approved.
 
 ## Work items

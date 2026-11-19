@@ -12,8 +12,9 @@
 //   --write-view writes log.md.new: log.md with the Current decisions list (only the lines between
 //                its two markers) rebuilt from the entries, every other byte, line ending and the
 //                file's permissions kept. Only if every check of the entries, sources and work
-//                items passes; log.md itself is never replaced (a person checks log.md.new and
-//                moves it into place), so no edit to log.md can be lost.
+//                items passes. The checker never replaces log.md: it prints the SHA-256 of the
+//                log.md it read, and a person moves log.md.new into place after checking log.md
+//                still has that SHA-256 (otherwise they run --write-view again).
 //   --print-view prints the list the entries call for, without checking or writing anything.
 //
 // An approval is a line in a source, "- Approved by <name> (area: <area>[; promotes: P-nn]
@@ -30,7 +31,8 @@
 // Exit codes: 0 every check passed, 1 at least one problem, 2 a file couldn't be read or the
 // arguments were wrong.
 
-import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { closeSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from "node:fs";
 import { basename, isAbsolute, join } from "node:path";
 
 const usage = () => {
@@ -58,12 +60,20 @@ const readRaw = (path, what) => {
     console.error(`Couldn't read ${what}.`);
     process.exit(2);
   }
+  let text;
   try {
-    return utf8.decode(bytes);
+    text = utf8.decode(bytes);
   } catch {
     console.error(`${what} is not valid UTF-8 text; nothing was checked or written.`);
     process.exit(2);
   }
+  // Lines end in LF or CRLF; a lone CR (an old Mac line break) would be a line break to some
+  // readers and not to this checker, so it is refused.
+  if (/\r(?!\n)/.test(text)) {
+    console.error(`${what} has a carriage return that isn't followed by a line feed; nothing was checked or written.`);
+    process.exit(2);
+  }
+  return text;
 };
 
 // ---- Markdown in context ----------------------------------------------------------------------
@@ -256,10 +266,19 @@ for (let i = 0; i < sourcesLines.length; i++) {
 if (!sources.size) setupProblems.push("sources.md has no sources");
 // A bullet whose next line continues it (anything but a blank line, another "- " bullet or a
 // heading) reads as one longer item: an approval must be a single line, so that is reported.
+// After blank lines, an indented line still belongs to the item (a further paragraph or a nested
+// list), so that is reported too.
 sourcesLines.forEach((l, i) => {
+  if (!/^- Approved by /.test(l)) return;
   const next = sourcesLines[i + 1];
-  if (/^- Approved by /.test(l) && next !== undefined && next.trim() !== "" && !/^- /.test(next) && !/^#{1,6}(\s|$)/.test(next)) {
+  if (next !== undefined && next.trim() !== "" && !/^- /.test(next) && !/^#{1,6}(\s|$)/.test(next)) {
     setupProblems.push(`sources.md line ${i + 2}: continues the approval on line ${i + 1}; an approval is a single line`);
+    return;
+  }
+  let j = i + 1;
+  while (j < sourcesLines.length && sourcesLines[j].trim() === "") j++;
+  if (j > i + 1 && j < sourcesLines.length && /^\s/.test(sourcesLines[j])) {
+    setupProblems.push(`sources.md line ${j + 1}: an indented line after the approval on line ${i + 1} still belongs to it; an approval is a single line`);
   }
 });
 const workItems = new Map();
@@ -490,7 +509,10 @@ check("2. A decision records its approver and where it was approved", (p) => {
     else if (!approvers.get(person).includes(area)) p.push(`${e.id}: ${person} may not approve area ${JSON.stringify(area)}`);
     // The heading says exactly what the approval says: its title is the approved words (a capital
     // first letter and a final full stop aside), so no title can add to them or leave a qualifier out.
-    const plain = (x) => x.trim().replace(/\.$/, "").toLowerCase();
+    const plain = (x) => {
+      const t = x.trim().replace(/\.$/, "");
+      return t.charAt(0).toLowerCase() + t.slice(1);
+    };
     if (plain(e.title) !== plain(parsed.words)) {
       p.push(`${e.id}: its title ${JSON.stringify(e.title)} isn't the approved words ${JSON.stringify(parsed.words)}`);
     }
@@ -644,21 +666,42 @@ if (mode === "write-view") {
   } else {
     // Only the lines between the markers change. Each line keeps its own line ending; the new
     // lines use the start marker's. The result goes to a new file, log.md.new, never over
-    // log.md: a person checks it and moves it into place, so no edit to log.md can be lost.
+    // log.md: the checker never overwrites the log; a person moves the new file into place after
+    // checking log.md still has the SHA-256 printed below.
     const parts = logRaw.split(/(?<=\n)/);
     const eol = parts[v.start].endsWith("\r\n") ? "\r\n" : "\n";
     const updated = [...parts.slice(0, v.start + 1), ...buildView(entries).split("\n").map((l) => l + eol), ...parts.slice(v.end)].join("");
     const out = `${logPath}.new`;
+    let fd = null;
+    let leftover = false;
     try {
-      writeFileSync(out, updated, { flag: "wx", mode: statSync(logPath).mode & 0o666 });
+      fd = openSync(out, "wx", statSync(logPath).mode & 0o666);
+      const bytes = Buffer.from(updated, "utf8");
+      let done = 0;
+      while (done < bytes.length) done += writeSync(fd, bytes, done, bytes.length - done);
+      closeSync(fd);
+      fd = null;
     } catch (err) {
+      // Only a file this run created is removed; an existing log.md.new is never touched.
+      if (fd !== null) {
+        try { closeSync(fd); } catch { /* already closed */ }
+        try { unlinkSync(out); } catch { leftover = true; }
+      }
       console.error(err.code === "EEXIST"
         ? "log.md.new already exists: check it and move it into place (or remove it) first; nothing was written."
-        : "Couldn't write log.md.new; nothing was written.");
+        : leftover
+          ? "Couldn't write log.md.new, and couldn't remove the incomplete file: delete log.md.new by hand; don't move it into place."
+          : "Couldn't write log.md.new; the incomplete file was removed.");
       process.exit(2);
     }
     finalRaw = updated;
-    writeNote = `Wrote log.md.new: log.md with its Current decisions list rebuilt from the entries. log.md itself was not changed. The checks below are of log.md.new; if they pass, move it over log.md${isAbsolute(dir) ? " in that folder" : `:\n  mv ${shownDir}/log.md.new ${shownDir}/log.md`}`;
+    const base = createHash("sha256").update(logRaw, "utf8").digest("hex");
+    writeNote = [
+      "Wrote log.md.new: log.md with its Current decisions list rebuilt from the entries. log.md itself was not changed.",
+      "The checks below are of log.md.new. It was built from log.md as it was when read, SHA-256",
+      `  ${base}`,
+      "Before moving log.md.new over log.md, check that log.md's SHA-256 is still that; if log.md has changed since, run --write-view again.",
+    ].join("\n");
   }
 }
 // The view, as the file now stands: its rows must all be decisions, and it must match the entries.

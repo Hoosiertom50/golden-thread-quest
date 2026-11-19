@@ -1,5 +1,5 @@
 context-decision-log: the decision-log check
-Recorded 11-19-2026 04:12 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
+Recorded 11-19-2026 04:32 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
 Each case is a copy of the real files (participant/context/decisions/) in a temp folder with
 one mistake, and its Current decisions list rebuilt so only that mistake can fail. Each must fail
 exactly the checks named, with the message named. Every check (0 to 7, the stretch check and the
@@ -787,7 +787,10 @@ The copy's log.md is unchanged, byte for byte.
 == 31. --write-view repairs a stale list, even one naming a proposal ==
 It writes log.md.new and leaves log.md alone; the log.md.new is then moved into place and checked.
 $ node decision-check.mjs --dir repair --write-view
-Wrote log.md.new: log.md with its Current decisions list rebuilt from the entries. log.md itself was not changed. The checks below are of log.md.new; if they pass, move it over log.md in that folder
+Wrote log.md.new: log.md with its Current decisions list rebuilt from the entries. log.md itself was not changed.
+The checks below are of log.md.new. It was built from log.md as it was when read, SHA-256
+  222ed99abdbfd669d7e5a693aafd167870576ef03f5bd87fdf5a6f89bbb162e3
+Before moving log.md.new over log.md, check that log.md's SHA-256 is still that; if log.md has changed since, run --write-view again.
 
 Decision log check: (folder repair) (13 entries: 7 decisions, 3 proposals, 3 questions)
 PASS  0. The files can be read as a log
@@ -848,7 +851,55 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 2 failed, with "its title "Waive the service fee" isn't the approved words".
 
-== 37. A decision title that leaves part of the approval out ==
+== 33. A lone carriage return hiding a work-item row ==
+A row added after a bare CR (an old Mac line break): some readers show it as a line, so it's refused.
+$ node decision-check.mjs --dir bare-cr
+(folder bare-cr)/sources.md has a carriage return that isn't followed by a line feed; nothing was checked or written.
+exit code: 2
+As expected: refused (exit code 2) before anything was checked.
+
+== 34. An indented paragraph after a blank line, under an approval ==
+What was changed in this copy:
+  sources.md, after:    Only after separate confirmation.
+$ node decision-check.mjs --dir blank-continued
+Decision log check: (folder blank-continued) (13 entries: 7 decisions, 3 proposals, 3 questions)
+FAIL  0. The files can be read as a log
+      - sources.md line 24: an indented line after the approval on line 22 still belongs to it; an approval is a single line
+PASS  1. Every entry has exactly one status: decision, proposal or question
+PASS  2. A decision records its approver and where it was approved
+PASS  3. A proposal is never shown as a decision
+PASS  4. Promoting a proposal adds an entry and keeps the history
+PASS  5. A replaced decision links to the one that replaced it
+PASS  6. Each entry cites its source (and its date)
+PASS  7. A reader finds the current decisions without reading the history
+PASS  Stretch: decisions link to the work items they affect
+Decisions in force with no work resting on them: not listed, because the log has problems.
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) 0 failed, with "an indented line after the approval on line".
+
+== 35. A decision title differing only in capital letters inside it ==
+What was changed in this copy:
+  log.md, before: ### D-06 · Prices are shown in US dollars, with two decimal places
+  log.md, after:  ### D-06 · Prices are shown in us dollars, with two decimal places
+$ node decision-check.mjs --dir title-case
+Decision log check: (folder title-case) (13 entries: 7 decisions, 3 proposals, 3 questions)
+PASS  0. The files can be read as a log
+PASS  1. Every entry has exactly one status: decision, proposal or question
+FAIL  2. A decision records its approver and where it was approved
+      - D-06: its title "Prices are shown in us dollars, with two decimal places" isn't the approved words "prices are shown in US dollars, with two decimal places."
+PASS  3. A proposal is never shown as a decision
+PASS  4. Promoting a proposal adds an entry and keeps the history
+PASS  5. A replaced decision links to the one that replaced it
+PASS  6. Each entry cites its source (and its date)
+PASS  7. A reader finds the current decisions without reading the history
+PASS  Stretch: decisions link to the work items they affect
+Decisions in force with no work resting on them: not listed, because the log has problems.
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) 2 failed, with "its title "Prices are shown in us dollars, with two decimal places" isn't the approved words".
+
+== 36. A decision title that leaves part of the approval out ==
 D-01's title drops ", charged on every ticket": shorter, but no longer exactly what was approved.
 What was changed in this copy:
   log.md, before: ### D-01 · The service fee is $2.50 per ticket, charged on every ticket
@@ -870,7 +921,7 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 2 failed, with "its title "The service fee is $2.50 per ticket" isn't the approved words".
 
-== 33. An approval that continues onto a second line ==
+== 37. An approval that continues onto a second line ==
 What was changed in this copy:
   sources.md, after:    only after a separate written confirmation.
 $ node decision-check.mjs --dir continued
@@ -890,7 +941,7 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 0 failed, with "continues the approval on line".
 
-== 34. A table above the Current decisions list ==
+== 38. A table above the Current decisions list ==
 What was changed in this copy:
   log.md, after:  | Decision | Status |
   log.md, after:  |---|---|
@@ -914,7 +965,7 @@ Result: FAIL, 3 problems.
 exit code: 1
 As expected: exactly check(s) 0 failed, with "a table outside the generated Current decisions list".
 
-== 35. The Current decisions list moved below the entries ==
+== 39. The Current decisions list moved below the entries ==
 $ node decision-check.mjs --dir moved-view
 Decision log check: (folder moved-view) (13 entries: 7 decisions, 3 proposals, 3 questions)
 FAIL  0. The files can be read as a log
@@ -932,7 +983,7 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 0 failed, with ""## Current decisions" must come before "## Entries"".
 
-== 36. A ### subsection inside a source ==
+== 40. A ### subsection inside a source ==
 MTG-01's approvals are put under a "### Approvals" subheading; they still belong to MTG-01.
 What was changed in this copy:
   sources.md, after:  ### Approvals
@@ -955,12 +1006,12 @@ exit code: 0
 As expected: every check passed.
 
 == The real files were only read ==
-SHA-256 of log.md, rules.md and sources.md, before: 364a24898504654da8a1c1bdd329c5610bb63f7854dbbbe7cd6dfc11d9d66cf2 800e508edbf62144ac9bea99ebb79eeaee0b4520db155d89fe9cd72fd861af93 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
-and after:                                         364a24898504654da8a1c1bdd329c5610bb63f7854dbbbe7cd6dfc11d9d66cf2 800e508edbf62144ac9bea99ebb79eeaee0b4520db155d89fe9cd72fd861af93 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
+SHA-256 of log.md, rules.md and sources.md, before: 364a24898504654da8a1c1bdd329c5610bb63f7854dbbbe7cd6dfc11d9d66cf2 a02e9ae4255b258d856f6e5f486cdfd3cd817a6660e0b0f6e624aab7c385d6fd 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
+and after:                                         364a24898504654da8a1c1bdd329c5610bb63f7854dbbbe7cd6dfc11d9d66cf2 a02e9ae4255b258d856f6e5f486cdfd3cd817a6660e0b0f6e624aab7c385d6fd 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 identical
 
 == For the reader of this log alone: what was checked against ==
-SHA-256 of participant/tools/decision-check.mjs: 3c36385f4f991c0c4db20d5af2ac93a1553069d10d12cb1b48c8e6842d55ef9e
+SHA-256 of participant/tools/decision-check.mjs: 6fabefe105b6ac81e91e4adf1c60c95474b7281067b8046b1aafde515ac2afb1
 SHA-256 of participant/context/decisions/sources.md: 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 The full text of participant/context/decisions/sources.md, the written records every approval
 above is checked against:
