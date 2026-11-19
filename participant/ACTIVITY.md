@@ -144,4 +144,9 @@ Every change this application made to your files, newest last.
 - `2026-11-19T16:37:18Z` base-camp-ownership-zones: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
 - `2026-11-19T16:37:36Z` base-camp-ownership-zones: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-19T16:37:36Z` Submitted base-camp-ownership-zones for review as submission-20261119163736-ec60d7.
+- `2026-11-19T16:44:26Z` Started context-decision-log as attempt context-attempt-002.
 - `2026-11-19T16:44:31Z` Review of base-camp-ownership-zones: approved by Claude (automated reviewer).
+- `2026-11-19T20:17:26Z` context-decision-log: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-19T20:17:39Z` context-decision-log: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-19T20:17:55Z` context-decision-log: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-19T20:17:55Z` Submitted context-decision-log for review as submission-20261119201755-9af643.
