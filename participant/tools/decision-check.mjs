@@ -79,7 +79,8 @@ const readRaw = (path, what) => {
 // ---- Markdown in context ----------------------------------------------------------------------
 // Inline code spans as Markdown reads them: a run of backticks, then text, then a run of exactly the
 // same length (``a|b`` as well as `a`). `blank` replaces each span, keeping or dropping its length.
-const CODE_SPAN = /(?<!`)(`+)(?!`)([\s\S]*?[^`])\1(?!`)/g;
+// A backslash before a backtick makes it a plain character, so it never opens a span.
+const CODE_SPAN = /(?<![`\\])(`+)(?!`)([\s\S]*?[^`])\1(?!`)/g;
 const maskCode = (line, keepLength) => line.replace(CODE_SPAN, (m) => (keepLength ? " ".repeat(m.length) : ""));
 // Each line of the text (split on LF; a CR before it is dropped) with its kind: "text", "code"
 // (fenced or indented) or "comment". Code and comment lines are not part of the record.
@@ -164,6 +165,7 @@ const lint = (raw, file, markers) => {
     const where = `${file} line ${i + 1}`;
     const masked = maskCode(line, false); // inline code is text, whatever it holds
     if (/^ {0,3}(`{3,}|~{3,})/.test(line)) problems.push(`${where}: code blocks aren't used in the decision files`);
+    else if (line.includes("\\`")) problems.push(`${where}: an escaped backtick (\\\`) isn't used in the decision files (it changes what counts as code)`);
     else if (/^ *\t/.test(line)) problems.push(`${where}: a tab at the start of a line (it can turn a line into code)`);
     else if (/^ {4,}\S/.test(line)) problems.push(`${where}: a line indented four or more spaces (that is code in Markdown)`);
     else if (/^ {1,3}#/.test(line)) problems.push(`${where}: a heading must start at the beginning of the line`);
@@ -437,6 +439,9 @@ visibleLines(classify(logRaw)).forEach((l, i) => {
   const e0 = cl.findIndex((c) => c.kind === "comment" && c.raw.trim() === END);
   vis.forEach((l, i) => {
     if (l.trim().startsWith("|") && !(s0 !== -1 && e0 !== -1 && i > s0 && i < e0)) parseProblems.push(`log.md line ${i + 1}: a table outside the generated Current decisions list`);
+    // Above the list, no text may name an entry: a claim about a decision belongs in the checked
+    // places (the list and the entries), not in prose nobody checks.
+    if (cur !== -1 && i < cur && /\b[DPQ]-\d+\b/.test(l)) parseProblems.push(`log.md line ${i + 1}: names an entry above the Current decisions list; entries are named only in the list and under "## Entries"`);
   });
 }
 const entries = parseEntries(logRaw, parseProblems, "log.md");

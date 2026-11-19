@@ -552,6 +552,22 @@ P-03 | approved
   changes double-tick
   run double-tick "" ""
 
+  echo "== 45. An escaped backtick used to hide a qualifier in a comment =="
+  echo "A reader sees the comment as hidden; the escaped backtick must not make the checker treat it as code."
+  copy escaped-tick
+  edit escaped-tick sources.md "- $FEE" "- $FEE \\\`<!-- only for staff -->\`"
+  changes escaped-tick
+  run escaped-tick "0 2" "an escaped backtick"
+
+  echo "== 46. The log's introduction naming an entry =="
+  echo "A sentence above the list saying P-03 is approved: entries are named only in the list and the entries."
+  copy intro-claim
+  edit intro-claim log.md "## Current decisions" "P-03, the fee waiver, is approved.
+
+## Current decisions"
+  changes intro-claim
+  run intro-claim "0" "names an entry above the Current decisions list"
+
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
   echo "SHA-256 of log.md, rules.md and sources.md, before: $BEFORE"
