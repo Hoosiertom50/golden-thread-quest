@@ -249,6 +249,15 @@ for (const row of tableRows(who.lines, 'rules.md "Who may approve"', setupProble
   else approvers.set(row[0], ticks(row[2]));
 }
 if (!approvers.size) setupProblems.push('rules.md has no approvers in its "Who may approve" table');
+// A table anywhere but its one place is a list nobody checks (it could show a proposal as decided),
+// so rules.md may have a table only under "Who may approve", and sources.md only under "Work items".
+const tablesOnlyIn = (lines, file, sec) => {
+  const inside = (i) => !sec.problem && i > sec.start && i <= sec.start + sec.lines.length;
+  lines.forEach((l, i) => {
+    if (l.trim().startsWith("|") && !inside(i)) setupProblems.push(`${file} line ${i + 1}: a table outside its one checked table`);
+  });
+};
+tablesOnlyIn(rulesLines, "rules.md", who);
 
 // sources.md: each "## ID · title, MM-DD-YYYY" section (its visible lines, as written), and the
 // work-items table.
@@ -284,6 +293,7 @@ sourcesLines.forEach((l, i) => {
 const workItems = new Map();
 const wi = section(sourcesLines, 2, "Work items", "sources.md");
 if (wi.problem) setupProblems.push(wi.problem);
+tablesOnlyIn(sourcesLines, "sources.md", wi);
 for (const row of tableRows(wi.lines, "sources.md work items", setupProblems, ["Work item", "What it is", "Rests on"])) {
   const [id, , restsOn] = row ?? [];
   if (!/^[A-Z]+-\d+$/.test(id ?? "")) setupProblems.push(`sources.md: a work-items row has no valid ID: ${JSON.stringify(row)}`);
@@ -688,7 +698,7 @@ if (mode === "write-view") {
         try { unlinkSync(out); } catch { leftover = true; }
       }
       console.error(err.code === "EEXIST"
-        ? "log.md.new already exists: check it and move it into place (or remove it) first; nothing was written."
+        ? "log.md.new already exists from an earlier run and may be out of date: don't move it into place. Delete it, then run --write-view again. Nothing was written."
         : leftover
           ? "Couldn't write log.md.new, and couldn't remove the incomplete file: delete log.md.new by hand; don't move it into place."
           : "Couldn't write log.md.new; the incomplete file was removed.");
@@ -700,7 +710,7 @@ if (mode === "write-view") {
       "Wrote log.md.new: log.md with its Current decisions list rebuilt from the entries. log.md itself was not changed.",
       "The checks below are of log.md.new. It was built from log.md as it was when read, SHA-256",
       `  ${base}`,
-      "Before moving log.md.new over log.md, check that log.md's SHA-256 is still that; if log.md has changed since, run --write-view again.",
+      "Before moving log.md.new over log.md, check that log.md's SHA-256 is still that; if log.md has changed since, delete log.md.new and run --write-view again.",
     ].join("\n");
   }
 }

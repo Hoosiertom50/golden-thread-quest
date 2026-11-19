@@ -73,8 +73,9 @@ reader sees as decided is exactly what was approved. Each approval backs one dec
 (`node participant/tools/decision-check.mjs --write-view`), and only when every other check passes,
 so it can never show an entry that isn't a valid decision. It writes the result to `log.md.new` and
 never replaces `log.md` itself. It prints the SHA-256 of the `log.md` it read; whoever moves
-`log.md.new` into place first checks that `log.md` still has that SHA-256, and if it doesn't (someone
-edited it in between), runs `--write-view` again instead. A decision's title is exactly its approver's words, so its heading can't say
+`log.md.new` into place first checks that `log.md` still has that SHA-256. If it doesn't (someone
+edited it in between), or a `log.md.new` is left over from an earlier run, they delete `log.md.new`
+and run `--write-view` again; an old one is never moved into place. A decision's title is exactly its approver's words, so its heading can't say
 more or less than was approved.
 
 ## Work items

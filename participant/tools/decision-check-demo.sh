@@ -505,6 +505,34 @@ SHOP-18 | Waive the fee | P-03 |"
   changes subsection
   run subsection "" ""
 
+  echo "== 41. A leftover log.md.new from an earlier run =="
+  echo "It may be out of date, so --write-view refuses and says to delete it, not to move it into place."
+  copy leftover
+  edit leftover log.md "| D-06 |" "| P-03 | waive the fee | fees | Avery Lane | 10-19-2026 | MTG-02 |
+| D-06 |"
+  printf 'an older log.md.new\n' > "$T/leftover/log.md.new"
+  echo "\$ node decision-check.mjs --dir leftover --write-view"
+  out=$(cd "$T" && node "$CHECK" --dir "$T/leftover" --write-view 2>&1); code=$?
+  printf '%s\nexit code: %s\n' "${out//"$T/"/}" "$code"
+  if [ "$code" = 2 ] && printf '%s\n' "$out" | grep -qF "may be out of date: don't move it into place" && [ "$(cat "$T/leftover/log.md.new")" = "an older log.md.new" ]; then
+    echo "As expected: refused (exit code 2), and the old log.md.new was left untouched."
+  else
+    echo "UNEXPECTED: exit code 2, the out-of-date message and an untouched log.md.new were expected"; FAIL=1
+  fi
+  echo
+
+  echo "== 42. A table inside a meeting's notes =="
+  echo "A table in MTG-02 listing P-03 as approved: tables belong only in the checked places."
+  copy notes-table
+  edit notes-table sources.md "- Riley: should a cancelled order give the fee back? Nobody knew yet." "- Riley: should a cancelled order give the fee back? Nobody knew yet.
+
+| Decision | Status |
+|---|---|
+| P-03 | approved |
+"
+  changes notes-table
+  run notes-table "0" "a table outside its one checked table"
+
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
   echo "SHA-256 of log.md, rules.md and sources.md, before: $BEFORE"

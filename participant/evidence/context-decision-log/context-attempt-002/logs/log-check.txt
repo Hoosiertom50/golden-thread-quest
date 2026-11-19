@@ -1,5 +1,5 @@
 context-decision-log: the decision-log check
-Recorded 11-19-2026 04:32 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
+Recorded 11-19-2026 04:50 PM with Node v22.23.3, by participant/tools/decision-check-demo.sh.
 Each case is a copy of the real files (participant/context/decisions/) in a temp folder with
 one mistake, and its Current decisions list rebuilt so only that mistake can fail. Each must fail
 exactly the checks named, with the message named. Every check (0 to 7, the stretch check and the
@@ -790,7 +790,7 @@ $ node decision-check.mjs --dir repair --write-view
 Wrote log.md.new: log.md with its Current decisions list rebuilt from the entries. log.md itself was not changed.
 The checks below are of log.md.new. It was built from log.md as it was when read, SHA-256
   222ed99abdbfd669d7e5a693aafd167870576ef03f5bd87fdf5a6f89bbb162e3
-Before moving log.md.new over log.md, check that log.md's SHA-256 is still that; if log.md has changed since, run --write-view again.
+Before moving log.md.new over log.md, check that log.md's SHA-256 is still that; if log.md has changed since, delete log.md.new and run --write-view again.
 
 Decision log check: (folder repair) (13 entries: 7 decisions, 3 proposals, 3 questions)
 PASS  0. The files can be read as a log
@@ -1005,13 +1005,45 @@ Result: PASS, every check passed.
 exit code: 0
 As expected: every check passed.
 
+== 41. A leftover log.md.new from an earlier run ==
+It may be out of date, so --write-view refuses and says to delete it, not to move it into place.
+$ node decision-check.mjs --dir leftover --write-view
+log.md.new already exists from an earlier run and may be out of date: don't move it into place. Delete it, then run --write-view again. Nothing was written.
+exit code: 2
+As expected: refused (exit code 2), and the old log.md.new was left untouched.
+
+== 42. A table inside a meeting's notes ==
+A table in MTG-02 listing P-03 as approved: tables belong only in the checked places.
+What was changed in this copy:
+  sources.md, after:  | Decision | Status |
+  sources.md, after:  |---|---|
+  sources.md, after:  | P-03 | approved |
+$ node decision-check.mjs --dir notes-table
+Decision log check: (folder notes-table) (13 entries: 7 decisions, 3 proposals, 3 questions)
+FAIL  0. The files can be read as a log
+      - sources.md line 35: a table outside its one checked table
+      - sources.md line 36: a table outside its one checked table
+      - sources.md line 37: a table outside its one checked table
+PASS  1. Every entry has exactly one status: decision, proposal or question
+PASS  2. A decision records its approver and where it was approved
+PASS  3. A proposal is never shown as a decision
+PASS  4. Promoting a proposal adds an entry and keeps the history
+PASS  5. A replaced decision links to the one that replaced it
+PASS  6. Each entry cites its source (and its date)
+PASS  7. A reader finds the current decisions without reading the history
+PASS  Stretch: decisions link to the work items they affect
+Decisions in force with no work resting on them: not listed, because the log has problems.
+Result: FAIL, 3 problems.
+exit code: 1
+As expected: exactly check(s) 0 failed, with "a table outside its one checked table".
+
 == The real files were only read ==
 SHA-256 of log.md, rules.md and sources.md, before: 364a24898504654da8a1c1bdd329c5610bb63f7854dbbbe7cd6dfc11d9d66cf2 a02e9ae4255b258d856f6e5f486cdfd3cd817a6660e0b0f6e624aab7c385d6fd 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 and after:                                         364a24898504654da8a1c1bdd329c5610bb63f7854dbbbe7cd6dfc11d9d66cf2 a02e9ae4255b258d856f6e5f486cdfd3cd817a6660e0b0f6e624aab7c385d6fd 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 identical
 
 == For the reader of this log alone: what was checked against ==
-SHA-256 of participant/tools/decision-check.mjs: 6fabefe105b6ac81e91e4adf1c60c95474b7281067b8046b1aafde515ac2afb1
+SHA-256 of participant/tools/decision-check.mjs: e073cb1ba19375460b8e8b32f2b6b6ac4a4d9a0b6d22ccba80a4c41f3de5bd0e
 SHA-256 of participant/context/decisions/sources.md: 099c368449706979ff39bd34c378a926d34e07fcd6eb33ad7a2eb1e37b914c78
 The full text of participant/context/decisions/sources.md, the written records every approval
 above is checked against:
