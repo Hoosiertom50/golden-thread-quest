@@ -11,6 +11,7 @@
 // 1 at least one problem, 2 a file couldn't be read or the arguments were wrong. It writes nothing.
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, isAbsolute } from "node:path";
 
@@ -34,10 +35,13 @@ decisionsPath ??= transcriptPath.replace(/\.md$/, ".decisions.md");
 const shown = (p) => (isAbsolute(p) ? `(file ${basename(p)})` : p);
 
 const utf8 = new TextDecoder("utf-8", { fatal: true });
+const raw = new Map(); // path -> the exact bytes that were checked
 const read = (path) => {
   let text;
   try {
-    text = utf8.decode(readFileSync(path));
+    const bytes = readFileSync(path);
+    raw.set(path, bytes);
+    text = utf8.decode(bytes);
   } catch {
     console.error(`Couldn't read ${shown(path)} as UTF-8 text.`);
     process.exit(2);
@@ -73,9 +77,12 @@ for (const line of transcriptText.split("\n")) {
   if (!/^\|\s*U\d+\s*\|/.test(line)) continue;
   const cells = cellsOf(line);
   const [id, time, speaker, ...rest] = cells;
-  if (cells.length !== 4 || !/^U\d{3}$/.test(id)) transcriptProblems.push(`a transcript row isn't "| Unnn | time | speaker | utterance |": ${JSON.stringify(line.slice(0, 60))}`);
+  if (cells.length !== 4 || !/^U\d{3}$/.test(id)) {
+    transcriptProblems.push(`a transcript row isn't "| Unnn | time | speaker | utterance |": ${JSON.stringify(line.slice(0, 60))}`);
+    continue;
+  }
   if (utterances.has(id)) transcriptProblems.push(`the transcript has ${id} twice`);
-  utterances.set(id, { time, speaker: rendered(speaker), text: rendered(rest.join("|")) });
+  utterances.set(id, { time, speaker: rendered(speaker), text: rendered(rest[0]) });
 }
 if (!utterances.size) transcriptProblems.push("the transcript has no utterance table");
 const flagged = new Set((/^- Flagged as instruction-like: (.+)$/m.exec(transcriptText)?.[1] ?? "").match(/U\d+/g) ?? []);
@@ -86,7 +93,7 @@ const SECTIONS = [
   { title: "Decisions", prefix: "D", required: ["Cites", "Key line", "Agreed by"], optional: ["Changed in the meeting", "Not yet confirmed", "See also"] },
   { title: "Proposals", prefix: "P", required: ["Cites", "Key line", "Not accepted"], optional: [] },
   { title: "Open questions", prefix: "O", required: ["Cites", "Key line", "Raised by"], optional: ["See also"] },
-  { title: "Commitments", prefix: "C", required: ["Cites", "Key line", "By"], optional: [] },
+  { title: "Commitments", prefix: "C", required: ["Cites", "Key line", "By"], optional: ["Settles"] },
   { title: "Not classified", prefix: "X", required: ["Cites", "Why"], optional: [] },
 ];
 const fileProblems = [];
@@ -103,6 +110,15 @@ const firstHeading = lines.findIndex((l) => /^#/.test(l));
 lines.forEach((line, i) => {
   const where = `decisions file line ${i + 1}`;
   const masked = line.replace(CODE_SPAN, "");
+  if (/[[\]]/.test(line)) {
+    // Links and references aren't used here, and their syntax changes what counts as code.
+    fileProblems.push(`${where}: brackets (links or references) aren't used in the decisions file`);
+    return;
+  }
+  if (/^\s*([*+]|\d+[.)])\s/.test(line) || (section === null && /^\s*-\s/.test(line))) {
+    fileProblems.push(`${where}: lists are only "- Field: value" lines inside an item (or in Counts)`);
+    return;
+  }
   if (/^ {0,3}(`{3,}|~{3,})/.test(line) || line.includes("\\`") || /<[A-Za-z!?/]/.test(masked) || /-->/.test(masked)) {
     fileProblems.push(`${where}: code blocks, escaped backticks, HTML and comments aren't used in the decisions file`);
     return;
@@ -121,8 +137,12 @@ lines.forEach((line, i) => {
   const h3 = /^### ([A-Z])(\d+) · (.+)$/.exec(line);
   if (h3) {
     const s = SECTIONS.find((x) => x.title === section);
-    if (!s) fileProblems.push(`${where}: an item outside the five lists`);
-    else if (h3[1] !== s.prefix) fileProblems.push(`${where}: an item in "${section}" must be ${s.prefix}-numbered, not ${h3[1]}${h3[2]}`);
+    if (!s) {
+      fileProblems.push(`${where}: an item outside the five lists`);
+      cur = null;
+      return;
+    }
+    if (h3[1] !== s.prefix) fileProblems.push(`${where}: an item in "${section}" must be ${s.prefix}-numbered, not ${h3[1]}${h3[2]}`);
     cur = { id: `${h3[1]}${h3[2]}`, title: h3[3].trim(), section: s, fields: new Map() };
     items.push(cur);
     return;
@@ -133,7 +153,8 @@ lines.forEach((line, i) => {
   }
   const f = /^- ([A-Za-z ]+): (.*)$/.exec(line);
   if (section === "Counts") {
-    if (f) counts.set(f[1], f[2].trim());
+    if (f && counts.has(f[1])) fileProblems.push(`${where}: Counts lists "${f[1]}" twice`);
+    else if (f) counts.set(f[1], f[2].trim());
     else if (line.trim()) fileProblems.push(`${where}: the Counts list has only "- Name: number" lines`);
     return;
   }
@@ -219,17 +240,20 @@ check("4. Open discussion and undecided items are listed separately", (p, v) => 
     const raised = it.fields.get("Raised by") ?? "";
     const unknown = /^uncertain speaker at (U\d+)$/.exec(raised);
     if (unknown) {
+      if (!cites(it).includes(unknown[1])) p.push(`${it.id}: raised at ${unknown[1]}, which it doesn't cite`);
       const u = utterances.get(unknown[1]);
       if (u && !/unknown|uncertain/i.test(u.speaker)) p.push(`${it.id}: says the speaker at ${unknown[1]} is uncertain, but the transcript names ${u.speaker}`);
       continue;
     }
     const who = people(raised);
     if (!who || who.length !== 1) p.push(`${it.id}: "Raised by" must be "Name at Unnn" or "uncertain speaker at Unnn"`);
+    else if (!cites(it).includes(who[0].id)) p.push(`${it.id}: raised at ${who[0].id}, which it doesn't cite`);
     else if (utterances.get(who[0].id) && utterances.get(who[0].id).speaker !== who[0].name) p.push(`${it.id}: names ${who[0].name} as raising it at ${who[0].id}, but ${who[0].id} was spoken by ${utterances.get(who[0].id).speaker}`);
   }
   for (const it of items.filter((x) => x.section.prefix === "C")) {
     const who = people(it.fields.get("By"));
     if (!who || who.length !== 1) p.push(`${it.id}: "By" must be "Name at Unnn"`);
+    else if (!cites(it).includes(who[0].id)) p.push(`${it.id}: committed at ${who[0].id}, which it doesn't cite`);
     else if (utterances.get(who[0].id) && utterances.get(who[0].id).speaker !== who[0].name) p.push(`${it.id}: names ${who[0].name} as committing at ${who[0].id}, but ${who[0].id} was spoken by ${utterances.get(who[0].id).speaker}`);
   }
   if (!p.length) {
@@ -241,25 +265,28 @@ check("4. Open discussion and undecided items are listed separately", (p, v) => 
 check("5. The decisions file is separate from the source record, which is not edited", (p, v) => {
   if (decisionsPath === transcriptPath) p.push("the decisions file is the transcript itself");
   if (decisionsText.includes("| Id | Time | Speaker | Utterance |")) p.push("the decisions file contains the transcript's utterance table");
+  const checked = raw.get(transcriptPath);
   if (originalPath !== null) {
     let same = false;
     try {
-      same = readFileSync(originalPath).equals(readFileSync(transcriptPath));
+      same = readFileSync(originalPath).equals(checked);
     } catch {
       p.push("couldn't read the original transcript to compare with");
     }
     if (!same && !p.length) p.push("the transcript has been edited: it differs from the original byte for byte");
     else if (same && !p.length) v.push("verified (criterion 5): the decisions file is separate from the source record, which is byte-identical to the original");
   } else if (transcriptPath === DEFAULT_TRANSCRIPT) {
-    // Unchanged since the last commit: the file's Git object id must equal the committed one.
+    // Unchanged since the last commit: the Git object id of the bytes checked must equal the
+    // committed one.
+    const now = createHash("sha1").update(`blob ${checked.length}\0`).update(checked).digest("hex");
+    let committed = null;
     try {
-      const now = execFileSync("git", ["hash-object", "--", transcriptPath], { encoding: "utf8" }).trim();
-      const committed = execFileSync("git", ["rev-parse", `HEAD:${transcriptPath}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-      if (now !== committed) p.push(`the transcript has been edited since it was committed (Git object ${committed.slice(0, 12)} then, ${now.slice(0, 12)} now)`);
-      else v.push(`verified (criterion 5): the decisions file ${decisionsPath} is separate from the source record ${transcriptPath}, which is unchanged since it was committed (Git object ${committed})`);
+      committed = execFileSync("git", ["rev-parse", `HEAD:${transcriptPath}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
     } catch {
-      p.push("couldn't compare the transcript with its committed version (run this from the repository's top folder)");
+      p.push("couldn't read the transcript's committed version (run this from the repository's top folder)");
     }
+    if (committed && now !== committed) p.push(`the transcript has been edited since it was committed (Git object ${committed.slice(0, 12)} then, ${now.slice(0, 12)} now)`);
+    else if (committed && !p.length) v.push(`verified (criterion 5): the decisions file ${shown(decisionsPath)} is separate from the source record ${shown(transcriptPath)}, which is unchanged since it was committed (Git object ${committed})`);
   } else {
     p.push("not compared: give --original <file> to check that this transcript wasn't edited");
   }
@@ -299,7 +326,11 @@ check("7. Every item can be checked against the source: its key line is quoted w
 
 check("Safety: an instruction-like line is never a decision, proposal, question or commitment", (p, v) => {
   for (const it of items.filter((x) => x.section.prefix !== "X")) {
-    for (const id of cites(it)) if (flagged.has(id)) p.push(`${it.id}: cites ${id}, which the transcript flags as instruction-like; it may appear only under "Not classified"`);
+    for (const [field, value] of it.fields) {
+      for (const id of value.match(/\bU\d+\b/g) ?? []) {
+        if (flagged.has(id)) p.push(`${it.id}: ${field === "Cites" ? "cites" : `its "${field}" names`} ${id}, which the transcript flags as instruction-like; it may appear only under "Not classified"`);
+      }
+    }
   }
   if (!flagged.size) p.push('the transcript names no instruction-like lines ("- Flagged as instruction-like: …")');
   if (!p.length) v.push(`verified (safety): the instruction-like line ${[...flagged].join(", ")} appears only under "Not classified", never as a decision, proposal, question or commitment`);
@@ -319,6 +350,12 @@ check("Stretch: changes, doubts and counts", (p, v) => {
     if (doubt !== undefined) {
       const c = /see (C\d+)$/.exec(doubt);
       if (!c || byId.get(c[1])?.section.prefix !== "C") p.push(`${it.id}: "Not yet confirmed" must end with "see Cn", naming the commitment that settles it`);
+      else if (byId.get(c[1]).fields.get("Settles") !== it.id) p.push(`${it.id}: is settled by ${c[1]}, but ${c[1]} doesn't say "Settles: ${it.id}"`);
+    }
+    const settles = it.fields.get("Settles");
+    if (settles !== undefined) {
+      const d = byId.get(settles);
+      if (!d || !/see (C\d+)$/.test(d.fields.get("Not yet confirmed") ?? "") || /see (C\d+)$/.exec(d.fields.get("Not yet confirmed"))[1] !== it.id) p.push(`${it.id}: says it settles ${settles}, but ${settles} isn't marked "Not yet confirmed … see ${it.id}"`);
     }
     for (const id of (it.fields.get("See also") ?? "").split(/[\s,]+/).filter(Boolean)) {
       const other = byId.get(id);

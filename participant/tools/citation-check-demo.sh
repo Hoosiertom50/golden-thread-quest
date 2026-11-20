@@ -230,6 +230,53 @@ Later reversed
   changes see-also
   run see-also "Stretch" "D8: \"See also\" names O1, but O1 doesn't name D8 back"
 
+  echo "== 19. An item placed above the five lists =="
+  copy above-lists
+  edit above-lists $D "- Commitments: 5" "- Commitments: 5
+
+### D9 · Tablet touch is required"
+  changes above-lists
+  run above-lists "0" "an item outside the five lists"
+
+  echo "== 20. A count given twice =="
+  copy double-count
+  edit double-count $D "- Open questions: 3" "- Open questions: 999
+- Open questions: 3"
+  changes double-count
+  run double-count "0 Stretch" "Counts lists \"Open questions\" twice"
+
+  echo "== 21. A list line in the introduction =="
+  copy intro-list
+  edit intro-list $D "## Counts" "+ Decision: tablet touch is required.
+
+## Counts"
+  changes intro-list
+  run intro-list "0" "lists are only \"- Field: value\" lines inside an item"
+
+  echo "== 22. An open question raised at a line it doesn't cite =="
+  copy uncited-raiser
+  edit uncited-raiser $D "- Raised by: Priya Shah at U036" "- Raised by: Sam Okafor at U005"
+  changes uncited-raiser
+  run uncited-raiser "4" "O3: raised at U005, which it doesn't cite"
+
+  echo "== 23. The instruction-like line used as evidence outside the citations =="
+  copy injection-field
+  edit injection-field $D "assume it (U019), see C2" "assume it (U027), see C2"
+  changes injection-field
+  run injection-field "Safety" "D7: its \"Not yet confirmed\" names U027"
+
+  echo "== 24. A doubt pointing at the wrong commitment =="
+  copy wrong-settler
+  edit wrong-settler $D "assume it (U019), see C2" "assume it (U019), see C5"
+  changes wrong-settler
+  run wrong-settler "Stretch" "D7: is settled by C5, but C5 doesn't say \"Settles: D7\""
+
+  echo "== 25. A link whose syntax changes what counts as code =="
+  copy link
+  edit link $D "### D2 · The dropdown stays: drag is an extra, not a replacement" '### D2 · [x](a`b) <!-- The dropdown stays --> `'
+  changes link
+  run link "0 Stretch" "brackets (links or references) aren't used in the decisions file"
+
   AFTER=$(fingerprint)
   echo "== The real files were only read =="
   echo "SHA-256 of the transcript, the decisions file and the rules, before: $BEFORE"

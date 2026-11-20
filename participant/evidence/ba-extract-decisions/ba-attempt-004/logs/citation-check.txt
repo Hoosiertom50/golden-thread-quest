@@ -1,5 +1,5 @@
 ba-extract-decisions: the citation check
-Recorded 11-20-2026 09:18 AM with Node v22.23.3, by participant/tools/citation-check-demo.sh.
+Recorded 11-20-2026 09:32 AM with Node v22.23.3, by participant/tools/citation-check-demo.sh.
 Case 1 checks the real files. Every other case is a copy of the transcript and the decisions file
 in a temp folder with one mistake, checked against the original transcript; each must fail exactly
 the checks named, with the message named, and every check must report. Every check is the expected
@@ -261,7 +261,8 @@ PASS  7. Every item can be checked against the source: its key line is quoted wo
 PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
 FAIL  Stretch: changes, doubts and counts
       - D7: "Not yet confirmed" must end with "see Cn", naming the commitment that settles it
-Result: FAIL, 1 problem.
+      - C2: says it settles D7, but D7 isn't marked "Not yet confirmed … see C2"
+Result: FAIL, 2 problems.
 exit code: 1
 As expected: exactly check(s) Stretch failed, with "D7: "Not yet confirmed" must end with "see Cn"".
 
@@ -406,8 +407,158 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) Stretch failed, with "D8: "See also" names O1, but O1 doesn't name D8 back".
 
+== 19. An item placed above the five lists ==
+What was changed in this copy:
+  decisions, after:  ### D9 · Tablet touch is required
+$ node citation-check.mjs --transcript above-lists/sample-meeting.md --decisions above-lists/sample-meeting.decisions.md --original original.md
+Citation check: above-lists/sample-meeting.decisions.md against above-lists/sample-meeting.md (19 items, 41 utterances)
+FAIL  0. The transcript and the decisions file can be read
+      - decisions file line 16: an item outside the five lists
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+PASS  6. A cited identifier that doesn't exist is reported
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+PASS  Stretch: changes, doubts and counts
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) 0 failed, with "an item outside the five lists".
+
+== 20. A count given twice ==
+What was changed in this copy:
+  decisions, after:  - Open questions: 999
+$ node citation-check.mjs --transcript double-count/sample-meeting.md --decisions double-count/sample-meeting.decisions.md --original original.md
+Citation check: double-count/sample-meeting.decisions.md against double-count/sample-meeting.md (19 items, 41 utterances)
+FAIL  0. The transcript and the decisions file can be read
+      - decisions file line 14: Counts lists "Open questions" twice
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+PASS  6. A cited identifier that doesn't exist is reported
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+FAIL  Stretch: changes, doubts and counts
+      - Counts: "Open questions" says "999", but the file has 3
+Result: FAIL, 2 problems.
+exit code: 1
+As expected: exactly check(s) 0 Stretch failed, with "Counts lists "Open questions" twice".
+
+== 21. A list line in the introduction ==
+What was changed in this copy:
+  decisions, after:  + Decision: tablet touch is required.
+$ node citation-check.mjs --transcript intro-list/sample-meeting.md --decisions intro-list/sample-meeting.decisions.md --original original.md
+Citation check: intro-list/sample-meeting.decisions.md against intro-list/sample-meeting.md (19 items, 41 utterances)
+FAIL  0. The transcript and the decisions file can be read
+      - decisions file line 9: lists are only "- Field: value" lines inside an item (or in Counts)
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+PASS  6. A cited identifier that doesn't exist is reported
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+PASS  Stretch: changes, doubts and counts
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) 0 failed, with "lists are only "- Field: value" lines inside an item".
+
+== 22. An open question raised at a line it doesn't cite ==
+What was changed in this copy:
+  decisions, before: - Raised by: Priya Shah at U036
+  decisions, after:  - Raised by: Sam Okafor at U005
+$ node citation-check.mjs --transcript uncited-raiser/sample-meeting.md --decisions uncited-raiser/sample-meeting.decisions.md --original original.md
+Citation check: uncited-raiser/sample-meeting.decisions.md against uncited-raiser/sample-meeting.md (19 items, 41 utterances)
+PASS  0. The transcript and the decisions file can be read
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+FAIL  4. Open discussion and undecided items are listed separately
+      - O3: raised at U005, which it doesn't cite
+PASS  5. The decisions file is separate from the source record, which is not edited
+PASS  6. A cited identifier that doesn't exist is reported
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+PASS  Stretch: changes, doubts and counts
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) 4 failed, with "O3: raised at U005, which it doesn't cite".
+
+== 23. The instruction-like line used as evidence outside the citations ==
+What was changed in this copy:
+  decisions, before: - Not yet confirmed: Priya will test it rather than assume it (U019), see C2
+  decisions, after:  - Not yet confirmed: Priya will test it rather than assume it (U027), see C2
+$ node citation-check.mjs --transcript injection-field/sample-meeting.md --decisions injection-field/sample-meeting.decisions.md --original original.md
+Citation check: injection-field/sample-meeting.decisions.md against injection-field/sample-meeting.md (19 items, 41 utterances)
+PASS  0. The transcript and the decisions file can be read
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+PASS  6. A cited identifier that doesn't exist is reported
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+FAIL  Safety: an instruction-like line is never a decision, proposal, question or commitment
+      - D7: its "Not yet confirmed" names U027, which the transcript flags as instruction-like; it may appear only under "Not classified"
+PASS  Stretch: changes, doubts and counts
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) Safety failed, with "D7: its "Not yet confirmed" names U027".
+
+== 24. A doubt pointing at the wrong commitment ==
+What was changed in this copy:
+  decisions, before: - Not yet confirmed: Priya will test it rather than assume it (U019), see C2
+  decisions, after:  - Not yet confirmed: Priya will test it rather than assume it (U019), see C5
+$ node citation-check.mjs --transcript wrong-settler/sample-meeting.md --decisions wrong-settler/sample-meeting.decisions.md --original original.md
+Citation check: wrong-settler/sample-meeting.decisions.md against wrong-settler/sample-meeting.md (19 items, 41 utterances)
+PASS  0. The transcript and the decisions file can be read
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+PASS  6. A cited identifier that doesn't exist is reported
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+FAIL  Stretch: changes, doubts and counts
+      - D7: is settled by C5, but C5 doesn't say "Settles: D7"
+      - C2: says it settles D7, but D7 isn't marked "Not yet confirmed … see C2"
+Result: FAIL, 2 problems.
+exit code: 1
+As expected: exactly check(s) Stretch failed, with "D7: is settled by C5, but C5 doesn't say "Settles: D7"".
+
+== 25. A link whose syntax changes what counts as code ==
+What was changed in this copy:
+  decisions, before: ### D2 · The dropdown stays: drag is an extra, not a replacement
+  decisions, after:  ### D2 · [x](a`b) <!-- The dropdown stays --> `
+$ node citation-check.mjs --transcript link/sample-meeting.md --decisions link/sample-meeting.decisions.md --original original.md
+Citation check: link/sample-meeting.decisions.md against link/sample-meeting.md (18 items, 41 utterances)
+FAIL  0. The transcript and the decisions file can be read
+      - decisions file line 24: brackets (links or references) aren't used in the decisions file
+      - D1: "Cites" is given twice
+      - D1: "Key line" is given twice
+      - D1: "Agreed by" is given twice
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+PASS  6. A cited identifier that doesn't exist is reported
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+FAIL  Stretch: changes, doubts and counts
+      - Counts: "Decisions" says "8 (1 changed in the meeting, 1 not yet confirmed)", but the file has 7 (1 changed in the meeting, 1 not yet confirmed)
+Result: FAIL, 5 problems.
+exit code: 1
+As expected: exactly check(s) 0 Stretch failed, with "brackets (links or references) aren't used in the decisions file".
+
 == The real files were only read ==
-SHA-256 of the transcript, the decisions file and the rules, before: a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e 51ef7e9bdaa2fdacec1852e430cc5bc732f5b683851e0518e9b85f1dc0cc1536 20f7b60b8ef56302608ab71f0cddc22d0cc548241fc0884dd85c9fa06e91a5aa
-and after:                                                       a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e 51ef7e9bdaa2fdacec1852e430cc5bc732f5b683851e0518e9b85f1dc0cc1536 20f7b60b8ef56302608ab71f0cddc22d0cc548241fc0884dd85c9fa06e91a5aa
+SHA-256 of the transcript, the decisions file and the rules, before: a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e ef0667ca45eca35cc618e04c8530abebcf3df7ba2b664cac85f4c58d8a48359f 6ccb04c9094fb7335b2e04b58f7e595fbe8ecc9bb2f438d245aeb14ea234a730
+and after:                                                       a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e ef0667ca45eca35cc618e04c8530abebcf3df7ba2b664cac85f4c58d8a48359f 6ccb04c9094fb7335b2e04b58f7e595fbe8ecc9bb2f438d245aeb14ea234a730
 identical
-SHA-256 of participant/tools/citation-check.mjs: 1fdd8643caf8d3836f68bc25c67dfe79763beac85d63779829507855efa265aa
+SHA-256 of participant/tools/citation-check.mjs: 09e1fcdf157d37f3604d1ae04bc25c294d7c2096914e0ce479450c56baf0d76f

@@ -114,6 +114,7 @@ Code) for Tom Carter, 11-20-2026.
 - Cites: U019
 - Key line: U019 "I'll test it rather than assume it."
 - By: Priya Shah at U019
+- Settles: D7
 
 ### C3 · Priya Shah: add a test that the printout matches the screen after a drag
 

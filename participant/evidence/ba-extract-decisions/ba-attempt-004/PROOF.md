@@ -44,7 +44,8 @@ every check passes, prints one "verified" line per criterion naming what it conf
 3. **When the meeting changes its mind, both versions are kept, linked** (below).
 4. **Commitments are a fourth list.**
 5. **Both stretch goals:** decisions a later line doubts are marked "Not yet confirmed" and name the
-   commitment that settles them, and the file counts each list.
+   commitment that settles them (which names them back, "Settles: D7"), and the file counts each
+   list.
 
 The two borderline lines, as `decision-rules.md` records them:
 
@@ -103,7 +104,7 @@ The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 9:18 AM with Node 22.23.3, at commit ff85888 with the quest's files
+Recorded on 11-20-2026 at 9:32 AM with Node 22.23.3, at commit ff85888 with the quest's files
 uncommitted (`logs/citation-check.txt`). Every broken case must fail exactly the checks named for it,
 with the expected message, and every check must report; every check is the expected failure of at
 least one case.
@@ -131,6 +132,16 @@ least one case.
     code, and is itself reported.
 17. **A short underline ("--") turning a line into a heading** that would split an item: check 0.
 18. **A "See also" that points only one way:** the stretch check.
+19. **An item placed above the five lists:** check 0.
+20. **A count given twice** (a reader would see both): checks 0 and the stretch check.
+21. **A list line in the introduction** ("+ Decision: …"): check 0.
+22. **An open question raised at a line it doesn't cite:** check 4.
+23. **The instruction-like line U027 used as evidence outside the citations** (in a doubt): the
+    safety check, which looks at every field.
+24. **A doubt pointing at the wrong commitment:** the stretch check; the doubt and the commitment's
+    "Settles" line must name each other.
+25. **A link whose syntax changes what counts as code:** check 0, and the stretch check's count,
+    since the disguised decision isn't read; brackets aren't used in the decisions file.
 
 The real files' SHA-256, before and after, is identical.
 

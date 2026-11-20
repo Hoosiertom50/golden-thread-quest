@@ -39,7 +39,8 @@ Both versions are kept, linked. The final decision cites every line that led to 
 accepted: changed at U011 into D4". Nothing silently disappears.
 
 A decision that a later line doubts (but that the meeting still agreed) stays a decision and is
-marked **"Not yet confirmed"**, naming the commitment that will settle it.
+marked **"Not yet confirmed"**, naming the commitment that will settle it; that commitment names it
+back ("Settles: D7").
 
 ## Two borderline lines, and how they were classified
 
