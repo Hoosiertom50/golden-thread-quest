@@ -10,14 +10,14 @@
 //   --out      where the synchronized files go (default participant/context/jira/assigned in this
 //              repository, wherever it is run from)
 //
-// What it writes into <folder>, the three published together (all new, or all as they were):
+// What it writes into <folder>, the three published together (see "writing" below):
 //   stories.json        the normalized stories, and the stories that stopped being assigned
 //   index.md            a readable index of the same
 //   sync-summary.json   what this run did: pages read, totals, new, changed, removed
 // and, for a story seen for the first time, an empty notes file notes/<KEY>.md, created only if
 // none exists. It never opens an existing notes file for writing: notes belong to the person.
-// Everything Jira sends is checked before anything is written; a run that stops leaves the folder
-// as it was.
+// Everything Jira sends is checked before anything is written; a run that stops with an error
+// leaves the folder as it was.
 //
 // How a run works:
 //   1. Ask Jira who the authenticated user is (myself); nothing about the user is hard-coded.
@@ -241,8 +241,11 @@ const returned = before.removed.filter((r) => nowKeys.has(r.key)).map((r) => r.k
 // ---- writing ----------------------------------------------------------------------------------
 // The three generated files are published together: each is written whole to a new temporary
 // name first, then each is renamed into place, with the previous one kept aside (a second name
-// for the same file). If any step fails, every file already replaced is put back and the new
-// ones are removed, so the folder never holds files from two different runs. Notes files are
+// for the same file). If any step fails with an error, every file already replaced is put back
+// and the new ones are removed. Each rename is all-or-nothing for its own file, but the three are
+// separate: a run killed between two renames, or a reader looking in that same instant, can see
+// files from two runs. stories.json's synchronized_at and sync-summary.json's retrieved_at are
+// the same instant for one run, so a mix shows; the next run rewrites all three. Notes files are
 // created only when missing ("wx"), never rewritten.
 const writeNew = (path, content) => {
   const fd = openSync(path, "wx", 0o644);

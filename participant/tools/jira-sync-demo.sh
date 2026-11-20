@@ -76,24 +76,44 @@ restore_real() {
   [ "$PARTB" = 1 ] || return 0
   node -e '
     const fs = require("fs"), [real, saved, before, ...names] = process.argv.slice(1);
-    const had = new Set(fs.readFileSync(before, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l.slice(l.indexOf(" ") + 1))));
-    for (const f of fs.readdirSync(`${real}/notes`)) {
-      if (had.has(f)) continue;
-      const m = /^([A-Z][A-Z0-9_]*-[1-9][0-9]*)\.md$/.exec(f);
-      const template = m && `# Notes: ${m[1]}\n\nYour own notes on ${m[1]}. The synchronization never changes this file.\n`;
-      if (template && fs.readFileSync(`${real}/notes/${f}`, "utf8") === template) fs.unlinkSync(`${real}/notes/${f}`);
-      else console.log(`  kept ${f}: it is new since Part B began but not the empty file the synchronization writes.`);
-    }
+    let failed = 0;
+    // First the three generated files, each on its own, so one failure never stops the others.
     for (const f of names) {
       const target = `${real}/${f}`, copy = `${saved}/${f}`;
-      if (fs.existsSync(copy)) {
-        const tmp = `${target}.${process.pid}.restore`;
-        fs.copyFileSync(copy, tmp, fs.constants.COPYFILE_EXCL);
-        fs.renameSync(tmp, target);
-      } else {
-        try { fs.unlinkSync(target); } catch (e) { if (e.code !== "ENOENT") throw e; }
+      try {
+        if (fs.existsSync(copy)) {
+          const tmp = `${target}.${process.pid}.restore`;
+          fs.copyFileSync(copy, tmp, fs.constants.COPYFILE_EXCL);
+          fs.renameSync(tmp, target);
+        } else {
+          try { fs.unlinkSync(target); } catch (e) { if (e.code !== "ENOENT") throw e; }
+        }
+      } catch (e) {
+        failed++;
+        console.log(`  couldn'"'"'t put back ${f} (${e.code ?? e.message})`);
       }
     }
+    // Then the notes files Part B created, each on its own too.
+    try {
+      const had = new Set(fs.readFileSync(before, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l.slice(l.indexOf(" ") + 1))));
+      for (const f of fs.readdirSync(`${real}/notes`)) {
+        if (had.has(f)) continue;
+        try {
+          const m = /^([A-Z][A-Z0-9_]*-[1-9][0-9]*)\.md$/.exec(f);
+          const template = m && `# Notes: ${m[1]}\n\nYour own notes on ${m[1]}. The synchronization never changes this file.\n`;
+          const st = fs.lstatSync(`${real}/notes/${f}`);
+          if (template && st.isFile() && fs.readFileSync(`${real}/notes/${f}`, "utf8") === template) fs.unlinkSync(`${real}/notes/${f}`);
+          else console.log(`  kept notes/${f}: it is new since Part B began but not the empty file the synchronization writes.`);
+        } catch (e) {
+          failed++;
+          console.log(`  couldn'"'"'t check notes/${f} (${e.code ?? e.message})`);
+        }
+      }
+    } catch (e) {
+      failed++;
+      console.log(`  couldn'"'"'t check the notes folder (${e.code ?? e.message})`);
+    }
+    process.exit(failed ? 1 : 0);
   ' "$REAL" "$T/real-saved" "$T/real-notes-before" $GENERATED >&3 2>&3 && echo "The real folder's three generated files were put back as they were." >&3
 }
 # give_up <code>: on any unsuccessful end, put the real files back first; the temp folder (with the

@@ -1,5 +1,5 @@
 {
-  "synchronized_at": "2026-11-20T17:19:34.501Z",
+  "synchronized_at": "2026-11-20T17:32:54.963Z",
   "account_id": "fixture-account-0001",
   "stories": [
     {
@@ -19,7 +19,7 @@
       "parent": null,
       "created": "2026-09-01T09:00:00.000+0000",
       "updated": "2026-09-15T09:00:00.000+0000",
-      "retrieved_at": "2026-11-20T17:19:34.501Z",
+      "retrieved_at": "2026-11-20T17:32:54.963Z",
       "comments": [],
       "jira_fields": {
         "customfield_10016": 3
@@ -42,7 +42,7 @@
       "parent": null,
       "created": "2026-09-01T09:00:00.000+0000",
       "updated": "2026-09-15T09:00:00.000+0000",
-      "retrieved_at": "2026-11-20T17:19:34.501Z",
+      "retrieved_at": "2026-11-20T17:32:54.963Z",
       "comments": [],
       "jira_fields": {
         "customfield_10016": 3
@@ -55,7 +55,7 @@
       "last_known_status": "In Progress",
       "last_known_summary": "Fixture story GTQ-100, reassigned away between runs",
       "source_url": "https://jira.example.invalid/browse/GTQ-100",
-      "removed_at": "2026-11-20T17:19:34.501Z",
+      "removed_at": "2026-11-20T17:32:54.963Z",
       "reason": "no longer returned for the authenticated user"
     }
   ]

@@ -53,8 +53,11 @@ It writes into `participant/context/jira/assigned/`:
    `removed` with its last known status and summary, and a reason; it is never silently deleted.
    A story that comes back leaves `removed`.
 8. **Publish the three files together**: each written whole to a new temporary name, then
-   renamed into place with the previous one kept aside; if any step fails, the previous files go
-   back, so the folder never mixes two runs. Only into ordinary folders (never through a link;
+   renamed into place with the previous one kept aside; if any step fails with an error, the
+   previous files go back. A run killed between two renames (or a reader in that instant) can
+   see two runs; `synchronized_at` in `stories.json` and `retrieved_at` in `sync-summary.json`
+   match for one run, so a mix shows, and the next run rewrites all three. Only into ordinary
+   folders (never through a link;
    inside the repository, every folder down to `notes`). A previous `stories.json` that doesn't
    look like this tool's own output is left for a person, not overwritten.
 

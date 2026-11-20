@@ -59,11 +59,12 @@ title:
   (criterion 8). A story that comes back leaves `removed`.
 
 The three output files are published together: each is written whole to a new temporary name,
-then each is renamed into place with the previous one kept aside; if any step fails, the previous
-files are put back and the empty notes files that run created are removed, so the folder never
-holds files from two different runs (tried separately by forcing the second rename to fail, and
-by making the notes folder read-only: each time the folder came out byte-identical). Each
-destination must be an ordinary file or not exist yet, checked before anything is written. The previous `stories.json` must look like this tool's own output (both
+then each is renamed into place with the previous one kept aside; if any step fails with an
+error, the previous files are put back and the empty notes files that run created are removed
+(tried separately by forcing the second rename to fail, and by making the notes folder
+read-only: each time the folder came out byte-identical). Each destination must be an ordinary
+file or not exist yet, checked before anything is written. The previous `stories.json` must look
+like this tool's own output (both
 lists, Jira keys, no key twice) or the run stops and leaves it alone. The folders written into
 must be ordinary folders, not links elsewhere: inside the repository, every folder from the
 repository down to `notes`; outside it, the folder named and its `notes` folder. In `index.md`, ticket text is shown as plain
@@ -117,7 +118,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 12:18 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 12:32 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -173,6 +174,10 @@ stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
 - **Acceptance criteria.** Jira has no field of its own for them; a project that keeps them in a
   custom field would map it to `acceptance_criteria`. None of the practice data has one, so it is
   always empty here.
+- **The three files are switched one after another, not in one step.** A run killed between two
+  renames, or a reader looking in that instant, could see files from two runs. The run's time is
+  the same in `stories.json` (`synchronized_at`) and `sync-summary.json` (`retrieved_at`), so a
+  mix shows, and the next run rewrites all three.
 - **Changes are found by comparing whole records.** Every run fetches everything; it doesn't yet
   fetch only what changed since the last run (delta synchronization was left as a stretch goal).
 - **Notes from other practice sets stay.** Because notes are never deleted, the notes folder also
