@@ -34,8 +34,8 @@
 // Exit codes: 0 synchronized, 1 incomplete or unexpected answer from Jira (paging that doesn't add
 // up, a key that isn't a Jira key; nothing was written), 2 usage, file or other error.
 
-import { appendFileSync, closeSync, existsSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmdirSync, unlinkSync, writeSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { appendFileSync, closeSync, existsSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIXTURES, fakeJira } from "./fake-jira.mjs";
 
@@ -211,6 +211,38 @@ checkTargets((message) => {
   console.error(message);
   process.exit(2);
 });
+// The notes list a caller may name (JIRA_SYNC_NOTES_LEDGER, see "notes" below) must never be one
+// of the person's files: it must lie outside the output folder (compared as real paths, so a link
+// to it is caught), and if it already exists it must be an ordinary file with no second name
+// (hard link) that holds only list lines. Checked before anything is written.
+const ledger = process.env.JIRA_SYNC_NOTES_LEDGER ?? "";
+if (ledger !== "") {
+  const realOf = (p) => {
+    const rest = [];
+    while (!existsSync(p) && dirname(p) !== p) {
+      rest.unshift(basename(p));
+      p = dirname(p);
+    }
+    return join(realpathSync(p), ...rest);
+  };
+  const lr = realOf(resolve(ledger));
+  const or = realOf(absOut);
+  let bad = lr === or || lr.startsWith(`${or}${sep}`) ? "it is inside the output folder" : "";
+  if (!bad) {
+    let st = null;
+    try { st = lstatSync(resolve(ledger)); } catch (err) { if (err.code !== "ENOENT") throw err; }
+    if (st && (st.isSymbolicLink() || !st.isFile())) bad = "it isn't an ordinary file";
+    else if (st && st.nlink !== 1) bad = "it has another name (a hard link)";
+    else if (st && !readFileSync(resolve(ledger), "utf8").split("\n").filter(Boolean).every((l) => /^(intent|created) [A-Z][A-Z0-9_]*-[1-9][0-9]*$/.test(l))) {
+      bad = "it holds something other than notes-list lines";
+    }
+  }
+  if (bad) {
+    console.error(`JIRA_SYNC_NOTES_LEDGER can't be used: ${bad}; nothing was written.`);
+    process.exit(2);
+  }
+}
+
 if (checkOnly) {
   console.log("The output folder is fine to write: its folders are ordinary ones and its files were written by this tool (or are absent).");
   process.exit(0);
@@ -537,7 +569,6 @@ for (const s of stories) {
 // JIRA_SYNC_NOTES_LEDGER: "intent KEY" is added before a notes file is made and "created KEY"
 // right after, so even an interrupted run leaves a record of what it may have made. If the list
 // can't be written, no notes file is made.
-const ledger = process.env.JIRA_SYNC_NOTES_LEDGER ?? "";
 const note = (line) => {
   if (ledger === "") return;
   try {
