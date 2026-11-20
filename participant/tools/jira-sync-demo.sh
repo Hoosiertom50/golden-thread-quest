@@ -87,7 +87,8 @@ restore_real() {
             fs.copyFileSync(copy, tmp, fs.constants.COPYFILE_EXCL);
             fs.renameSync(tmp, target);
           } catch (e) {
-            try { fs.unlinkSync(tmp); } catch { /* not made */ }
+            // Only a copy this attempt made is removed; "already exists" means it is not ours.
+            if (e.code !== "EEXIST") try { fs.unlinkSync(tmp); } catch { /* not made */ }
             throw e;
           }
         } else {
@@ -389,7 +390,8 @@ node -e '
     fs.copyFileSync(src, tmp, fs.constants.COPYFILE_EXCL);
     fs.renameSync(tmp, `${dir}/${name}`);
   } catch (e) {
-    try { fs.unlinkSync(tmp); } catch { /* not made */ }
+    // Only a copy this attempt made is removed; "already exists" means it is not ours.
+    if (e.code !== "EEXIST") try { fs.unlinkSync(tmp); } catch { /* not made */ }
     throw e;
   }
 ' "$OUT" "$LOGS" "$NAME" || { echo "Couldn't put $NAME in place."; give_up 2; }
