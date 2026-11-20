@@ -123,7 +123,13 @@ lines.forEach((line, i) => {
     fileProblems.push(`${where}: code blocks, escaped backticks, HTML and comments aren't used in the decisions file`);
     return;
   }
-  if (/\|/.test(masked) || /^\s*(=+|-+)\s*$/.test(line) || /^( +|\t)\S/.test(line) || /^\s*>/.test(line)) {
+  if (/&(#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);/i.test(masked)) {
+    // A character reference (&#85; shows as "U") would make the text read differently from what
+    // the checker sees.
+    fileProblems.push(`${where}: character references (like &#85;) aren't used in the decisions file`);
+    return;
+  }
+  if (/\|/.test(masked) || /^\s*(=+|-+)\s*$/.test(line) || /^[ \t]+\S/.test(line) || /^\s*>/.test(line)) {
     fileProblems.push(`${where}: tables, underlines, rules, quote blocks and indented lines aren't used in the decisions file`);
     return;
   }
@@ -178,6 +184,9 @@ for (const it of items) {
   if (byId.has(it.id)) fileProblems.push(`${it.id} is used twice`);
   byId.set(it.id, it);
 }
+// Utterance identifiers in a text, wherever they stand (also inside _emphasis_ or **bold**).
+const UID = /(?<![A-Za-z0-9])U\d+(?![0-9])/g;
+const idsIn = (text) => (text ?? "").match(UID) ?? [];
 const cites = (it) => (it.fields.get("Cites") ?? "").split(/\s+/).filter(Boolean);
 // "Name at U011, Name at U012" (optionally "via the wrap-up: " first) -> [{name, id}] or null
 const people = (value) => {
@@ -303,9 +312,10 @@ check("6. A cited identifier that doesn't exist is reported", (p, v) => {
       if (!/^U\d+$/.test(id)) p.push(`${it.id}: ${JSON.stringify(id)} isn't an utterance identifier`);
       else if (!utterances.has(id)) p.push(`${it.id}: cites ${id}, which isn't in the transcript`);
     }
-    for (const field of ["Changed in the meeting", "Not accepted", "Not yet confirmed", "See also", "Agreed by", "Raised by", "By"]) {
-      for (const id of (it.fields.get(field) ?? "").match(/\bU\d+\b/g) ?? []) if (!utterances.has(id)) p.push(`${it.id}: "${field}" names ${id}, which isn't in the transcript`);
+    for (const field of ["Changed in the meeting", "Not accepted", "Not yet confirmed", "See also", "Agreed by", "Raised by", "By", "Settles", "Why"]) {
+      for (const id of idsIn(it.fields.get(field))) if (!utterances.has(id)) p.push(`${it.id}: "${field}" names ${id}, which isn't in the transcript`);
     }
+    for (const id of idsIn(it.title)) if (!utterances.has(id)) p.push(`${it.id}: its title names ${id}, which isn't in the transcript`);
   }
   if (!p.length) v.push(`verified (criterion 6): all ${n} cited utterance identifiers exist in the source record, which has ${utterances.size} utterances (${[...utterances.keys()][0]} to ${[...utterances.keys()].at(-1)})`);
 });
@@ -329,9 +339,9 @@ check("7. Every item can be checked against the source: its key line is quoted w
 
 check("Safety: an instruction-like line is never a decision, proposal, question or commitment", (p, v) => {
   for (const it of items.filter((x) => x.section.prefix !== "X")) {
-    for (const [field, value] of it.fields) {
-      for (const id of value.match(/\bU\d+\b/g) ?? []) {
-        if (flagged.has(id)) p.push(`${it.id}: ${field === "Cites" ? "cites" : `its "${field}" names`} ${id}, which the transcript flags as instruction-like; it may appear only under "Not classified"`);
+    for (const [field, value] of [["title", it.title], ...it.fields]) {
+      for (const id of idsIn(value)) {
+        if (flagged.has(id)) p.push(`${it.id}: ${field === "Cites" ? "cites" : field === "title" ? "its title names" : `its "${field}" names`} ${id}, which the transcript flags as instruction-like; it may appear only under "Not classified"`);
       }
     }
   }

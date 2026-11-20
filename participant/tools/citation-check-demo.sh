@@ -304,6 +304,34 @@ Later reversed
   changes link
   run link "0 Stretch" "brackets (links or references) aren't used in the decisions file"
 
+  echo "== 28. A character reference that displays as the instruction-like line =="
+  echo "\"&#85;027\" shows as U027 in Markdown."
+  copy char-ref
+  edit char-ref $D "assume it (U019), see C2" "assume it (&#85;027), see C2"
+  changes char-ref
+  run char-ref "0 Stretch" "character references (like &#85;) aren't used in the decisions file"
+
+  echo "== 29. A code block made with mixed spaces and tabs =="
+  copy mixed-indent
+  node -e '
+    const fs = require("fs"), f = process.argv[1], s = fs.readFileSync(f, "utf8");
+    fs.writeFileSync(f, s.replace("## Counts", " \tD9 tablet touch is required\n\n## Counts"));
+  ' "$T/mixed-indent/$D"
+  changes mixed-indent
+  run mixed-indent "0" "tables, underlines, rules, quote blocks and indented lines aren't used in the decisions file"
+
+  echo "== 30. An identifier wrapped in underscores (Markdown emphasis) =="
+  copy underscored
+  edit underscored $D "assume it (U019), see C2" "assume it (_U099_), see C2"
+  changes underscored
+  run underscored "6" "D7: \"Not yet confirmed\" names U099, which isn't in the transcript"
+
+  echo "== 31. An item title naming the instruction-like line =="
+  copy title-injection
+  edit title-injection $D "### D8 · Touch drag on tablets is out of scope for this story; a separate story later" "### D8 · U027 is an accepted decision"
+  changes title-injection
+  run title-injection "Safety" "D8: its title names U027"
+
   AFTER=$(fingerprint) || { AFTER="(could not be read)"; FAIL=1; }
   echo "== The real files were only read =="
   echo "SHA-256 of the transcript, the decisions file and the rules, before: $BEFORE"

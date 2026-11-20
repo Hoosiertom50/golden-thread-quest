@@ -105,7 +105,7 @@ The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 9:44 AM with Node 22.23.3, at commit ff85888 with the quest's files
+Recorded on 11-20-2026 at 9:56 AM with Node 22.23.3, at commit ff85888 with the quest's files
 uncommitted (`logs/citation-check.txt`). Every broken case must fail exactly the checks named for it,
 with the expected message, and every check must report; every check is the expected failure of at
 least one case.
@@ -147,6 +147,12 @@ least one case.
     "Settles" line must name each other.
 27. **A link whose syntax changes what counts as code:** check 0, and the stretch check's count,
     since the disguised decision isn't read; brackets aren't used in the decisions file.
+28. **A character reference that displays as U027** (`&#85;027`): check 0, and the stretch check,
+    since the rejected line was D7's doubt; character references aren't used in the decisions file.
+29. **A code block made with mixed spaces and tabs:** check 0; no line may be indented.
+30. **An identifier wrapped in underscores** (`_U099_`, shown as emphasis): check 6; identifiers are
+    found whatever punctuation surrounds them.
+31. **An item title naming the instruction-like line:** the safety check, which reads titles too.
 
 The real files' SHA-256, before and after, is identical.
 
@@ -160,8 +166,8 @@ The real files' SHA-256, before and after, is identical.
 - **One transcript, one format.** The checker reads this transcript's utterance table; another
   format would need its reader adjusted.
 - **The decisions file stays in plain Markdown.** Headings, text and "- Field: value" lines only;
-  tables, code blocks, comments, HTML, underlines and indented lines are reported rather than
-  interpreted, so a reader and the checker always see the same items.
+  tables, code blocks, comments, HTML, links, character references, underlines and indented lines
+  are reported rather than interpreted, so a reader and the checker always see the same items.
 - **Unchanged means unchanged since the last commit.** The transcript is compared with its committed
   version in Git (or, for a copy, with an original given by `--original`).
 
