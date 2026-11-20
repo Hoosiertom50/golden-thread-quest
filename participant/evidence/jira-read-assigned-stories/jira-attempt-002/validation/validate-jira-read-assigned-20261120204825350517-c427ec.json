@@ -2,13 +2,13 @@
   "attempt_id": "jira-attempt-002",
   "checks": [
     {
-      "evidence": "3 story/stories accounted for.",
+      "evidence": "4 story/stories accounted for.",
       "id": "pagination-handled",
       "outcome": "pass",
       "summary": "Every assigned story in the fixture appears in the output."
     },
     {
-      "evidence": "3 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.",
+      "evidence": "4 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.",
       "id": "records-are-normalized",
       "outcome": "pass",
       "summary": "Every record carries the fields this check requires."
@@ -32,20 +32,20 @@
       "summary": "No raw API response is in committed context."
     }
   ],
-  "completed_at": "2026-11-20T20:39:47Z",
-  "duration_ms": 46,
+  "completed_at": "2026-11-20T20:48:25Z",
+  "duration_ms": 45,
   "environment": {
     "network": "denied",
-    "parameter_fixture_set": "happy-path",
+    "parameter_fixture_set": "pagination",
     "validator_version": 2
   },
   "outcome": "pass",
   "quest_id": "jira-read-assigned-stories",
   "redaction_applied": false,
-  "result_path": "participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120203947808671-ceb531.json",
-  "run_id": "validate-jira-read-assigned-20261120203947808671-ceb531",
+  "result_path": "participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120204825350517-c427ec.json",
+  "run_id": "validate-jira-read-assigned-20261120204825350517-c427ec",
   "schema_version": 1,
-  "started_at": "2026-11-20T20:39:47Z",
+  "started_at": "2026-11-20T20:48:25Z",
   "validator_id": "validate-jira-read-assigned",
   "validator_version": 2
 }

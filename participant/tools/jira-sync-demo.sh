@@ -34,6 +34,10 @@
 # everything came out as expected. Exit codes: 0 all as expected, 1 something unexpected (the log
 # isn't written; the real files are put back), 2 setup error.
 set -u -o pipefail
+# Settings the synchronization reads from the environment are cleared, so nothing in the person's
+# shell (a notes list, a lock token, a practice fault) reaches a run here; each run that needs one
+# is given it explicitly.
+unset JIRA_SYNC_NOTES_LEDGER JIRA_SYNC_LOCK_TOKEN JIRA_PRACTICE_FAULT
 REPO=$(cd -P . && printf '%s/.' "$PWD") || exit 2
 REPO=${REPO%/.}
 SYNC="$REPO/participant/tools/jira-sync.mjs"
