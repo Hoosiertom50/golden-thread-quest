@@ -25,8 +25,8 @@
 #     (`quest-app action run-validator`), ending with stale-item, whose result is the one kept;
 #   - the notes that existed before are compared after.
 # On any unsuccessful end (something unexpected, a record not written to its end, an interruption)
-# the copies are put back, any notes file Part B's own runs created (their notes_created) that is
-# still the empty one is removed,
+# the copies are put back, any notes file Part B's own runs are recorded as creating (the
+# synchronization's notes list, written as it makes each one) that is still empty is removed,
 # and the lock is released; if putting back fails, the copies and the lock are kept and named.
 # Existing notes files are never written by this script.
 #
@@ -128,12 +128,17 @@ restore_real() {
         console.log(`  couldn'"'"'t put back ${f} (${e.code ?? e.message})`);
       }
     }
-    // Then the notes files Part B'"'"'s own runs created (each run'"'"'s notes_created, recorded after
-    // it), each on its own too. Any other new notes file, whoever made it, is kept.
+    // Then the notes files Part B'"'"'s own runs created: the synchronization writes "created KEY"
+    // to the notes list right after making one. Only those, still empty, are removed. Any other
+    // new notes file (an "intent" without "created", or one nobody listed) is kept and named, and
+    // then the folder is not reported as it was.
+    let left = 0;
     try {
       const had = new Set(fs.readFileSync(before, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l.slice(l.indexOf(" ") + 1))));
       let ours = new Set();
-      try { ours = new Set(fs.readFileSync(created, "utf8").split("\n").filter(Boolean)); } catch (e) { if (e.code !== "ENOENT") throw e; }
+      try {
+        ours = new Set(fs.readFileSync(created, "utf8").split("\n").filter((l) => l.startsWith("created ")).map((l) => l.slice(8)));
+      } catch (e) { if (e.code !== "ENOENT") throw e; }
       for (const f of fs.readdirSync(`${real}/notes`)) {
         if (had.has(f)) continue;
         try {
@@ -141,7 +146,7 @@ restore_real() {
           const template = m && `# Notes: ${m[1]}\n\nYour own notes on ${m[1]}. The synchronization never changes this file.\n`;
           const st = fs.lstatSync(`${real}/notes/${f}`);
           if (m && ours.has(m[1]) && st.isFile() && fs.readFileSync(`${real}/notes/${f}`, "utf8") === template) fs.unlinkSync(`${real}/notes/${f}`);
-          else console.log(`  kept notes/${f}: it is new since Part B began, but not an empty notes file Part B'"'"'s own runs created.`);
+          else { left++; console.log(`  kept notes/${f}: it is new since Part B began, but not an empty notes file Part B'"'"'s own runs are recorded as creating.`); }
         } catch (e) {
           failed++;
           console.log(`  couldn'"'"'t check notes/${f} (${e.code ?? e.message})`);
@@ -151,18 +156,13 @@ restore_real() {
       failed++;
       console.log(`  couldn'"'"'t check the notes folder (${e.code ?? e.message})`);
     }
-    process.exit(failed ? 1 : 0);
-  ' "$REAL" "$T/real-saved" "$T/real-notes-before" "$T/partb-created" $GENERATED >&3 2>&3 && echo "The real folder's three generated files were put back as they were." >&3
-}
-# record_created: after a Part B run, add the notes files it says it created (notes_created in
-# its sync-summary.json) to the list putting back may remove (and only while still empty).
-record_created() {
-  node -e '
-    const fs = require("fs"), [summary, list] = process.argv.slice(1);
-    const d = JSON.parse(fs.readFileSync(summary, "utf8"));
-    if (!Array.isArray(d.notes_created)) process.exit(1);
-    fs.appendFileSync(list, d.notes_created.map((k) => `${k}\n`).join(""));
-  ' "$REAL/sync-summary.json" "$T/partb-created"
+    process.exit(failed ? 1 : left ? 3 : 0);
+  ' "$REAL" "$T/real-saved" "$T/real-notes-before" "$T/partb-created" $GENERATED >&3 2>&3
+  case $? in
+    0) echo "The real folder was put back as it was." >&3 ;;
+    3) echo "The real folder's three generated files were put back; the new notes files named above were left for you to check." >&3 ;;
+    *) return 1 ;;
+  esac
 }
 # give_up <code>: on any unsuccessful end, put the real files back first; the temp folder (with the
 # saved copies) is removed only if that worked, otherwise it is kept and named.
@@ -205,10 +205,11 @@ run_sync() {  # run_sync <folder> <args...>: a synchronization, its output shown
   local dir=$1 out code
   shift
   echo "\$ node jira-sync.mjs $* --out $( [ "$dir" = "$REAL" ] && echo participant/context/jira/assigned || echo "${dir#"$T/"}")"
-  # In the real folder, Part B holds the lock and passes its token; elsewhere no token is given.
-  local tok=""
-  [ "$dir" = "$REAL" ] && tok=$LOCKTOKEN
-  out=$(cd "$REPO" && JIRA_SYNC_LOCK_TOKEN="$tok" node "$SYNC" "$@" --out "$dir" </dev/null 2>&1); code=$?
+  # In the real folder, Part B holds the lock and passes its token, and has the synchronization
+  # list the notes it makes (so putting back can undo exactly those); elsewhere neither is given.
+  local tok="" led=""
+  [ "$dir" = "$REAL" ] && tok=$LOCKTOKEN && led="$T/partb-created"
+  out=$(cd "$REPO" && JIRA_SYNC_LOCK_TOKEN="$tok" JIRA_SYNC_NOTES_LEDGER="$led" node "$SYNC" "$@" --out "$dir" </dev/null 2>&1); code=$?
   printf '%s\n' "${out//"$T/"/}"
   return $code
 }
@@ -447,8 +448,8 @@ PREVIOUS
     node -e 'const fs = require("fs"); for (const f of ["stories.json", "index.md", "sync-summary.json"]) { try { fs.unlinkSync(`${process.argv[1]}/${f}`); } catch (e) { if (e.code !== "ENOENT") throw e; } }' "$REAL" || FAIL=1
     if [ "$set" = stale-item ]; then first="--phase previous"; else first=""; fi
     # shellcheck disable=SC2086
-    run_sync "$REAL" --fixture "$set" $first && record_created || { echo "  UNEXPECTED: the first run failed"; FAIL=1; }
-    run_sync "$REAL" --fixture "$set" && record_created || { echo "  UNEXPECTED: the second run failed"; FAIL=1; }
+    run_sync "$REAL" --fixture "$set" $first || { echo "  UNEXPECTED: the first run failed"; FAIL=1; }
+    run_sync "$REAL" --fixture "$set" || { echo "  UNEXPECTED: the second run failed"; FAIL=1; }
     echo "\$ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=$set"
     res=$(cd "$REPO" && "$APP" action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param "fixture_set=$set" --json 2>&1)
     path=$(printf '%s' "$res" | node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>{try{const d=JSON.parse(s);console.log(d.result_path||"")}catch{console.log("")}})')

@@ -34,7 +34,7 @@
 // Exit codes: 0 synchronized, 1 incomplete or unexpected answer from Jira (paging that doesn't add
 // up, a key that isn't a Jira key; nothing was written), 2 usage, file or other error.
 
-import { closeSync, existsSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmdirSync, unlinkSync, writeSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmdirSync, unlinkSync, writeSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIXTURES, fakeJira } from "./fake-jira.mjs";
@@ -533,11 +533,28 @@ for (const s of stories) {
     process.exit(2);
   }
 }
+// A caller that may later need to undo this run's notes (the demonstration) names a list in
+// JIRA_SYNC_NOTES_LEDGER: "intent KEY" is added before a notes file is made and "created KEY"
+// right after, so even an interrupted run leaves a record of what it may have made. If the list
+// can't be written, no notes file is made.
+const ledger = process.env.JIRA_SYNC_NOTES_LEDGER ?? "";
+const note = (line) => {
+  if (ledger === "") return;
+  try {
+    appendFileSync(ledger, `${line}\n`);
+  } catch (err) {
+    removeCreatedNotes();
+    console.error(`Couldn't add to the notes list (${err.code ?? err.message}); nothing was written.`);
+    process.exit(2);
+  }
+};
 for (const s of stories) {
   const notePath = join(out, "notes", `${s.key}.md`);
   try {
+    note(`intent ${s.key}`);
     writeNew(notePath, noteTemplate(s.key));
     notesCreated.push(s.key);
+    note(`created ${s.key}`);
   } catch (err) {
     if (err.code === "EEXIST") continue; // an existing notes file is left exactly as it is
     removeCreatedNotes();
