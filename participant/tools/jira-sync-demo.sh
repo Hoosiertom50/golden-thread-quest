@@ -8,7 +8,8 @@
 # place, showing the second run changes nothing and the note stays byte-identical; then the eleven
 # practice faults, each refused with its own message and no output folder made; a ticket summary full of
 # Markdown, shown as plain characters; three previous stories.json files this tool didn't write,
-# each refused and left exactly as it was; a folder where index.md should be, refused with the
+# each refused and left exactly as it was; an index.md the person wrote, refused and left as it
+# was; a folder where index.md should be, refused with the
 # other files unchanged; a notes folder that is a link, and a copy of the repository whose
 # participant/context folder is a link, each refused.
 # Part B, in the real folder (participant/context/jira/assigned), only if all of Part A came out as
@@ -167,7 +168,7 @@ A person's note (made-up): asked about the edge case; answer pending.
 
 {
   echo "jira-read-assigned-stories: synchronization runs and validator checks"
-  echo "Recorded $(date '+%m-%d-%Y %I:%M %p') with Node $(node --version), by participant/tools/jira-sync-demo.sh."
+  echo "Recorded $(date '+%m-%d-%Y %I:%M %p' | sed -E 's/ 0([0-9]:)/ \1/') with Node $(node --version), by participant/tools/jira-sync-demo.sh."
   echo "Source: the pretend Jira (participant/tools/fake-jira.mjs) serving the quest's practice data"
   echo "(validators/fixtures/jira/). No real Jira is contacted. Part A folders are relative to a temp folder."
   echo
@@ -272,6 +273,16 @@ PREVIOUS
   expect "exit code" "$code" 2
   expect "files written where the link points" "$(ls -A "$T/somewhere-else" | wc -l | tr -d ' ')" 0
   expect "files in the folder (only the link)" "$(ls -A "$D" | tr '\n' ' ')" "notes "
+
+  echo
+  echo "== an index.md the person wrote, in the output folder =="
+  D="$T/own-index"
+  mkdir -p "$D"
+  printf '# My own index\n\nWritten by hand (made-up).\n' > "$D/index.md"
+  run_sync "$D" --fixture happy-path; code=$?
+  expect "exit code" "$code" 2
+  expect "the person's index.md, left as it was" "$(cat "$D/index.md")" "$(printf '# My own index\n\nWritten by hand (made-up).')"
+  expect "files in the folder (only that index.md)" "$(ls -A "$D" | tr '\n' ' ')" "index.md "
 
   echo
   echo "== a folder where index.md should be =="

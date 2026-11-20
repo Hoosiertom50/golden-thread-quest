@@ -58,8 +58,9 @@ It writes into `participant/context/jira/assigned/`:
    see two runs; `synchronized_at` in `stories.json` and `retrieved_at` in `sync-summary.json`
    match for one run, so a mix shows, and the next run rewrites all three. Only into ordinary
    folders (never through a link;
-   inside the repository, every folder down to `notes`). A previous `stories.json` that doesn't
-   look like this tool's own output is left for a person, not overwritten. Every check comes
+   inside the repository, every folder down to `notes`). A previous `stories.json`, `index.md`
+   or `sync-summary.json` that doesn't look like this tool's own output is left for a person,
+   not overwritten. Every check comes
    before anything is written; folders and notes files a run made are removed again if it stops.
 
 ## Safety rules

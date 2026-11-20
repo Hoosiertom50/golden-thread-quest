@@ -69,7 +69,8 @@ removed again if the run then stops, and a file the run had only partly written 
 (tried by forcing a notes file to fail partway and by making folder creation fail: nothing was
 left behind). The previous `stories.json` must look
 like this tool's own output (both
-lists, Jira keys, no key twice) or the run stops and leaves it alone. The folders written into
+lists, Jira keys, no key twice) or the run stops and leaves it alone; the same goes for an
+existing `index.md` or `sync-summary.json` that this tool didn't write. The folders written into
 must be ordinary folders, not links elsewhere: inside the repository, every folder from the
 repository down to `notes`; outside it, the folder named and its `notes` folder. In `index.md`, ticket text is shown as plain
 characters: every punctuation mark that Markdown or HTML could act on is escaped.
@@ -122,7 +123,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 12:57 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 1:09 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -146,6 +147,8 @@ uncommitted (`logs/sync-run.txt`).
   `index.md` shows every mark escaped, as typed.
 - **Three previous `stories.json` files this tool didn't write** (`null`, `{}`, and the same key
   twice): each run stops with exit 2 and leaves that file exactly as it was.
+- **An `index.md` the person wrote, in the output folder:** the run stops with exit 2 and leaves
+  it as it was.
 - **A folder where `index.md` should be:** the run stops with exit 2; `stories.json`,
   `sync-summary.json` and the notes are unchanged.
 - **A notes folder that is a link to another folder,** and **a copy of the repository whose
@@ -169,7 +172,7 @@ putting back made to fail, the copies were kept. The logs folder can't be inside
 folder. The repository keeps the
 stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
 
-87 expectations in the record, all as expected.
+90 expectations in the record, all as expected.
 
 ## Remaining limitations
 
