@@ -10,12 +10,14 @@
 //   --out      where the synchronized files go (default participant/context/jira/assigned in this
 //              repository, wherever it is run from)
 //
-// What it writes into <folder>, each replaced whole (a new file, renamed into place):
+// What it writes into <folder>, the three published together (all new, or all as they were):
 //   stories.json        the normalized stories, and the stories that stopped being assigned
 //   index.md            a readable index of the same
 //   sync-summary.json   what this run did: pages read, totals, new, changed, removed
 // and, for a story seen for the first time, an empty notes file notes/<KEY>.md, created only if
 // none exists. It never opens an existing notes file for writing: notes belong to the person.
+// Everything Jira sends is checked before anything is written; a run that stops leaves the folder
+// as it was.
 //
 // How a run works:
 //   1. Ask Jira who the authenticated user is (myself); nothing about the user is hard-coded.
@@ -25,11 +27,12 @@
 //   4. Normalize each story; keep Jira-only fields under "jira_fields", apart from the normal ones.
 //   5. Merge with the previous stories.json by key: a story no longer returned is moved to
 //      "removed" with its last known state, never deleted; a story that comes back leaves it.
+//   6. Create the missing notes files, then publish the three files together.
 //
 // Exit codes: 0 synchronized, 1 incomplete or unexpected answer from Jira (paging that doesn't add
 // up, a key that isn't a Jira key; nothing was written), 2 usage, file or other error.
 
-import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, existsSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIXTURES, fakeJira } from "./fake-jira.mjs";
@@ -236,24 +239,60 @@ const removed = [...stillRemoved, ...newlyRemoved].sort((a, b) => a.key.localeCo
 const returned = before.removed.filter((r) => nowKeys.has(r.key)).map((r) => r.key);
 
 // ---- writing ----------------------------------------------------------------------------------
-// Each file is written to a new temporary name and renamed into place, so a reader never sees a
-// half-written file. Notes files are created only when missing ("wx"), never rewritten.
-const writeWhole = (path, content) => {
-  const tmp = `${path}.${process.pid}.new`;
-  const fd = openSync(tmp, "wx", 0o644);
+// The three generated files are published together: each is written whole to a new temporary
+// name first, then each is renamed into place, with the previous one kept aside (a second name
+// for the same file). If any step fails, every file already replaced is put back and the new
+// ones are removed, so the folder never holds files from two different runs. Notes files are
+// created only when missing ("wx"), never rewritten.
+const writeNew = (path, content) => {
+  const fd = openSync(path, "wx", 0o644);
   try {
-    try {
-      const bytes = Buffer.from(content, "utf8");
-      let done = 0;
-      while (done < bytes.length) done += writeSync(fd, bytes, done, bytes.length - done);
-    } finally {
-      closeSync(fd);
+    const bytes = Buffer.from(content, "utf8");
+    let done = 0;
+    while (done < bytes.length) done += writeSync(fd, bytes, done, bytes.length - done);
+  } finally {
+    closeSync(fd);
+  }
+};
+const publish = (files) => {
+  const staged = []; // [temporary name, final name]
+  const swapped = []; // [final name, the previous file's kept name or null, replaced yet?]
+  try {
+    for (const [path, content] of files) {
+      const tmp = `${path}.${process.pid}.new`;
+      writeNew(tmp, content);
+      staged.push([tmp, path]);
     }
-    renameSync(tmp, path);
+    for (const [tmp, path] of staged) {
+      const old = `${path}.${process.pid}.old`;
+      let kept = old;
+      try {
+        linkSync(path, old);
+      } catch (err) {
+        if (err.code !== "ENOENT") throw err;
+        kept = null; // there was no previous file
+      }
+      const entry = [path, kept, false];
+      swapped.push(entry);
+      renameSync(tmp, path);
+      entry[2] = true;
+    }
   } catch (err) {
-    try { unlinkSync(tmp); } catch { /* already gone */ }
+    const notPutBack = [];
+    for (const [path, kept, replaced] of swapped.reverse()) {
+      try {
+        if (replaced && kept) renameSync(kept, path);
+        else if (replaced) unlinkSync(path);
+        else if (kept) unlinkSync(kept);
+      } catch {
+        if (replaced) notPutBack.push(relative(absOut, path));
+      }
+    }
+    for (const [tmp] of staged) try { unlinkSync(tmp); } catch { /* already moved or gone */ }
+    err.notPutBack = notPutBack;
     throw err;
   }
+  for (const [, kept] of swapped) if (kept) try { unlinkSync(kept); } catch { /* already gone */ }
 };
 // The folders written into must be real folders, not links to somewhere else: creating a notes
 // file "only if missing" protects the file, not the folder it lands in. Inside this repository,
@@ -281,19 +320,37 @@ for (const [n, dir] of dirs.entries()) {
     process.exit(2);
   }
 }
+// Each destination must be an ordinary file or not exist yet; anything else (a folder, a link) is
+// found now, before anything is written.
+const targets = ["stories.json", "index.md", "sync-summary.json"].map((f) => join(out, f));
+for (const t of targets) {
+  let st = null;
+  try {
+    st = lstatSync(t);
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+  }
+  if (st && (st.isSymbolicLink() || !st.isFile())) {
+    console.error(`${relative(absOut, t)} in the output folder isn't an ordinary file (it is a link or a folder); nothing was written.`);
+    process.exit(2);
+  }
+}
 const notesCreated = [];
+// The notes files this run created are removed again if the run can't finish (nobody has had a
+// chance to write in them), so a run that stops leaves the folder as it was.
+const removeCreatedNotes = () => {
+  for (const key of notesCreated) try { unlinkSync(join(out, "notes", `${key}.md`)); } catch { /* already gone */ }
+};
 for (const s of stories) {
   const notePath = join(out, "notes", `${s.key}.md`);
   try {
-    const fd = openSync(notePath, "wx", 0o644);
-    try {
-      writeSync(fd, `# Notes: ${s.key}\n\nYour own notes on ${s.key}. The synchronization never changes this file.\n`);
-    } finally {
-      closeSync(fd);
-    }
+    writeNew(notePath, `# Notes: ${s.key}\n\nYour own notes on ${s.key}. The synchronization never changes this file.\n`);
     notesCreated.push(s.key);
   } catch (err) {
-    if (err.code !== "EEXIST") throw err; // an existing notes file is left exactly as it is
+    if (err.code === "EEXIST") continue; // an existing notes file is left exactly as it is
+    removeCreatedNotes();
+    console.error(`Couldn't create notes/${s.key}.md (${err.code ?? err.message}); nothing was written.`);
+    process.exit(2);
   }
 }
 
@@ -348,9 +405,21 @@ const index = [
   "",
 ].join("\n");
 
-writeWhole(storiesPath, `${JSON.stringify({ synchronized_at: now, account_id: me.accountId, stories, removed }, null, 2)}\n`);
-writeWhole(join(out, "index.md"), index);
-writeWhole(join(out, "sync-summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
+try {
+  publish([
+    [targets[0], `${JSON.stringify({ synchronized_at: now, account_id: me.accountId, stories, removed }, null, 2)}\n`],
+    [targets[1], index],
+    [targets[2], `${JSON.stringify(summary, null, 2)}\n`],
+  ]);
+} catch (err) {
+  removeCreatedNotes();
+  if (err.notPutBack?.length) {
+    console.error(`Couldn't put the new files in place (${err.code ?? err.message}), and couldn't put back the previous ${err.notPutBack.join(", ")}; check the folder.`);
+  } else {
+    console.error(`Couldn't put the new files in place (${err.code ?? err.message}); the previous files were kept and nothing was changed.`);
+  }
+  process.exit(2);
+}
 
 console.log(`Synchronized "${fixture}" (${phase}): ${pages} page(s), Jira reported ${total}, received ${issues.length}, complete: ${summary.complete}.`);
 console.log(`  stories: ${stories.length} (new ${added.length}, changed ${changed.length}, unchanged ${summary.unchanged.length}); removed this run: ${newlyRemoved.map((r) => r.key).join(", ") || "none"}; still removed: ${removed.length}`);

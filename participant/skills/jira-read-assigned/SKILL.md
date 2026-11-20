@@ -52,9 +52,11 @@ It writes into `participant/context/jira/assigned/`:
 7. **Merge with the previous run by key** (never by title): a story no longer returned moves to
    `removed` with its last known status and summary, and a reason; it is never silently deleted.
    A story that comes back leaves `removed`.
-8. **Write each file whole**: to a new temporary name, then renamed into place, and only into
-   ordinary folders (never through a link; inside the repository, every folder down to `notes`). A previous `stories.json` that doesn't look like
-   this tool's own output is left for a person, not overwritten.
+8. **Publish the three files together**: each written whole to a new temporary name, then
+   renamed into place with the previous one kept aside; if any step fails, the previous files go
+   back, so the folder never mixes two runs. Only into ordinary folders (never through a link;
+   inside the repository, every folder down to `notes`). A previous `stories.json` that doesn't
+   look like this tool's own output is left for a person, not overwritten.
 
 ## Safety rules
 

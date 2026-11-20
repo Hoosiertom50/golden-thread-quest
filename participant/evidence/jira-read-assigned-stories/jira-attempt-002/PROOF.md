@@ -58,8 +58,12 @@ title:
   source link, when it was removed and why; it is never deleted, and its notes file stays
   (criterion 8). A story that comes back leaves `removed`.
 
-Each output file is written to a new temporary name and renamed into place, so a reader never sees
-a half-written file. The previous `stories.json` must look like this tool's own output (both
+The three output files are published together: each is written whole to a new temporary name,
+then each is renamed into place with the previous one kept aside; if any step fails, the previous
+files are put back and the empty notes files that run created are removed, so the folder never
+holds files from two different runs (tried separately by forcing the second rename to fail, and
+by making the notes folder read-only: each time the folder came out byte-identical). Each
+destination must be an ordinary file or not exist yet, checked before anything is written. The previous `stories.json` must look like this tool's own output (both
 lists, Jira keys, no key twice) or the run stops and leaves it alone. The folders written into
 must be ordinary folders, not links elsewhere: inside the repository, every folder from the
 repository down to `notes`; outside it, the folder named and its `notes` folder. In `index.md`, ticket text is shown as plain
@@ -113,7 +117,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 12:06 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 12:18 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -136,6 +140,8 @@ uncommitted (`logs/sync-run.txt`).
   `index.md` shows every mark escaped, as typed.
 - **Three previous `stories.json` files this tool didn't write** (`null`, `{}`, and the same key
   twice): each run stops with exit 2 and leaves that file exactly as it was.
+- **A folder where `index.md` should be:** the run stops with exit 2; `stories.json`,
+  `sync-summary.json` and the notes are unchanged.
 - **A notes folder that is a link to another folder,** and **a copy of the repository whose
   `participant/context` folder is a link:** each run stops with exit 2 and nothing is written
   where the link points.
@@ -146,15 +152,18 @@ validator** (`validate-jira-read-assigned`, run with
 passing. It confirmed every story present (pagination), normalized fields, links to the source, no
 duplicate records, no duplicate comments (duplicate-comment), the disappearance reported
 (stale-item), and no raw responses committed. The notes files that existed before Part B are
-byte-identical after it. The three generated files must be ordinary files; they are copied
-before Part B and put back on any unsuccessful end (an unexpected result, a log that can't be
-written, or an interruption); if putting them back fails, the copies are kept and named. Tried
-separately: with a stand-in validator that always fails, the real folder came out
-byte-identical; with putting back made to fail, the copies were kept. The logs folder can't be
-inside the real output folder. The repository keeps the
+byte-identical after it. Every folder from the repository down to the real notes folder must be
+an ordinary folder, and the three generated files ordinary files; they are copied before Part B
+and put back on any unsuccessful end (an unexpected result, a log that can't be written, or an
+interruption), and any notes file Part B created that is still the empty one is removed; if
+putting back fails, the copies are kept and named. Tried separately: with a stand-in validator
+that always fails (in the real folder, and in a copy missing two notes files), each folder came
+out byte-identical; interrupted during Part B, the real folder came out byte-identical; with
+putting back made to fail, the copies were kept. The logs folder can't be inside the real output
+folder. The repository keeps the
 stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
 
-80 expectations in the record, all as expected.
+84 expectations in the record, all as expected.
 
 ## Remaining limitations
 

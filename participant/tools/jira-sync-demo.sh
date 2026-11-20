@@ -5,19 +5,26 @@
 #   bash participant/tools/jira-sync-demo.sh <logs folder>   (from the repository's top folder)
 #
 # Part A, in a new temp folder: every practice set synchronized twice, with a person's note in
-# place, showing the second run changes nothing and the note stays byte-identical; then the nine
+# place, showing the second run changes nothing and the note stays byte-identical; then the ten
 # practice faults, each refused with its own message and nothing written; a ticket summary full of
 # Markdown, shown as plain characters; three previous stories.json files this tool didn't write,
-# each refused and left exactly as it was; and a notes folder that is a link, refused.
+# each refused and left exactly as it was; a folder where index.md should be, refused with the
+# other files unchanged; a notes folder that is a link, and a copy of the repository whose
+# participant/context folder is a link, each refused.
 # Part B, in the real folder (participant/context/jira/assigned), only if all of Part A came out as
-# expected: each practice set synchronized (twice), then checked by the app's own validator
-# (`quest-app action run-validator`), ending with stale-item, whose result is the one kept. Only
-# the three generated files are replaced between sets, and they are copied first: if anything in
-# Part B is unexpected, or the script is interrupted, the copies are put back. The notes folder is
-# never touched by this script, and its existing files are fingerprinted before and after.
+# expected and the three generated files there are ordinary files: each practice set synchronized
+# (twice), then checked by the app's own validator (`quest-app action run-validator`), ending with
+# stale-item, whose result is the one kept. Only the three generated files are replaced between
+# sets, and they are copied first. On any unsuccessful end (something unexpected, a log that can't
+# be written, an interruption) the copies are put back, and any notes file Part B created that is
+# still the empty one is removed; if putting back fails, the copies are kept and named. Every
+# folder from the repository down to the real notes folder must be an ordinary folder.
+# The notes folder is never touched by this script, and its existing files are fingerprinted
+# before and after.
 #
-# Writes sync-run.txt into <logs folder> only if everything came out as expected. Exit codes:
-# 0 all as expected, 1 something unexpected (nothing written), 2 setup error.
+# Writes sync-run.txt into <logs folder>, which can't be inside the real output folder, only if
+# everything came out as expected. Exit codes: 0 all as expected, 1 something unexpected (the log
+# isn't written; the real files are put back), 2 setup error.
 set -u -o pipefail
 REPO=$(cd -P . && printf '%s/.' "$PWD") || exit 2
 REPO=${REPO%/.}
@@ -26,6 +33,11 @@ APP="$REPO/.venv/bin/quest-app"
 REAL="$REPO/participant/context/jira/assigned"
 [ -f "$SYNC" ] && [ -x "$APP" ] && [ -d "$REAL/notes" ] || { echo "Run this from the repository's top folder (with the app installed and the notes folder present)."; exit 2; }
 [ $# -eq 1 ] || { echo "Usage: bash participant/tools/jira-sync-demo.sh <logs folder>"; exit 2; }
+# Every folder from the repository down to the real notes folder must be an ordinary folder, so
+# nothing this script copies, removes or puts back can reach through a link to somewhere else.
+for d in participant participant/context participant/context/jira participant/context/jira/assigned participant/context/jira/assigned/notes; do
+  if [ -L "$REPO/$d" ] || [ ! -d "$REPO/$d" ]; then echo "$d isn't an ordinary folder (it is a link or missing); stopping."; exit 2; fi
+done
 mkdir -p "$1" || exit 2
 LOGS=$(cd -P -- "$1" && printf '%s/.' "$PWD") || exit 2
 LOGS=${LOGS%/.}
@@ -41,6 +53,9 @@ case "$LOGS/" in
   "$REAL_P/"*) echo "The logs folder is inside participant/context/jira/assigned; choose another one."; exit 2 ;;
 esac
 
+# The terminal, kept as file descriptor 3, so messages about putting files back reach the person
+# even while the log is being written.
+exec 3>&1
 T=$(mktemp -d "${TMPDIR:-/tmp}/jira-sync-demo.XXXXXX") || exit 2
 [ -n "$T" ] && [ -d "$T" ] && [ ! -L "$T" ] || { echo "Couldn't make the temp folder."; exit 2; }
 T=$(cd -P -- "$T" && printf '%s/.' "$PWD") || exit 2
@@ -55,10 +70,20 @@ GENERATED="stories.json index.md sync-summary.json"
 PARTB=0
 # restore_real: put the real folder's three generated files back as they were before Part B (a
 # file that didn't exist then is removed). Each copy goes to a new name, then is renamed into place.
+# A notes file that didn't exist before Part B was created by its runs: it is removed only if it
+# is still exactly the empty file the synchronization writes; anything else in it is kept.
 restore_real() {
   [ "$PARTB" = 1 ] || return 0
   node -e '
-    const fs = require("fs"), [real, saved, ...names] = process.argv.slice(1);
+    const fs = require("fs"), [real, saved, before, ...names] = process.argv.slice(1);
+    const had = new Set(fs.readFileSync(before, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l.slice(l.indexOf(" ") + 1))));
+    for (const f of fs.readdirSync(`${real}/notes`)) {
+      if (had.has(f)) continue;
+      const m = /^([A-Z][A-Z0-9_]*-[1-9][0-9]*)\.md$/.exec(f);
+      const template = m && `# Notes: ${m[1]}\n\nYour own notes on ${m[1]}. The synchronization never changes this file.\n`;
+      if (template && fs.readFileSync(`${real}/notes/${f}`, "utf8") === template) fs.unlinkSync(`${real}/notes/${f}`);
+      else console.log(`  kept ${f}: it is new since Part B began but not the empty file the synchronization writes.`);
+    }
     for (const f of names) {
       const target = `${real}/${f}`, copy = `${saved}/${f}`;
       if (fs.existsSync(copy)) {
@@ -69,7 +94,7 @@ restore_real() {
         try { fs.unlinkSync(target); } catch (e) { if (e.code !== "ENOENT") throw e; }
       }
     }
-  ' "$REAL" "$T/real-saved" $GENERATED && echo "The real folder's three generated files were put back as they were."
+  ' "$REAL" "$T/real-saved" "$T/real-notes-before" $GENERATED >&3 2>&3 && echo "The real folder's three generated files were put back as they were." >&3
 }
 # give_up <code>: on any unsuccessful end, put the real files back first; the temp folder (with the
 # saved copies) is removed only if that worked, otherwise it is kept and named.
@@ -77,7 +102,7 @@ give_up() {
   if restore_real; then
     cleanup
   else
-    echo "Couldn't put the real generated files back; the saved copies are kept in $T/real-saved."
+    echo "Couldn't put the real generated files back; the saved copies are kept in $T/real-saved." >&3
   fi
   exit "$1"
 }
@@ -220,6 +245,20 @@ PREVIOUS
   expect "exit code" "$code" 2
   expect "files written where the link points" "$(ls -A "$T/somewhere-else" | wc -l | tr -d ' ')" 0
   expect "files in the folder (only the link)" "$(ls -A "$D" | tr '\n' ' ')" "notes "
+
+  echo
+  echo "== a folder where index.md should be =="
+  D="$T/blocked-index"
+  run_sync "$D" --fixture stale-item --phase previous > /dev/null || { echo "  UNEXPECTED: the setup run failed"; FAIL=1; }
+  node -e 'require("fs").unlinkSync(process.argv[1])' "$D/index.md" && mkdir "$D/index.md"
+  notes_print "$D" > "$T/blocked-before" || { echo "  UNEXPECTED: couldn't fingerprint the notes"; FAIL=1; }
+  before=$(cat "$D/stories.json" "$D/sync-summary.json")
+  run_sync "$D" --fixture stale-item; code=$?
+  expect "exit code" "$code" 2
+  expect "stories.json and sync-summary.json unchanged" "$( [ "$(cat "$D/stories.json" "$D/sync-summary.json")" = "$before" ] && echo yes || echo no)" yes
+  notes_print "$D" > "$T/blocked-after" || { echo "  UNEXPECTED: couldn't fingerprint the notes"; FAIL=1; }
+  expect "notes files unchanged" "$(cmp -s "$T/blocked-before" "$T/blocked-after" && echo yes || echo no)" yes
+  expect "files in the folder" "$(ls -A "$D" | tr '\n' ' ')" "index.md notes stories.json sync-summary.json "
 
   echo
   echo "== a copy of the repository whose participant/context folder is a link to another folder =="
