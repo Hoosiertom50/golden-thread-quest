@@ -15,7 +15,9 @@
 # Part B, in the real folder (participant/context/jira/assigned), only if all of Part A came out as
 # expected and the three generated files there are ordinary files written by the synchronization: each practice set synchronized
 # (twice), then checked by the app's own validator (`quest-app action run-validator`), ending with
-# stale-item, whose result is the one kept. Only the three generated files are replaced between
+# stale-item, whose result is the one kept. Part B holds the synchronization's lock
+# (.jira-sync.lock) throughout and passes its token to its own runs, so no other run can write
+# there meanwhile. Only the three generated files are replaced between
 # sets, and they are copied first. On any unsuccessful end (something unexpected, a log that can't
 # be written, an interruption) the copies are put back, and any notes file Part B created that is
 # still the empty one is removed; if putting back fails, the copies are kept and named. Every
@@ -80,6 +82,16 @@ esac
 cleanup() { rm -rf -- "$T"; }
 GENERATED="stories.json index.md sync-summary.json"
 PARTB=0
+LOCKTOKEN=""
+# release_lock: remove the real folder's .jira-sync.lock if it still holds this script's token.
+release_lock() {
+  [ -n "$LOCKTOKEN" ] || return 0
+  node -e '
+    const fs = require("fs"), [lock, token] = process.argv.slice(1);
+    try { if (fs.readFileSync(lock, "utf8") === token) fs.unlinkSync(lock); } catch { /* gone */ }
+  ' "$REAL/.jira-sync.lock" "$LOCKTOKEN"
+  LOCKTOKEN=""
+}
 # restore_real: put the real folder's three generated files back as they were before Part B (a
 # file that didn't exist then is removed). Each copy goes to a new name, then is renamed into place.
 # A notes file that didn't exist before Part B was created by its runs: it is removed only if it
@@ -138,9 +150,10 @@ restore_real() {
 # saved copies) is removed only if that worked, otherwise it is kept and named.
 give_up() {
   if restore_real; then
+    release_lock
     cleanup
   else
-    echo "Couldn't put the real generated files back; the saved copies are kept in $T/real-saved." >&3
+    echo "Couldn't put the real generated files back; the saved copies are kept in $T/real-saved, and .jira-sync.lock is left in place." >&3
   fi
   exit "$1"
 }
@@ -168,7 +181,10 @@ run_sync() {  # run_sync <folder> <args...>: a synchronization, its output shown
   local dir=$1 out code
   shift
   echo "\$ node jira-sync.mjs $* --out $( [ "$dir" = "$REAL" ] && echo participant/context/jira/assigned || echo "${dir#"$T/"}")"
-  out=$(cd "$REPO" && node "$SYNC" "$@" --out "$dir" </dev/null 2>&1); code=$?
+  # In the real folder, Part B holds the lock and passes its token; elsewhere no token is given.
+  local tok=""
+  [ "$dir" = "$REAL" ] && tok=$LOCKTOKEN
+  out=$(cd "$REPO" && JIRA_SYNC_LOCK_TOKEN="$tok" node "$SYNC" "$@" --out "$dir" </dev/null 2>&1); code=$?
   printf '%s\n' "${out//"$T/"/}"
   return $code
 }
@@ -363,12 +379,23 @@ PREVIOUS
     echo "  UNEXPECTED: a file in the real folder wasn't written by the synchronization, so the real folder is left alone."; FAIL=1
   elif ! notes_print "$REAL" > "$T/real-notes-before"; then
     echo "  UNEXPECTED: couldn't fingerprint the real notes, so the real folder is left alone."; FAIL=1
+  elif ! LOCKTOKEN=$(node -e '
+      // Part B holds the synchronization lock throughout, so no other run can write here while
+      // it replaces and (if need be) puts back the files.
+      const fs = require("fs"), c = require("crypto"), lock = process.argv[1];
+      const token = `jira-sync-demo ${c.randomBytes(12).toString("hex")}`;
+      fs.writeFileSync(lock, token, { flag: "wx" });
+      process.stdout.write(token);
+    ' "$REAL/.jira-sync.lock"); then
+    LOCKTOKEN=""
+    echo "  UNEXPECTED: another synchronization holds the real folder (.jira-sync.lock), so it is left alone."; FAIL=1
   elif ! node -e '
       const fs = require("fs"), [real, saved, ...names] = process.argv.slice(1);
       fs.mkdirSync(saved);
       for (const f of names) if (fs.existsSync(`${real}/${f}`)) fs.copyFileSync(`${real}/${f}`, `${saved}/${f}`, fs.constants.COPYFILE_EXCL);
     ' "$REAL" "$T/real-saved" $GENERATED; then
     echo "  UNEXPECTED: couldn't copy the real generated files first, so the real folder is left alone."; FAIL=1
+    release_lock
   else
   PARTB=1
   echo "The three generated files were copied first, to be put back if anything goes wrong."
@@ -442,5 +469,6 @@ node -e '
     throw e;
   }
 ' "$OUT" "$LOGS" "$NAME" || { echo "Couldn't put $NAME in place."; give_up 2; }
+release_lock
 cleanup
 echo "Written: $NAME"

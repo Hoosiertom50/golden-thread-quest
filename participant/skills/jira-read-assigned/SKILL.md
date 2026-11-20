@@ -62,8 +62,8 @@ It writes into `participant/context/jira/assigned/`:
    or `sync-summary.json` that doesn't look like this tool's own output is left for a person,
    not overwritten. Every check comes
    before anything is written; folders and notes files a run made are removed again if it stops.
-   One run at a time per folder (`.jira-sync.lock`), and `stories.json` must not have changed
-   since the run read it.
+   One run at a time per folder (`.jira-sync.lock`, removed only by the run that wrote it), and
+   `stories.json` must not have changed since the run read it.
 
 ## Safety rules
 

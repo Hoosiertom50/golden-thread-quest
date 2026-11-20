@@ -395,9 +395,16 @@ const notesCreated = [];
 // rmdir removes only an empty folder.
 const noteTemplate = (key) => `# Notes: ${key}\n\nYour own notes on ${key}. The synchronization never changes this file.\n`;
 const lockPath = join(out, ".jira-sync.lock");
+const lockText = `pid ${process.pid}, started ${now}\n`;
 let lockHeld = false;
+// The lock is removed only while it still holds exactly what this run wrote: if a person removed
+// it and another run took a new one, that one is left alone.
 const releaseLock = () => {
-  if (lockHeld) try { unlinkSync(lockPath); } catch { /* already gone */ }
+  if (lockHeld) {
+    try {
+      if (readFileSync(lockPath, "utf8") === lockText) unlinkSync(lockPath);
+    } catch { /* already gone */ }
+  }
   lockHeld = false;
 };
 process.on("exit", releaseLock);
@@ -425,14 +432,27 @@ for (const [n, dir] of missingDirs.entries()) {
 }
 // One run at a time per folder: two at once would each merge against the same previous file, and
 // the later one would overwrite what the earlier one recorded (or their renames would interleave).
-try {
-  writeNew(lockPath, `pid ${process.pid}, started ${now}\n`);
-  lockHeld = true;
-} catch (err) {
-  if (err.code !== "EEXIST") throw err;
-  removeCreatedNotes();
-  console.error("Another synchronization is writing to this folder (.jira-sync.lock is there); nothing was written. If none is running, remove .jira-sync.lock and run again.");
-  process.exit(2);
+// A caller that already holds the lock for a longer job (the demonstration) passes the lock's
+// exact contents in JIRA_SYNC_LOCK_TOKEN; the run then works under that lock and leaves it.
+const token = process.env.JIRA_SYNC_LOCK_TOKEN ?? "";
+if (token !== "") {
+  let held = null;
+  try { held = readFileSync(lockPath, "utf8"); } catch { /* none */ }
+  if (held !== token) {
+    removeCreatedNotes();
+    console.error("JIRA_SYNC_LOCK_TOKEN was given but .jira-sync.lock doesn't hold it; nothing was written.");
+    process.exit(2);
+  }
+} else {
+  try {
+    writeNew(lockPath, lockText);
+    lockHeld = true;
+  } catch (err) {
+    if (err.code !== "EEXIST") throw err;
+    removeCreatedNotes();
+    console.error("Another synchronization is writing to this folder (.jira-sync.lock is there); nothing was written. If none is running, remove .jira-sync.lock and run again.");
+    process.exit(2);
+  }
 }
 // Holding the lock, the previous stories.json must still be the one merged against.
 if ((existsSync(storiesPath) ? readFileSync(storiesPath, "utf8") : null) !== baselineText) {
