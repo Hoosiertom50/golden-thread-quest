@@ -398,6 +398,9 @@ const newlyRemoved = before.stories.filter((s) => !nowKeys.has(s.key)).map((s) =
   source_url: s.source_url ?? `${SITE}/browse/${s.key}`,
   removed_at: now,
   reason: notMine.includes(s.key) ? "assigned to someone else" : "no longer returned for the authenticated user",
+  // The whole story as last synchronized (description, comments and every other field), so the
+  // local copy can still say what it was about.
+  last_known_record: s,
 }));
 const stillRemoved = before.removed.filter((r) => !nowKeys.has(r.key) && !newlyRemoved.some((n) => n.key === r.key));
 const removed = [...stillRemoved, ...newlyRemoved].sort((a, b) => a.key.localeCompare(b.key, "en", { numeric: true }));

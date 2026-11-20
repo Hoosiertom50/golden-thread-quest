@@ -1,5 +1,5 @@
 jira-read-assigned-stories: safety checks of the synchronization and its demonstration
-Recorded 11-20-2026 5:00 PM with Node v22.23.3, by participant/tools/jira-sync-safety-demo.mjs.
+Recorded 11-20-2026 5:39 PM with Node v22.23.3, by participant/tools/jira-sync-safety-demo.mjs.
 Every case runs on throwaway copies inside one temp folder (shown as <temp>); the real folder is not changed.
 Cases that need a failure at one exact point use a copy of a tool with one marked TEST ONLY line added.
 

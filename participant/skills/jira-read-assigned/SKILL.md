@@ -52,7 +52,8 @@ It writes into `participant/context/jira/assigned/`:
    `parent`, `created`, `updated`, `retrieved_at`, `comments`. Fields only Jira has are kept under
    `jira_fields`, apart from the normal ones.
 7. **Merge with the previous run by key** (never by title): a story no longer returned moves to
-   `removed` with its last known status and summary, and a reason; it is never silently deleted.
+   `removed` with its last known status and summary, a reason, and its whole last-known record
+   (`last_known_record`); it is never silently deleted.
    A story that comes back leaves `removed`.
 8. **Publish the three files together**: each written whole to a new temporary name, then
    renamed into place with the previous one kept aside; if any step fails with an error, the

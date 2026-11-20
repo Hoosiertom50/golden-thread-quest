@@ -1,5 +1,5 @@
 jira-read-assigned-stories: synchronization runs and validator checks
-Recorded 11-20-2026 4:59 PM with Node v22.23.3, by participant/tools/jira-sync-demo.sh.
+Recorded 11-20-2026 5:38 PM with Node v22.23.3, by participant/tools/jira-sync-demo.sh.
 Source: the pretend Jira (participant/tools/fake-jira.mjs) serving the quest's practice data
 (validators/fixtures/jira/). No real Jira is contacted. Part A folders are relative to a temp folder.
 
@@ -92,6 +92,7 @@ A person's note (made-up): asked about the edge case; answer pending.
   as expected: list complete (stories received = Jira's total, and Jira said it was the last page) = true
   as expected: removed this run = GTQ-100
   as expected: removed story kept with its last known status = GTQ-100 In Progress
+  as expected: removed story's whole last-known record kept (key, status, fields listed) = GTQ-100 In Progress 16
   as expected: removed story's notes file kept = kept
 
 =================== Part A: the pretend Jira misbehaving ===================
@@ -275,7 +276,7 @@ Synchronized "happy-path" (current): 1 page(s), Jira reported 3, received 3, com
   stories: 3 (new 0, changed 0, unchanged 3); removed this run: none; still removed: 0
   duplicate comments skipped: 0 (of which differing from the kept copy: none); notes files created: none (existing notes untouched)
 $ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=happy-path
-  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120215945698037-0c0ff2.json
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120223833002240-c68fff.json
   outcome: pass (fixture_set happy-path, network denied)
     PASS  pagination-handled: Every assigned story in the fixture appears in the output. (3 story/stories accounted for.)
     PASS  records-are-normalized: Every record carries the fields this check requires. (3 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
@@ -295,7 +296,7 @@ Synchronized "pagination" (current): 2 page(s), Jira reported 4, received 4, com
   stories: 4 (new 0, changed 0, unchanged 4); removed this run: none; still removed: 0
   duplicate comments skipped: 0 (of which differing from the kept copy: none); notes files created: none (existing notes untouched)
 $ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=pagination
-  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120220000745387-9743e2.json
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120223848354637-ff5457.json
   outcome: pass (fixture_set pagination, network denied)
     PASS  pagination-handled: Every assigned story in the fixture appears in the output. (4 story/stories accounted for.)
     PASS  records-are-normalized: Every record carries the fields this check requires. (4 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
@@ -315,7 +316,7 @@ Synchronized "duplicate-comment" (current): 1 page(s), Jira reported 3, received
   stories: 3 (new 0, changed 0, unchanged 3); removed this run: none; still removed: 0
   duplicate comments skipped: 1 (of which differing from the kept copy: GTQ-101 comment 9001); notes files created: none (existing notes untouched)
 $ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=duplicate-comment
-  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120220015758337-148da2.json
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120223903362528-61d5a8.json
   outcome: pass (fixture_set duplicate-comment, network denied)
     PASS  pagination-handled: Every assigned story in the fixture appears in the output. (3 story/stories accounted for.)
     PASS  records-are-normalized: Every record carries the fields this check requires. (3 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
@@ -336,7 +337,7 @@ Synchronized "stale-item" (current): 1 page(s), Jira reported 2, received 2, com
   stories: 2 (new 0, changed 0, unchanged 2); removed this run: GTQ-100; still removed: 1
   duplicate comments skipped: 0 (of which differing from the kept copy: none); notes files created: none (existing notes untouched)
 $ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=stale-item
-  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120220030805861-7f5840.json
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120223918389553-bc1056.json
   outcome: pass (fixture_set stale-item, network denied)
     PASS  pagination-handled: Every assigned story in the fixture appears in the output. (2 story/stories accounted for.)
     PASS  records-are-normalized: Every record carries the fields this check requires. (2 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)

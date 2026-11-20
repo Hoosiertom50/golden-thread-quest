@@ -60,8 +60,9 @@ title:
   first copy is kept, and a later copy whose text or author differs is listed in
   `sync-summary.json` (`duplicate_comments_differing`), so nothing changes without a trace;
 - a story no longer returned moves to `removed` with its last known status and summary, its
-  source link, when it was removed and why; it is never deleted, and its notes file stays
-  (criterion 8). A story that comes back leaves `removed`.
+  source link, when it was removed and why, and its whole last-known record (description,
+  comments and every other field, in `last_known_record`); it is never deleted, and its notes
+  file stays (criterion 8). A story that comes back leaves `removed`.
 
 The three output files are published together: each is written whole to a new temporary name, then
 each is renamed into place with the previous one kept aside; if any step fails with an error, the
@@ -134,7 +135,7 @@ node participant/tools/jira-sync-safety-demo.mjs <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 4:59 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 5:38 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -148,7 +149,8 @@ uncommitted (`logs/sync-run.txt`).
   and listed as differing from the kept copy (the practice data's second copy of 9001 has other
   text).
 - **stale-item:** run first in its previous state (GTQ-100 still assigned), then current: GTQ-100
-  is listed under `removed` with its last known status, In Progress, and its notes file is kept.
+  is listed under `removed` with its last known status, In Progress, and its whole last-known
+  record (all 16 fields), and its notes file is kept.
 - **The pretend Jira misbehaving, eleven ways:** claiming more pages but sending an empty one;
   reporting 5 stories while sending 4; sending the first page again and again; a last page that
   reports a smaller total and leaves a story out; claiming more comments but sending an empty
@@ -222,9 +224,9 @@ put-back failure, a run killed outright, notes-list paths that alias a note, twe
 simultaneous runs, changes made between the first checks and the lock, a notes file that fails
 partway or a read-only notes folder, and folders a failed run made (removed again) or couldn't
 make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded on 11-20-2026 at
-5:00 PM: 59 expectations, all as expected, and the real folder unchanged.
+5:39 PM: 59 expectations, all as expected, and the real folder unchanged.
 
-98 expectations in the record, all as expected.
+99 expectations in the record, all as expected.
 
 ## Remaining limitations
 

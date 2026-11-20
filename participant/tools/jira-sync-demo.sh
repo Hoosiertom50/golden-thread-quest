@@ -260,6 +260,7 @@ A person's note (made-up): asked about the edge case; answer pending.
     if [ "$set" = stale-item ]; then
       expect "removed this run" "$(field "$S" 'd.removed_this_run.join(",")')" GTQ-100
       expect "removed story kept with its last known status" "$(field "$J" 'd.removed.map(r => r.key + " " + r.last_known_status).join(",")')" "GTQ-100 In Progress"
+      expect "removed story's whole last-known record kept (key, status, fields listed)" "$(field "$J" 'd.removed.map(r => [r.last_known_record.key, r.last_known_record.status, Object.keys(r.last_known_record).length].join(" ")).join(",")')" "GTQ-100 In Progress 16"
       expect "removed story's notes file kept" "$( [ -f "$D/notes/GTQ-100.md" ] && echo kept || echo missing)" kept
     else
       expect "new and changed stories on the second run" "$(field "$S" 'd.new.length + d.changed.length')" 0
