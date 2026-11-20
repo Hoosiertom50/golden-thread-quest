@@ -36,8 +36,28 @@ if (process.argv.length !== 3) {
   console.error("Usage: node participant/tools/jira-sync-safety-demo.mjs <logs folder>");
   process.exit(2);
 }
+// The record must not land in the real assigned folder or its notes (compared as real paths, so
+// a link to them is caught), checked before the logs folder is made.
+const realOf = (p) => {
+  const rest = [];
+  while (!existsSync(p) && resolve(p, "..") !== p) {
+    rest.unshift(basename(p));
+    p = resolve(p, "..");
+  }
+  return join(realpathSync(p), ...rest);
+};
+const REAL_P = realpathSync(join(REPO, "participant", "context", "jira", "assigned"));
+const inReal = (p) => p === REAL_P || p.startsWith(`${REAL_P}/`);
+if (inReal(realOf(resolve(process.argv[2])))) {
+  console.error("The logs folder is inside participant/context/jira/assigned; choose another one.");
+  process.exit(2);
+}
 mkdirSync(process.argv[2], { recursive: true });
 const LOGS = realpathSync(process.argv[2]);
+if (inReal(LOGS)) {
+  console.error("The logs folder is inside participant/context/jira/assigned; choose another one.");
+  process.exit(2);
+}
 const target = join(LOGS, NAME);
 if (existsSync(target) && (lstatSync(target).isSymbolicLink() || !lstatSync(target).isFile())) {
   console.error(`${NAME} in the logs folder is not an ordinary file; stopping.`);
@@ -283,20 +303,28 @@ add("a notes list that would alias a notes file is refused, and the note is unch
   expect("exit codes (the note, a link, a hard link, a linked folder, another file)", codes.join(","), "2,2,2,2,2");
   expect("the note unchanged", readFileSync(join(d, "notes", "GTQ-101.md"), "utf8") === "# My note\n", true);
 });
-add("twenty pairs of runs started together on one folder: one finishes, one refuses, never mixed", async () => {
+add("twenty pairs of runs started together on one folder: never both refused, never mixed", async () => {
   const d = prepared("s5");
   const one = (fixture) => new Promise((done) => {
     const p = spawn("node", [SYNC, "--fixture", fixture, "--out", d], { env: ENV, stdio: "ignore" });
     p.on("exit", (code) => done(code));
   });
-  let onePerPair = 0, mixed = 0;
+  // Started together, two runs usually meet at the lock (one finishes, the other refuses), but
+  // one may also finish before the other starts, and then both finish, one after the other; both
+  // outcomes are correct. Never correct: neither finishing, another exit code, or a folder
+  // holding files from two runs.
+  let met = 0, oneAfterOther = 0, wrong = 0, mixed = 0;
   for (let i = 0; i < 20; i++) {
-    const codes = await Promise.all([one("stale-item"), one("pagination")]);
-    if (codes.sort().join(",") === "0,2") onePerPair++;
+    const codes = (await Promise.all([one("stale-item"), one("pagination")])).sort().join(",");
+    if (codes === "0,2") met++;
+    else if (codes === "0,0") oneAfterOther++;
+    else wrong++;
     const s = JSON.parse(readFileSync(join(d, "stories.json"), "utf8")), m = JSON.parse(readFileSync(join(d, "sync-summary.json"), "utf8"));
     if (s.synchronized_at !== m.retrieved_at) mixed++;
   }
-  expect("pairs where one run finished and the other refused (exit 2)", onePerPair, 20);
+  say(`  (pairs that met at the lock: ${met}; pairs that ran one after the other: ${oneAfterOther})`);
+  expect("pairs where neither finished, or another exit code", wrong, 0);
+  expect("pairs that met at the lock, at least one", met > 0, true);
   expect("times the folder held files from two runs", mixed, 0);
   expect("lock left", existsSync(join(d, ".jira-sync.lock")), false);
 });

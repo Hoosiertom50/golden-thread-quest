@@ -61,28 +61,25 @@ title:
   source link, when it was removed and why; it is never deleted, and its notes file stays
   (criterion 8). A story that comes back leaves `removed`.
 
-The three output files are published together: each is written whole to a new temporary name,
-then each is renamed into place with the previous one kept aside; if any step fails with an
-error, the previous files are put back and the empty notes files that run created are removed
-(tried separately by forcing the second rename to fail, and by making the notes folder
-read-only: each time the folder came out byte-identical). Each destination must be an ordinary
-file or not exist yet, and every folder written into must be an ordinary folder or not exist
-yet, all checked before anything is written; missing folders are made only after that and
-removed again if the run then stops, and a file the run had only partly written is removed
-(tried by forcing a notes file to fail partway and by making folder creation fail: nothing was
-left behind). The previous `stories.json` must look
-like this tool's own output (both
-lists, Jira keys, no key twice) or the run stops and leaves it alone; the same goes for an
-existing `index.md` or `sync-summary.json` that this tool didn't write. One run at a time writes
-to a folder (a lock file, `.jira-sync.lock`, removed only while it still holds what that run
-wrote), and while holding it the run checks that
-`stories.json` is still exactly the one it merged against, and repeats its checks of the other
-two files; otherwise it stops without writing
-(tried with 20 pairs of simultaneous runs: each time one finished and the other refused, and
-the folder never mixed two runs). The folders written into must be ordinary folders, not links
-elsewhere: inside the repository, every folder from the repository down to `notes`; outside it,
-the folder named and its `notes` folder. In `index.md`, ticket text is shown as plain characters:
-every punctuation mark that Markdown or HTML could act on is escaped.
+The three output files are published together: each is written whole to a new temporary name, then
+each is renamed into place with the previous one kept aside; if any step fails with an error, the
+previous files are put back and the empty notes files that run created are removed (tried
+separately by forcing the second rename to fail, and by making the notes folder read-only: each
+time the folder came out byte-identical). Each destination must be an ordinary file or not exist
+yet, and every folder written into must be an ordinary folder or not exist yet, all checked before
+anything is written; missing folders are made only after that and removed again if the run then
+stops, and a file the run had only partly written is removed (tried by forcing a notes file to
+fail partway and by making folder creation fail: nothing was left behind). The previous
+`stories.json` must look like this tool's own output (both lists, Jira keys, no key twice) or the
+run stops and leaves it alone; the same goes for an existing `index.md` or `sync-summary.json`
+that this tool didn't write. One run at a time writes to a folder (a lock file, `.jira-sync.lock`,
+removed only while it still holds what that run wrote), and while holding it the run checks that
+`stories.json` is still exactly the one it merged against, and repeats its checks of the other two
+files; otherwise it stops without writing (tried with 20 pairs of runs started together: never
+both refused, and the folder never mixed two runs). The folders written into must be ordinary
+folders, not links elsewhere: inside the repository, every folder from the repository down to
+`notes`; outside it, the folder named and its `notes` folder. In `index.md`, ticket text is shown
+as plain characters: every punctuation mark that Markdown or HTML could act on is escaped.
 
 ## What tells me the local copy is complete enough
 
@@ -221,7 +218,7 @@ put-back failure, a run killed outright, notes-list paths that alias a note, twe
 simultaneous runs, changes made between the first checks and the lock, a notes file that fails
 partway or a read-only notes folder, and folders a failed run made (removed again) or couldn't
 make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded on 11-20-2026 at
-3:57 PM: 58 expectations, all as expected, and the real folder unchanged.
+4:05 PM: 59 expectations, all as expected, and the real folder unchanged.
 
 97 expectations in the record, all as expected.
 
