@@ -16,7 +16,8 @@ normalized files, run only against a pretend Jira serving the quest's practice d
   data set (`validators/fixtures/jira/<name>.json`) the way Jira's REST API answers: `myself` for
   the signed-in user, a search returning one page at a time with `startAt`, `maxResults`, `total`
   and `isLast`, and comments paged the same way. The server sets the page size, as Jira does: the
-  pagination set comes two stories a page. Every address uses `jira.example.invalid`.
+  pagination set comes two stories a page. Every address is under `.invalid`, a domain reserved
+  so it can never resolve (`jira.example.invalid`, plus two made-up names in one practice twist).
 - **The synchronization** (`participant/tools/jira-sync.mjs`), writing into
   `participant/context/jira/assigned/`: `stories.json` (the file the validator reads), `index.md`
   (a readable index) and `sync-summary.json` (what each run did: the stretch goal).
@@ -27,7 +28,9 @@ normalized files, run only against a pretend Jira serving the quest's practice d
 ## Pagination, identity and merging
 
 **Identity (criterion 1).** Every run first asks Jira who is signed in (`myself`) and keeps only
-stories whose assignee is that account. No name or email address appears in the code. If Jira
+stories whose assignee is that account. The synchronization's code holds no name, account or email
+address; the made-up account (`fixture-account-0001`, "Fixture User") exists only in the pretend
+Jira, standing in for the server's own user, and the synchronization learns it by asking. If Jira
 doesn't say who is signed in, or a story's assignee is missing or has no account id (Jira sends
 `null` only for an unassigned story), the run stops, rather than treating the story as someone
 else's and moving it to `removed`.
@@ -195,10 +198,10 @@ How Part B protects the real folder:
   interruption) the copies are put back. For notes, Part B has the synchronization keep a list
   (`JIRA_SYNC_NOTES_LEDGER`): "intent KEY" before it makes a notes file and "created KEY" right
   after, so even a run killed outright leaves a record; the list must lie outside the output
-  folder and hold only list lines, or the run stops before writing. Putting back removes only the notes files
-  listed as created that are still empty; any other new notes file is kept and named, and the
-  folder is then not reported as it was. If putting back fails, the copies and the lock are kept
-  and named.
+  folder and hold only list lines, or the run stops before writing. Putting back removes only the
+  notes files listed as created that are still empty; any other new notes file is kept and named,
+  and the folder is then not reported as it was. If putting back fails, the copies and the lock
+  are kept and named.
 - **The record must be whole.** It ends with "End of record."; if that line is missing, nothing
   is published and the files are put back. The logs folder can't be inside the real output
   folder, checked before the logs folder is made.
@@ -245,5 +248,5 @@ described above.
 ## Sensitive values
 
 No secret, token, password, customer name or real ticket content is here. All data is the quest's
-practice data, the account is made up, every address uses `jira.example.invalid`, and no file shows
-this computer's folders.
+practice data, the account is made up, every address is under the reserved `.invalid` domain, and
+no file shows this computer's folders.

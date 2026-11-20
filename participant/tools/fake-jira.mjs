@@ -33,7 +33,10 @@
 //   "markdown-summary" gives a story a summary full of Markdown and HTML (a link, an image, a tag)
 //
 // It reads only the practice file and returns copies; it has no network access and writes
-// nothing. Every address in its answers uses jira.example.invalid, which can never resolve.
+// nothing. Every address in its answers is under .invalid, a top-level domain reserved so it can
+// never resolve: jira.example.invalid, and two other made-up names in the markdown-summary twist.
+// The signed-in account below (ME) is the server's made-up user, as a real Jira knows its own
+// users; the synchronization learns it only by asking myself().
 
 import { readFileSync } from "node:fs";
 

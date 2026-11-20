@@ -22,7 +22,8 @@
 // leaves the folder as it was.
 //
 // How a run works:
-//   1. Ask Jira who the authenticated user is (myself); nothing about the user is hard-coded.
+//   1. Ask Jira who the authenticated user is (myself); nothing about the user is hard-coded here
+//      (the made-up account lives only in the pretend Jira, as the server's own user).
 //   2. Search for stories assigned to that user, page after page, until Jira says isLast (and
 //      the stories counted match Jira's total). A story assigned to anyone else is not kept.
 //   3. Read each story's comments, page after page, keeping each comment id once.
