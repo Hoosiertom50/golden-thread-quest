@@ -129,7 +129,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 2:30 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 2:41 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -167,11 +167,18 @@ uncommitted (`logs/sync-run.txt`).
 
 **Part B, in the real folder, run only when all of Part A came out as expected: the app's own
 validator** (`validate-jira-read-assigned`, run with `quest-app action run-validator`, network
-denied) after each set: **pass on all four**, every check passing. It confirmed every story
-present (pagination), normalized fields, links to the source, no duplicate records, no duplicate
-comments (duplicate-comment), the disappearance reported (stale-item), and no raw responses
-committed. The notes files that existed before Part B are byte-identical after it. The
-repository keeps the stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
+denied) after each set: **pass on all four**, every check passing. What its checks cover, in its
+own words: every story in the practice set appears in the output (pagination-handled); each
+record carries the five fields it requires, `key`, `source_url`, `status`, `summary` and
+`retrieved_at` (records-are-normalized; the other normalized fields of criterion 4 are left to
+the reviewer, and are in `stories.json`); every record has an absolute `source_url`
+(records-trace-to-source); each story appears once (no-duplicate-records); each comment is
+recorded once, by id (no-duplicate-comments, 3 comments in duplicate-comment); the story that
+disappeared is still reported (disappearances-reported, stale-item); and no file in the
+committed context is named like a raw API response (raw-responses-not-committed). The notes files
+that existed before Part B are byte-identical after it (the demonstration's own check, not the
+validator's). The repository keeps the stale-item result: GTQ-101 and GTQ-102, with GTQ-100
+under `removed`.
 
 How Part B protects the real folder:
 

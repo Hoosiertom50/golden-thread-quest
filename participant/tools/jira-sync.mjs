@@ -521,6 +521,18 @@ for (const dir of dirs) {
     process.exit(2);
   }
 }
+// Every story's notes file must be usable: an ordinary file already there (left exactly as it
+// is), or absent (an empty one is made). A folder, link or anything else there stops the run, so
+// it never reports success with a story whose notes can't be opened.
+for (const s of stories) {
+  let st = null;
+  try { st = lstatSync(join(out, "notes", `${s.key}.md`)); } catch (err) { if (err.code !== "ENOENT") throw err; }
+  if (st && (st.isSymbolicLink() || !st.isFile())) {
+    removeCreatedNotes();
+    console.error(`notes/${s.key}.md isn't an ordinary file (it is a link or something else); nothing was written.`);
+    process.exit(2);
+  }
+}
 for (const s of stories) {
   const notePath = join(out, "notes", `${s.key}.md`);
   try {
