@@ -1,0 +1,241 @@
+jira-read-assigned-stories: synchronization runs and validator checks
+Recorded 11-20-2026 11:32 AM with Node v22.23.3, by participant/tools/jira-sync-demo.sh.
+Source: the pretend Jira (participant/tools/fake-jira.mjs) serving the quest's practice data
+(validators/fixtures/jira/). No real Jira is contacted. Part A folders are relative to a temp folder.
+
+=================== Part A: each practice set, synchronized twice ===================
+
+== happy-path ==
+$ node jira-sync.mjs --fixture happy-path --out happy-path
+Synchronized "happy-path" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 3, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: GTQ-102, GTQ-103 (existing notes untouched)
+$ node jira-sync.mjs --fixture happy-path --out happy-path
+Synchronized "happy-path" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 0, changed 0, unchanged 3); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+Checked after the second run:
+  as expected: every notes file is byte-identical across the second run (SHA-256 before and after):
+    aeb0537e4643cc71b4e0a11c8a3f95846de60a82454f221ea08d4a3d03293e30 GTQ-101.md
+    81f03526c281d7cb54c7fdceb214962c866d72935d0ac6b6112ce7c1a3144f5f GTQ-102.md
+    ba148d5cbc1bdb1d6c9196ded2de4609afbd5b3415f3afe4942ef1c976ef6897 GTQ-103.md
+  as expected: the person's note GTQ-101.md = # Notes: GTQ-101
+
+A person's note (made-up): asked about the edge case; answer pending.
+  as expected: list complete (stories received = Jira's total, and Jira said it was the last page) = true
+  as expected: new and changed stories on the second run = 0
+  as expected: pages read = 1
+
+== pagination ==
+$ node jira-sync.mjs --fixture pagination --out pagination
+Synchronized "pagination" (current): 2 page(s), Jira reported 4, received 4, complete: true.
+  stories: 4 (new 4, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: GTQ-102, GTQ-201, GTQ-202 (existing notes untouched)
+$ node jira-sync.mjs --fixture pagination --out pagination
+Synchronized "pagination" (current): 2 page(s), Jira reported 4, received 4, complete: true.
+  stories: 4 (new 0, changed 0, unchanged 4); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+Checked after the second run:
+  as expected: every notes file is byte-identical across the second run (SHA-256 before and after):
+    aeb0537e4643cc71b4e0a11c8a3f95846de60a82454f221ea08d4a3d03293e30 GTQ-101.md
+    81f03526c281d7cb54c7fdceb214962c866d72935d0ac6b6112ce7c1a3144f5f GTQ-102.md
+    4b530d079ce53ff006c0f63ce1e2417311daa3fed88f36d04f618158f7f5299e GTQ-201.md
+    f00a9ea5d179be82bd2fb4daff25a3934997783cea7abd102774a6ec9f76b3be GTQ-202.md
+  as expected: the person's note GTQ-101.md = # Notes: GTQ-101
+
+A person's note (made-up): asked about the edge case; answer pending.
+  as expected: list complete (stories received = Jira's total, and Jira said it was the last page) = true
+  as expected: new and changed stories on the second run = 0
+  as expected: pages read = 2
+  as expected: stories = GTQ-101,GTQ-102,GTQ-201,GTQ-202
+
+== duplicate-comment ==
+$ node jira-sync.mjs --fixture duplicate-comment --out duplicate-comment
+Synchronized "duplicate-comment" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 3, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 1; notes files created: GTQ-102, GTQ-103 (existing notes untouched)
+$ node jira-sync.mjs --fixture duplicate-comment --out duplicate-comment
+Synchronized "duplicate-comment" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 0, changed 0, unchanged 3); removed this run: none; still removed: 0
+  duplicate comments skipped: 1; notes files created: none (existing notes untouched)
+Checked after the second run:
+  as expected: every notes file is byte-identical across the second run (SHA-256 before and after):
+    aeb0537e4643cc71b4e0a11c8a3f95846de60a82454f221ea08d4a3d03293e30 GTQ-101.md
+    81f03526c281d7cb54c7fdceb214962c866d72935d0ac6b6112ce7c1a3144f5f GTQ-102.md
+    ba148d5cbc1bdb1d6c9196ded2de4609afbd5b3415f3afe4942ef1c976ef6897 GTQ-103.md
+  as expected: the person's note GTQ-101.md = # Notes: GTQ-101
+
+A person's note (made-up): asked about the edge case; answer pending.
+  as expected: list complete (stories received = Jira's total, and Jira said it was the last page) = true
+  as expected: new and changed stories on the second run = 0
+  as expected: GTQ-101's comments, each id once = 9001,9002
+  as expected: duplicate comments skipped = 1
+
+== stale-item ==
+$ node jira-sync.mjs --fixture stale-item --phase previous --out stale-item
+Synchronized "stale-item" (previous): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 3, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: GTQ-100, GTQ-102 (existing notes untouched)
+$ node jira-sync.mjs --fixture stale-item --out stale-item
+Synchronized "stale-item" (current): 1 page(s), Jira reported 2, received 2, complete: true.
+  stories: 2 (new 0, changed 0, unchanged 2); removed this run: GTQ-100; still removed: 1
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+Checked after the second run:
+  as expected: every notes file is byte-identical across the second run (SHA-256 before and after):
+    9a6671749109a813959c08fe3decb796bb5878564a9c9934021c508e43706ae1 GTQ-100.md
+    aeb0537e4643cc71b4e0a11c8a3f95846de60a82454f221ea08d4a3d03293e30 GTQ-101.md
+    81f03526c281d7cb54c7fdceb214962c866d72935d0ac6b6112ce7c1a3144f5f GTQ-102.md
+  as expected: the person's note GTQ-101.md = # Notes: GTQ-101
+
+A person's note (made-up): asked about the edge case; answer pending.
+  as expected: list complete (stories received = Jira's total, and Jira said it was the last page) = true
+  as expected: removed this run = GTQ-100
+  as expected: removed story kept with its last known status = GTQ-100 In Progress
+  as expected: removed story's notes file kept = kept
+
+=================== Part A: the pretend Jira misbehaving ===================
+
+== practice fault: empty-page ==
+$ JIRA_PRACTICE_FAULT=empty-page node jira-sync.mjs --fixture pagination --out fault-empty-page
+Incomplete: Jira reported 4 stories but page 3 was empty; nothing was written.
+  as expected: exit code = 1
+  as expected: message = Incomplete: Jira reported 4 stories but page 3 was empty; nothing was written.
+  as expected: files written = 0
+
+== practice fault: wrong-total ==
+$ JIRA_PRACTICE_FAULT=wrong-total node jira-sync.mjs --fixture pagination --out fault-wrong-total
+Incomplete: Jira reported 5 stories, 4 arrived (4 distinct); nothing was written.
+  as expected: exit code = 1
+  as expected: message = Incomplete: Jira reported 5 stories, 4 arrived (4 distinct); nothing was written.
+  as expected: files written = 0
+
+== practice fault: repeat-page ==
+$ JIRA_PRACTICE_FAULT=repeat-page node jira-sync.mjs --fixture pagination --out fault-repeat-page
+Incomplete: Jira reported 4 stories but sent more (6 after page 3); nothing was written.
+  as expected: exit code = 1
+  as expected: message = Incomplete: Jira reported 4 stories but sent more (6 after page 3); nothing was written.
+  as expected: files written = 0
+
+== practice fault: comment-gap ==
+$ JIRA_PRACTICE_FAULT=comment-gap node jira-sync.mjs --fixture duplicate-comment --out fault-comment-gap
+Incomplete: Jira reported 3 comments on GTQ-101 but comment page 1 was empty; nothing was written.
+  as expected: exit code = 1
+  as expected: message = Incomplete: Jira reported 3 comments on GTQ-101 but comment page 1 was empty; nothing was written.
+  as expected: files written = 0
+
+== practice fault: unsafe-key ==
+$ JIRA_PRACTICE_FAULT=unsafe-key node jira-sync.mjs --fixture pagination --out fault-unsafe-key
+Incomplete: Jira returned "../GTQ-101", which is not a Jira key; nothing was written.
+  as expected: exit code = 1
+  as expected: message = Incomplete: Jira returned "../GTQ-101", which is not a Jira key; nothing was written.
+  as expected: files written = 0
+
+== a previous stories.json this tool didn't write (it holds just null) ==
+$ node jira-sync.mjs --fixture happy-path --out not-ours
+The previous stories.json isn't one this tool wrote; nothing was written. Fix or move it, then run again.
+  as expected: exit code = 2
+  as expected: the previous stories.json, left as it was = null
+  as expected: files in the folder (only that stories.json) = stories.json 
+
+=================== Part B: the real folder, checked by the app's own validator ===================
+Notes files in participant/context/jira/assigned/notes before Part B (SHA-256):
+  9a6671749109a813959c08fe3decb796bb5878564a9c9934021c508e43706ae1 GTQ-100.md
+  5e108470ec387db44756f0b8c14d728c8dc686c5b26b8a9bd39adae92a2622e7 GTQ-101.md
+  81f03526c281d7cb54c7fdceb214962c866d72935d0ac6b6112ce7c1a3144f5f GTQ-102.md
+  ba148d5cbc1bdb1d6c9196ded2de4609afbd5b3415f3afe4942ef1c976ef6897 GTQ-103.md
+  4b530d079ce53ff006c0f63ce1e2417311daa3fed88f36d04f618158f7f5299e GTQ-201.md
+  f00a9ea5d179be82bd2fb4daff25a3934997783cea7abd102774a6ec9f76b3be GTQ-202.md
+
+== happy-path ==
+$ node jira-sync.mjs --fixture happy-path --out participant/context/jira/assigned
+Synchronized "happy-path" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 3, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+$ node jira-sync.mjs --fixture happy-path --out participant/context/jira/assigned
+Synchronized "happy-path" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 0, changed 0, unchanged 3); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+$ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=happy-path
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120163253582318-3c78c2.json
+  outcome: pass (fixture_set happy-path, network denied)
+    PASS  pagination-handled: Every assigned story in the fixture appears in the output. (3 story/stories accounted for.)
+    PASS  records-are-normalized: Every record carries the fields this check requires. (3 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
+    PASS  records-trace-to-source: Every record links back to its source. (source_url present and absolute on every record.)
+    PASS  no-duplicate-records: Each story appears exactly once. (Re-running should update in place rather than append.)
+    PASS  raw-responses-not-committed: No raw API response is in committed context. (Only normalized records were found.)
+  as expected: validator outcome = pass
+  as expected: checks that didn't pass = 0
+
+== pagination ==
+$ node jira-sync.mjs --fixture pagination --out participant/context/jira/assigned
+Synchronized "pagination" (current): 2 page(s), Jira reported 4, received 4, complete: true.
+  stories: 4 (new 4, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+$ node jira-sync.mjs --fixture pagination --out participant/context/jira/assigned
+Synchronized "pagination" (current): 2 page(s), Jira reported 4, received 4, complete: true.
+  stories: 4 (new 0, changed 0, unchanged 4); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+$ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=pagination
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120163307881932-6a3225.json
+  outcome: pass (fixture_set pagination, network denied)
+    PASS  pagination-handled: Every assigned story in the fixture appears in the output. (4 story/stories accounted for.)
+    PASS  records-are-normalized: Every record carries the fields this check requires. (4 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
+    PASS  records-trace-to-source: Every record links back to its source. (source_url present and absolute on every record.)
+    PASS  no-duplicate-records: Each story appears exactly once. (Re-running should update in place rather than append.)
+    PASS  raw-responses-not-committed: No raw API response is in committed context. (Only normalized records were found.)
+  as expected: validator outcome = pass
+  as expected: checks that didn't pass = 0
+
+== duplicate-comment ==
+$ node jira-sync.mjs --fixture duplicate-comment --out participant/context/jira/assigned
+Synchronized "duplicate-comment" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 3, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 1; notes files created: none (existing notes untouched)
+$ node jira-sync.mjs --fixture duplicate-comment --out participant/context/jira/assigned
+Synchronized "duplicate-comment" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 0, changed 0, unchanged 3); removed this run: none; still removed: 0
+  duplicate comments skipped: 1; notes files created: none (existing notes untouched)
+$ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=duplicate-comment
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120163323105042-4601ae.json
+  outcome: pass (fixture_set duplicate-comment, network denied)
+    PASS  pagination-handled: Every assigned story in the fixture appears in the output. (3 story/stories accounted for.)
+    PASS  records-are-normalized: Every record carries the fields this check requires. (3 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
+    PASS  records-trace-to-source: Every record links back to its source. (source_url present and absolute on every record.)
+    PASS  no-duplicate-records: Each story appears exactly once. (Re-running should update in place rather than append.)
+    PASS  no-duplicate-comments: Each comment is recorded exactly once. (3 comment(s) checked by identifier.)
+    PASS  raw-responses-not-committed: No raw API response is in committed context. (Only normalized records were found.)
+  as expected: validator outcome = pass
+  as expected: checks that didn't pass = 0
+
+== stale-item ==
+$ node jira-sync.mjs --fixture stale-item --phase previous --out participant/context/jira/assigned
+Synchronized "stale-item" (previous): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 3, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+$ node jira-sync.mjs --fixture stale-item --out participant/context/jira/assigned
+Synchronized "stale-item" (current): 1 page(s), Jira reported 2, received 2, complete: true.
+  stories: 2 (new 0, changed 0, unchanged 2); removed this run: GTQ-100; still removed: 1
+  duplicate comments skipped: 0; notes files created: none (existing notes untouched)
+$ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=stale-item
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120163338850826-a4a46b.json
+  outcome: pass (fixture_set stale-item, network denied)
+    PASS  pagination-handled: Every assigned story in the fixture appears in the output. (2 story/stories accounted for.)
+    PASS  records-are-normalized: Every record carries the fields this check requires. (2 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
+    PASS  records-trace-to-source: Every record links back to its source. (source_url present and absolute on every record.)
+    PASS  no-duplicate-records: Each story appears exactly once. (Re-running should update in place rather than append.)
+    PASS  disappearances-reported: Every story that disappeared between runs is still reported. (1 disappearance(s) accounted for.)
+    PASS  raw-responses-not-committed: No raw API response is in committed context. (Only normalized records were found.)
+  as expected: validator outcome = pass
+  as expected: checks that didn't pass = 0
+
+Notes files that existed before Part B, compared after it:
+  identical  GTQ-100.md
+  identical  GTQ-101.md
+  identical  GTQ-102.md
+  identical  GTQ-103.md
+  identical  GTQ-201.md
+  identical  GTQ-202.md
+
+The repository keeps the stale-item result: stories.json lists GTQ-101 and GTQ-102, and GTQ-100 under "removed".
+  as expected: kept stories = GTQ-101,GTQ-102
+  as expected: kept removed = GTQ-100

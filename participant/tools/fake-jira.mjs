@@ -1,0 +1,92 @@
+// A pretend Jira for the jira-read-assigned-stories quest. It serves one of the quest's practice
+// data sets (validators/fixtures/jira/<name>.json) the way Jira's REST API answers, so the
+// synchronization talks to it exactly as it would talk to Jira, with nothing real involved:
+//
+//   myself()                              -> the authenticated user (a made-up account)
+//   searchAssigned({ startAt, maxResults }) -> one page of the stories assigned to that user,
+//                                            with Jira's paging fields: startAt, maxResults,
+//                                            total and isLast
+//   comments(key, { startAt })            -> one page of a story's comments, also paged
+//
+// Like Jira, the server decides the page size: a caller asking for 50 may get fewer, and must
+// keep asking until isLast. The "pagination" set is served two stories a page, so a caller that
+// stops after one page misses two. Comments are served two a page, so the "duplicate-comment"
+// set's comment 9001, listed on both of GTQ-101's comment pages, arrives twice.
+//
+// The "stale-item" set has a previous state: created with { phase: "previous" }, the stories in
+// its previously_assigned list are assigned too; with "current" (the default) they are gone.
+//
+// For practice only, a fault can be switched on (option `fault`, or the environment variable
+// JIRA_PRACTICE_FAULT). The synchronization must refuse each one, writing nothing:
+//   "empty-page"   claims more pages but sends an empty one
+//   "wrong-total"  reports one story more than it sends
+//   "repeat-page"  ignores startAt, sending the first page again and again, never the last
+//   "comment-gap"  claims more comments but sends an empty comment page
+//   "unsafe-key"   returns a story whose key is not a Jira key (it tries to leave the folder)
+//
+// It reads only the practice file and returns copies; it has no network access and writes
+// nothing. Every address in its answers uses jira.example.invalid, which can never resolve.
+
+import { readFileSync } from "node:fs";
+
+export const FIXTURES = ["happy-path", "pagination", "stale-item", "duplicate-comment"];
+const SITE = "https://jira.example.invalid";
+const ME = { accountId: "fixture-account-0001", displayName: "Fixture User" };
+
+export function fakeJira({ fixturesDir, fixture, phase = "current", fault = process.env.JIRA_PRACTICE_FAULT ?? "" }) {
+  if (!["", "empty-page", "wrong-total", "repeat-page", "comment-gap", "unsafe-key"].includes(fault)) throw new Error(`unknown practice fault ${JSON.stringify(fault)}`);
+  if (!FIXTURES.includes(fixture)) throw new Error(`unknown practice set ${JSON.stringify(fixture)}`);
+  if (phase !== "current" && phase !== "previous") throw new Error(`unknown phase ${JSON.stringify(phase)}`);
+  const data = JSON.parse(readFileSync(`${fixturesDir}/${fixture}.json`, "utf8"));
+  const stories = [...data.stories, ...(phase === "previous" ? data.previously_assigned ?? [] : [])]
+    .sort((a, b) => a.key.localeCompare(b.key, "en", { numeric: true }));
+  const storyPage = fixture === "pagination" ? 2 : 50; // the server's own limit
+  const commentPage = 2;
+  let calls = 0;
+
+  // A story as Jira's search returns it: identity and fields, with Jira's own field names.
+  const issue = (s, n) => ({
+    id: String(10000 + n),
+    key: fault === "unsafe-key" && n === 0 ? `../${s.key}` : s.key,
+    self: `${SITE}/rest/api/3/issue/${10000 + n}`,
+    fields: {
+      summary: s.summary,
+      status: { name: s.status },
+      issuetype: { name: "Story" },
+      priority: { name: "Medium" },
+      assignee: { accountId: ME.accountId, displayName: ME.displayName },
+      labels: [],
+      description: null,
+      parent: null,
+      created: "2026-09-01T09:00:00.000+0000",
+      updated: "2026-09-15T09:00:00.000+0000",
+      // A field only this platform has; it is kept, but apart from the normal fields.
+      customfield_10016: 3,
+    },
+  });
+
+  return {
+    calls: () => calls,
+    myself() {
+      calls++;
+      return structuredClone(ME);
+    },
+    searchAssigned({ startAt = 0, maxResults = 50 } = {}) {
+      calls++;
+      const size = Math.max(0, Math.min(maxResults, storyPage));
+      if (fault === "repeat-page") startAt = 0;
+      const page = stories.slice(startAt, startAt + size).map((s) => issue(s, stories.indexOf(s)));
+      const total = stories.length + (fault === "wrong-total" ? 1 : 0);
+      const isLast = fault === "empty-page" || fault === "repeat-page" ? false : fault === "wrong-total" ? startAt + page.length >= stories.length : startAt + page.length >= total;
+      return { startAt, maxResults: size, total, isLast, issues: page };
+    },
+    comments(key, { startAt = 0 } = {}) {
+      calls++;
+      const s = stories.find((x) => x.key === key);
+      const all = (s?.comments ?? []).map((c) => ({ id: c.id, author: { displayName: c.author }, body: c.body }));
+      if (fault === "comment-gap" && all.length > 0) return { startAt, maxResults: commentPage, total: all.length, isLast: false, comments: [] };
+      const page = all.slice(startAt, startAt + commentPage);
+      return { startAt, maxResults: commentPage, total: all.length, isLast: startAt + page.length >= all.length, comments: page };
+    },
+  };
+}
