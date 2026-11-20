@@ -5,9 +5,8 @@
 //   node participant/tools/jira-sync-safety-demo.mjs <logs folder>   (from the repository's top folder)
 //
 // Everything happens inside one new temp folder. Each case builds its own throwaway copy of the
-// repository there (the two tools, the practice data, and a copy of the real
-// participant/context/jira/assigned folder), so the real folder is never read for writing or
-// changed. Where a case needs a failure that can't be caused from outside (a rename that fails,
+// repository there (the three tools, the practice data, and a copy of the real
+// participant/context/jira/assigned folder), so the real folder is only read, never written to. Where a case needs a failure that can't be caused from outside (a rename that fails,
 // a run killed at one exact point, a validator that fails), it uses a copy of a tool with one
 // marked line added, made here and checked to apply exactly once; the tools themselves are not
 // changed. A stand-in validator replaces the app (the app writes its results into the real
