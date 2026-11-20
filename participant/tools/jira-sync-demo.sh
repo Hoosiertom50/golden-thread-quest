@@ -172,10 +172,15 @@ give_up() {
     cleanup
   else
     echo "Couldn't put the real generated files back; the saved copies are kept in $T/real-saved, and .jira-sync.lock is left in place." >&3
+    # Also on disk, beside where the log would go, in case no terminal is there to show it.
+    printf 'The demonstration stopped and could not put the real generated files back.\nThe saved copies are in: %s\n.jira-sync.lock was left in participant/context/jira/assigned on purpose.\n' "$T/real-saved" > "$LOGS/sync-run.RECOVERY.txt" 2>/dev/null
   fi
   exit "$1"
 }
 trap 'give_up 130' INT TERM
+# A closed terminal (HUP) is treated the same way; its messages go nowhere, since the terminal is
+# gone, so writing them can't stop the files being put back.
+trap 'exec 3>/dev/null; give_up 129' HUP
 FAIL=0
 OUT="$T/$NAME"
 END_LINE="End of record."

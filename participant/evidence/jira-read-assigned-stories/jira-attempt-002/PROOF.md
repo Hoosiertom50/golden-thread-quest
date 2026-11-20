@@ -132,7 +132,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 3:18 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 3:33 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -195,13 +195,13 @@ How Part B protects the real folder:
   Part B replaces only files the synchronization would.
 - **Then copies.** The three generated files are copied before anything changes. On any
   unsuccessful end (an unexpected result, a record that can't be written to its end, or an
-  interruption) the copies are put back. For notes, Part B has the synchronization keep a list
-  (`JIRA_SYNC_NOTES_LEDGER`): "intent KEY" before it makes a notes file and "created KEY" right
-  after, so even a run killed outright leaves a record; the list must lie outside the output
-  folder and hold only list lines, or the run stops before writing. Putting back removes only the
-  notes files listed as created that are still empty; any other new notes file is kept and named,
-  and the folder is then not reported as it was. If putting back fails, the copies and the lock
-  are kept and named.
+  interruption, including the terminal closing) the copies are put back. For notes, Part B has the
+  synchronization keep a list (`JIRA_SYNC_NOTES_LEDGER`): "intent KEY" before it makes a notes
+  file and "created KEY" right after, so even a run killed outright leaves a record; the list must
+  lie outside the output folder and hold only list lines, or the run stops before writing. Putting
+  back removes only the notes files listed as created that are still empty; any other new notes
+  file is kept and named, and the folder is then not reported as it was. If putting back fails,
+  the copies and the lock are kept and named.
 - **The record must be whole.** It ends with "End of record."; if that line is missing, nothing
   is published and the files are put back. The logs folder can't be inside the real output
   folder, checked before the logs folder is made.
