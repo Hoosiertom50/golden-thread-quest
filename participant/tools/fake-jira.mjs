@@ -28,6 +28,7 @@
 //   "missing-summary" returns a story with no summary
 //   "comment-no-id" returns comments with no id
 //   "assignee-no-id" returns a story whose assignee has no account id
+//   "comment-bad-body" returns a comment whose body is not text
 // and one that is not refused but must stay harmless text:
 //   "markdown-summary" gives a story a summary full of Markdown and HTML (a link, an image, a tag)
 //
@@ -41,7 +42,7 @@ const SITE = "https://jira.example.invalid";
 const ME = { accountId: "fixture-account-0001", displayName: "Fixture User" };
 
 export function fakeJira({ fixturesDir, fixture, phase = "current", fault = process.env.JIRA_PRACTICE_FAULT ?? "" }) {
-  const FAULTS = ["", "empty-page", "wrong-total", "repeat-page", "comment-gap", "unsafe-key", "shrinking-total", "missing-key", "missing-summary", "comment-no-id", "assignee-no-id", "markdown-summary"];
+  const FAULTS = ["", "empty-page", "wrong-total", "repeat-page", "comment-gap", "unsafe-key", "shrinking-total", "missing-key", "missing-summary", "comment-no-id", "assignee-no-id", "comment-bad-body", "markdown-summary"];
   if (!FAULTS.includes(fault)) throw new Error(`unknown practice fault ${JSON.stringify(fault)}`);
   if (!FIXTURES.includes(fixture)) throw new Error(`unknown practice set ${JSON.stringify(fixture)}`);
   if (phase !== "current" && phase !== "previous") throw new Error(`unknown phase ${JSON.stringify(phase)}`);
@@ -104,7 +105,11 @@ export function fakeJira({ fixturesDir, fixture, phase = "current", fault = proc
     comments(key, { startAt = 0 } = {}) {
       calls++;
       const s = stories.find((x) => x.key === key);
-      const all = (s?.comments ?? []).map((c) => ({ ...(fault === "comment-no-id" ? {} : { id: c.id }), author: { displayName: c.author }, body: c.body }));
+      const all = (s?.comments ?? []).map((c, n) => ({
+        ...(fault === "comment-no-id" ? {} : { id: c.id }),
+        author: { displayName: c.author },
+        body: fault === "comment-bad-body" && n === 0 ? { unexpected: ["not", "text"] } : c.body,
+      }));
       if (fault === "comment-gap" && all.length > 0) return { startAt, maxResults: commentPage, total: all.length, isLast: false, comments: [] };
       const page = all.slice(startAt, startAt + commentPage);
       return { startAt, maxResults: commentPage, total: all.length, isLast: startAt + page.length >= all.length, comments: page };

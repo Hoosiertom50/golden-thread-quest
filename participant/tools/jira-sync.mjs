@@ -32,14 +32,17 @@
 // Exit codes: 0 synchronized, 1 incomplete or unexpected answer from Jira (paging that doesn't add
 // up, a key that isn't a Jira key; nothing was written), 2 usage, file or other error.
 
-import { closeSync, existsSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, existsSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmdirSync, unlinkSync, writeSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIXTURES, fakeJira } from "./fake-jira.mjs";
 
 // Anything unexpected (a file that can't be read or written) is exit 2, never 1, which means
 // "Jira's answer was incomplete".
+// Whatever this run created is removed first (see removeCreatedNotes below).
+let undoCreated = () => {};
 process.on("uncaughtException", (err) => {
+  try { undoCreated(); } catch { /* best effort */ }
   console.error(`Stopped: ${err.message}`);
   process.exit(2);
 });
@@ -159,8 +162,12 @@ const commentsOf = (key) => {
     for (const c of page.comments) {
       // A comment is kept once per id, so it must have one: two without would look like one.
       if (!c || typeof c !== "object" || typeof c.id !== "string" || c.id === "") incomplete(`a comment on ${key} has no id`);
+      if (typeof c.body !== "string") incomplete(`comment ${c.id} on ${key} has no text`);
+      if (c.author !== undefined && c.author !== null && (typeof c.author !== "object" || (c.author.displayName !== undefined && typeof c.author.displayName !== "string"))) {
+        incomplete(`comment ${c.id} on ${key} has an author that isn't a person`);
+      }
       if (seen.has(c.id)) duplicateComments++;
-      else seen.set(c.id, { id: c.id, author: c.author?.displayName ?? null, body: c.body ?? null });
+      else seen.set(c.id, { id: c.id, author: c.author?.displayName ?? null, body: c.body });
     }
     at += page.comments.length;
     if (at > page.total) incomplete(`${key}'s comments don't add up (Jira reported ${page.total}, ${at} arrived)`);
@@ -247,14 +254,21 @@ const returned = before.removed.filter((r) => nowKeys.has(r.key)).map((r) => r.k
 // files from two runs. stories.json's synchronized_at and sync-summary.json's retrieved_at are
 // the same instant for one run, so a mix shows; the next run rewrites all three. Notes files are
 // created only when missing ("wx"), never rewritten.
+// writeNew creates a file that didn't exist ("wx") and writes it whole; if writing fails, the
+// partly written file is its own, so it is removed, never left looking like a finished one.
 const writeNew = (path, content) => {
   const fd = openSync(path, "wx", 0o644);
   try {
-    const bytes = Buffer.from(content, "utf8");
-    let done = 0;
-    while (done < bytes.length) done += writeSync(fd, bytes, done, bytes.length - done);
-  } finally {
-    closeSync(fd);
+    try {
+      const bytes = Buffer.from(content, "utf8");
+      let done = 0;
+      while (done < bytes.length) done += writeSync(fd, bytes, done, bytes.length - done);
+    } finally {
+      closeSync(fd);
+    }
+  } catch (err) {
+    try { unlinkSync(path); } catch { /* already gone */ }
+    throw err;
   }
 };
 const publish = (files) => {
@@ -313,13 +327,25 @@ if (inRepo) {
   dirs.push(absOut);
 }
 dirs.push(join(absOut, "notes"));
-for (const [n, dir] of dirs.entries()) {
-  // Only the first folder outside the repository may need its parents made.
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: n === 0 && !inRepo });
-  const st = lstatSync(dir);
-  if (st.isSymbolicLink() || !st.isDirectory()) {
+// First only checked: a folder that exists must be an ordinary one. Missing folders are made
+// later, once every check has passed, and removed again if the run can't finish.
+const missingDirs = [];
+for (const dir of dirs) {
+  let st = null;
+  try {
+    st = lstatSync(dir);
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+  }
+  if (st === null) {
+    missingDirs.push(dir);
+  } else if (st.isSymbolicLink() || !st.isDirectory()) {
     const name = inRepo ? relative(REPO, dir) : dir === absOut ? "The output folder" : "The notes folder";
     console.error(`${inRepo ? `The folder ${name}` : name} isn't an ordinary folder (it is a link or a file); nothing was written.`);
+    process.exit(2);
+  } else if (missingDirs.length) {
+    // An existing folder inside a missing one can't happen; stop rather than guess.
+    console.error(`${dir} exists inside a missing folder; nothing was written.`);
     process.exit(2);
   }
 }
@@ -338,12 +364,26 @@ for (const t of targets) {
     process.exit(2);
   }
 }
+const dirsCreated = [];
 const notesCreated = [];
-// The notes files this run created are removed again if the run can't finish (nobody has had a
-// chance to write in them), so a run that stops leaves the folder as it was.
+// The notes files and folders this run created are removed again if the run can't finish
+// (nobody has had a chance to write in them), so a run that stops leaves things as they were.
+// rmdir removes only an empty folder.
 const removeCreatedNotes = () => {
   for (const key of notesCreated) try { unlinkSync(join(out, "notes", `${key}.md`)); } catch { /* already gone */ }
+  for (const dir of [...dirsCreated].reverse()) try { rmdirSync(dir); } catch { /* not empty or gone: left */ }
 };
+undoCreated = removeCreatedNotes;
+// Now the missing folders are made (the first one outside the repository with its parents).
+for (const [n, dir] of missingDirs.entries()) {
+  const made = mkdirSync(dir, { recursive: n === 0 && !inRepo });
+  // With parents, mkdir returns the first folder it made; every folder from there down is new.
+  if (made && made !== dir) {
+    for (let d = dir; d.length >= made.length; d = dirname(d)) dirsCreated.unshift(d);
+  } else {
+    dirsCreated.push(dir);
+  }
+}
 for (const s of stories) {
   const notePath = join(out, "notes", `${s.key}.md`);
   try {

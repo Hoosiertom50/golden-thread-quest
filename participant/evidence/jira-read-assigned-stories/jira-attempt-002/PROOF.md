@@ -41,7 +41,7 @@ that no key arrived twice. Every page must start where it was asked to, report t
 the first page, and say plainly (true or false) whether it is the last. If any of that fails, if a
 page that isn't the last is empty, or if more arrive than the total, the run stops and writes
 nothing (exit 1), so an incomplete list can never look complete. Comments are paged and counted
-the same way, and every comment must have an id. Every story must have a Jira key (`ABC-123`,
+the same way, and every comment must have an id and text. Every story must have a Jira key (`ABC-123`,
 because keys become notes file names), a summary and a status.
 
 **Normalizing (criteria 4 and 5).** Each story has `key`, `source_url`, `summary`, `status`,
@@ -63,7 +63,11 @@ then each is renamed into place with the previous one kept aside; if any step fa
 error, the previous files are put back and the empty notes files that run created are removed
 (tried separately by forcing the second rename to fail, and by making the notes folder
 read-only: each time the folder came out byte-identical). Each destination must be an ordinary
-file or not exist yet, checked before anything is written. The previous `stories.json` must look
+file or not exist yet, and every folder written into must be an ordinary folder or not exist
+yet, all checked before anything is written; missing folders are made only after that and
+removed again if the run then stops, and a file the run had only partly written is removed
+(tried by forcing a notes file to fail partway and by making folder creation fail: nothing was
+left behind). The previous `stories.json` must look
 like this tool's own output (both
 lists, Jira keys, no key twice) or the run stops and leaves it alone. The folders written into
 must be ordinary folders, not links elsewhere: inside the repository, every folder from the
@@ -118,7 +122,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 12:32 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 12:45 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -131,12 +135,13 @@ uncommitted (`logs/sync-run.txt`).
 - **duplicate-comment:** GTQ-101's comments are 9001 and 9002, each once; 1 duplicate skipped.
 - **stale-item:** run first in its previous state (GTQ-100 still assigned), then current: GTQ-100
   is listed under `removed` with its last known status, In Progress, and its notes file is kept.
-- **The pretend Jira misbehaving, ten ways:** claiming more pages but sending an empty one;
+- **The pretend Jira misbehaving, eleven ways:** claiming more pages but sending an empty one;
   reporting 5 stories while sending 4; sending the first page again and again; a last page that
   reports a smaller total and leaves a story out; claiming more comments but sending an empty
   comment page; comments with no id; the key `../GTQ-101`, which tries to leave the notes folder;
-  a story with no key; a story with no summary; and a story whose assignee has no account id.
-  Each run stops with exit 1, its own message, and nothing written.
+  a story with no key; a story with no summary; a story whose assignee has no account id; and a
+  comment whose body isn't text. Each run stops with exit 1 and its own message, and its output
+  folder is never made.
 - **A summary full of Markdown and HTML** (a link, an image, a tag): the run succeeds and
   `index.md` shows every mark escaped, as typed.
 - **Three previous `stories.json` files this tool didn't write** (`null`, `{}`, and the same key
@@ -164,7 +169,7 @@ putting back made to fail, the copies were kept. The logs folder can't be inside
 folder. The repository keeps the
 stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
 
-84 expectations in the record, all as expected.
+87 expectations in the record, all as expected.
 
 ## Remaining limitations
 

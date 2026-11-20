@@ -5,8 +5,8 @@
 #   bash participant/tools/jira-sync-demo.sh <logs folder>   (from the repository's top folder)
 #
 # Part A, in a new temp folder: every practice set synchronized twice, with a person's note in
-# place, showing the second run changes nothing and the note stays byte-identical; then the ten
-# practice faults, each refused with its own message and nothing written; a ticket summary full of
+# place, showing the second run changes nothing and the note stays byte-identical; then the eleven
+# practice faults, each refused with its own message and no output folder made; a ticket summary full of
 # Markdown, shown as plain characters; three previous stories.json files this tool didn't write,
 # each refused and left exactly as it was; a folder where index.md should be, refused with the
 # other files unchanged; a notes folder that is a link, and a copy of the repository whose
@@ -83,8 +83,13 @@ restore_real() {
       try {
         if (fs.existsSync(copy)) {
           const tmp = `${target}.${process.pid}.restore`;
-          fs.copyFileSync(copy, tmp, fs.constants.COPYFILE_EXCL);
-          fs.renameSync(tmp, target);
+          try {
+            fs.copyFileSync(copy, tmp, fs.constants.COPYFILE_EXCL);
+            fs.renameSync(tmp, target);
+          } catch (e) {
+            try { fs.unlinkSync(tmp); } catch { /* not made */ }
+            throw e;
+          }
         } else {
           try { fs.unlinkSync(target); } catch (e) { if (e.code !== "ENOENT") throw e; }
         }
@@ -210,7 +215,7 @@ A person's note (made-up): asked about the edge case; answer pending.
     printf '%s\n' "${out//"$T/"/}"
     expect "exit code" "$code" 1
     expect "message" "$out" "$msg"
-    expect "files written" "$( [ -e "$D" ] && ls -A "$D" | wc -l | tr -d ' ' || echo 0)" 0
+    expect "output folder made" "$( [ -e "$D" ] && echo yes || echo no)" no
   done <<'FAULTS'
 empty-page pagination Incomplete: Jira reported 4 stories but page 3 was empty; nothing was written.
 wrong-total pagination Incomplete: Jira reported 5 stories, 4 arrived (4 distinct); nothing was written.
@@ -222,6 +227,7 @@ unsafe-key pagination Incomplete: Jira returned "../GTQ-101", which is not a Jir
 missing-key pagination Incomplete: Jira returned story 1 with no key; nothing was written.
 missing-summary pagination Incomplete: GTQ-101 has no summary; nothing was written.
 assignee-no-id pagination Incomplete: GTQ-101's assignee has no account id; nothing was written.
+comment-bad-body duplicate-comment Incomplete: comment 9001 on GTQ-101 has no text; nothing was written.
 FAULTS
 
   echo
@@ -379,8 +385,13 @@ fi
 node -e '
   const fs = require("fs"), [src, dir, name] = process.argv.slice(1);
   const tmp = `${dir}/.${name}.${process.pid}.new`;
-  fs.copyFileSync(src, tmp, fs.constants.COPYFILE_EXCL);
-  try { fs.renameSync(tmp, `${dir}/${name}`); } catch (e) { fs.unlinkSync(tmp); throw e; }
+  try {
+    fs.copyFileSync(src, tmp, fs.constants.COPYFILE_EXCL);
+    fs.renameSync(tmp, `${dir}/${name}`);
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch { /* not made */ }
+    throw e;
+  }
 ' "$OUT" "$LOGS" "$NAME" || { echo "Couldn't put $NAME in place."; give_up 2; }
 cleanup
 echo "Written: $NAME"

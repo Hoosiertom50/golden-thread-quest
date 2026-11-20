@@ -1,5 +1,5 @@
 jira-read-assigned-stories: synchronization runs and validator checks
-Recorded 11-20-2026 12:32 PM with Node v22.23.3, by participant/tools/jira-sync-demo.sh.
+Recorded 11-20-2026 12:45 PM with Node v22.23.3, by participant/tools/jira-sync-demo.sh.
 Source: the pretend Jira (participant/tools/fake-jira.mjs) serving the quest's practice data
 (validators/fixtures/jira/). No real Jira is contacted. Part A folders are relative to a temp folder.
 
@@ -100,70 +100,77 @@ $ JIRA_PRACTICE_FAULT=empty-page node jira-sync.mjs --fixture pagination --out f
 Incomplete: Jira reported 4 stories but page 3 was empty; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: Jira reported 4 stories but page 3 was empty; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: wrong-total ==
 $ JIRA_PRACTICE_FAULT=wrong-total node jira-sync.mjs --fixture pagination --out fault-wrong-total
 Incomplete: Jira reported 5 stories, 4 arrived (4 distinct); nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: Jira reported 5 stories, 4 arrived (4 distinct); nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: repeat-page ==
 $ JIRA_PRACTICE_FAULT=repeat-page node jira-sync.mjs --fixture pagination --out fault-repeat-page
 Incomplete: page 2 started at 0, not 2 as asked; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: page 2 started at 0, not 2 as asked; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: shrinking-total ==
 $ JIRA_PRACTICE_FAULT=shrinking-total node jira-sync.mjs --fixture pagination --out fault-shrinking-total
 Incomplete: page 2 reported a total of 3, but the first page reported 4; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: page 2 reported a total of 3, but the first page reported 4; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: comment-gap ==
 $ JIRA_PRACTICE_FAULT=comment-gap node jira-sync.mjs --fixture duplicate-comment --out fault-comment-gap
 Incomplete: Jira reported 3 comments on GTQ-101 but comment page 1 was empty; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: Jira reported 3 comments on GTQ-101 but comment page 1 was empty; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: comment-no-id ==
 $ JIRA_PRACTICE_FAULT=comment-no-id node jira-sync.mjs --fixture duplicate-comment --out fault-comment-no-id
 Incomplete: a comment on GTQ-101 has no id; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: a comment on GTQ-101 has no id; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: unsafe-key ==
 $ JIRA_PRACTICE_FAULT=unsafe-key node jira-sync.mjs --fixture pagination --out fault-unsafe-key
 Incomplete: Jira returned "../GTQ-101", which is not a Jira key; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: Jira returned "../GTQ-101", which is not a Jira key; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: missing-key ==
 $ JIRA_PRACTICE_FAULT=missing-key node jira-sync.mjs --fixture pagination --out fault-missing-key
 Incomplete: Jira returned story 1 with no key; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: Jira returned story 1 with no key; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: missing-summary ==
 $ JIRA_PRACTICE_FAULT=missing-summary node jira-sync.mjs --fixture pagination --out fault-missing-summary
 Incomplete: GTQ-101 has no summary; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: GTQ-101 has no summary; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
 
 == practice fault: assignee-no-id ==
 $ JIRA_PRACTICE_FAULT=assignee-no-id node jira-sync.mjs --fixture pagination --out fault-assignee-no-id
 Incomplete: GTQ-101's assignee has no account id; nothing was written.
   as expected: exit code = 1
   as expected: message = Incomplete: GTQ-101's assignee has no account id; nothing was written.
-  as expected: files written = 0
+  as expected: output folder made = no
+
+== practice fault: comment-bad-body ==
+$ JIRA_PRACTICE_FAULT=comment-bad-body node jira-sync.mjs --fixture duplicate-comment --out fault-comment-bad-body
+Incomplete: comment 9001 on GTQ-101 has no text; nothing was written.
+  as expected: exit code = 1
+  as expected: message = Incomplete: comment 9001 on GTQ-101 has no text; nothing was written.
+  as expected: output folder made = no
 
 == ticket text full of Markdown and HTML (practice twist: markdown-summary) ==
 $ JIRA_PRACTICE_FAULT=markdown-summary node jira-sync.mjs --fixture pagination --out markdown
@@ -238,7 +245,7 @@ Synchronized "happy-path" (current): 1 page(s), Jira reported 3, received 3, com
   stories: 3 (new 0, changed 0, unchanged 3); removed this run: none; still removed: 0
   duplicate comments skipped: 0; notes files created: none (existing notes untouched)
 $ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=happy-path
-  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120173213237664-c741ec.json
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120174531017689-21566f.json
   outcome: pass (fixture_set happy-path, network denied)
     PASS  pagination-handled: Every assigned story in the fixture appears in the output. (3 story/stories accounted for.)
     PASS  records-are-normalized: Every record carries the fields this check requires. (3 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
@@ -258,7 +265,7 @@ Synchronized "pagination" (current): 2 page(s), Jira reported 4, received 4, com
   stories: 4 (new 0, changed 0, unchanged 4); removed this run: none; still removed: 0
   duplicate comments skipped: 0; notes files created: none (existing notes untouched)
 $ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=pagination
-  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120173227497039-99b2a5.json
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120174545248687-62974c.json
   outcome: pass (fixture_set pagination, network denied)
     PASS  pagination-handled: Every assigned story in the fixture appears in the output. (4 story/stories accounted for.)
     PASS  records-are-normalized: Every record carries the fields this check requires. (4 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
@@ -278,7 +285,7 @@ Synchronized "duplicate-comment" (current): 1 page(s), Jira reported 3, received
   stories: 3 (new 0, changed 0, unchanged 3); removed this run: none; still removed: 0
   duplicate comments skipped: 1; notes files created: none (existing notes untouched)
 $ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=duplicate-comment
-  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120173241814354-794eaa.json
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120174559442277-dcef53.json
   outcome: pass (fixture_set duplicate-comment, network denied)
     PASS  pagination-handled: Every assigned story in the fixture appears in the output. (3 story/stories accounted for.)
     PASS  records-are-normalized: Every record carries the fields this check requires. (3 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)
@@ -299,7 +306,7 @@ Synchronized "stale-item" (current): 1 page(s), Jira reported 2, received 2, com
   stories: 2 (new 0, changed 0, unchanged 2); removed this run: GTQ-100; still removed: 1
   duplicate comments skipped: 0; notes files created: none (existing notes untouched)
 $ quest-app action run-validator --quest jira-read-assigned-stories --validator validate-jira-read-assigned --param fixture_set=stale-item
-  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120173256066985-5bda0c.json
+  result: participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120174613655034-f60106.json
   outcome: pass (fixture_set stale-item, network denied)
     PASS  pagination-handled: Every assigned story in the fixture appears in the output. (2 story/stories accounted for.)
     PASS  records-are-normalized: Every record carries the fields this check requires. (2 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.)

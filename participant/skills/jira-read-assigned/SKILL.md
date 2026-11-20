@@ -43,8 +43,8 @@ It writes into `participant/context/jira/assigned/`:
    summary, not kept. An assignee must be `null` (unassigned) or name an account; a missing or
    broken one stops the run, so it can't quietly move a story to `removed`.
 5. **Read each story's comments, page after page, keeping each comment id once**, however often
-   Jira returns it. Every comment needs an id, and the comments must add up the same way as the
-   stories, or nothing is written.
+   Jira returns it. Every comment needs an id and text, and the comments must add up the same way
+   as the stories, or nothing is written.
 6. **Normalize each story** into the same fields every time: `key`, `source_url`, `summary`,
    `status`, `priority`, `type`, `assignee`, `labels`, `description`, `acceptance_criteria`,
    `parent`, `created`, `updated`, `retrieved_at`, `comments`. Fields only Jira has are kept under
@@ -59,7 +59,8 @@ It writes into `participant/context/jira/assigned/`:
    match for one run, so a mix shows, and the next run rewrites all three. Only into ordinary
    folders (never through a link;
    inside the repository, every folder down to `notes`). A previous `stories.json` that doesn't
-   look like this tool's own output is left for a person, not overwritten.
+   look like this tool's own output is left for a person, not overwritten. Every check comes
+   before anything is written; folders and notes files a run made are removed again if it stops.
 
 ## Safety rules
 
