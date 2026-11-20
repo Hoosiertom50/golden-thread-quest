@@ -1,5 +1,5 @@
 {
-  "retrieved_at": "2026-11-20T20:48:52.520Z",
+  "retrieved_at": "2026-11-20T22:00:29.648Z",
   "practice_set": "stale-item",
   "phase": "current",
   "account": {
@@ -25,5 +25,6 @@
   "removed_total": 1,
   "not_assigned_to_me": [],
   "duplicate_comments_skipped": 0,
+  "duplicate_comments_differing": [],
   "notes_created": []
 }

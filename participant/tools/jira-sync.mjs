@@ -318,6 +318,9 @@ const notMine = issues.filter((i) => i.fields.assignee?.accountId !== me.account
 
 // ---- 3. comments, each id once ----------------------------------------------------------------
 let duplicateComments = 0;
+// A repeated comment id is kept once, first copy wins. When a later copy's text or author differs,
+// the run says so (in sync-summary.json), so a changed copy is never dropped without a trace.
+const differingDuplicates = [];
 const commentsOf = (key) => {
   const seen = new Map();
   let at = 0;
@@ -336,8 +339,14 @@ const commentsOf = (key) => {
       if (c.author !== undefined && c.author !== null && (typeof c.author !== "object" || (c.author.displayName !== undefined && typeof c.author.displayName !== "string"))) {
         incomplete(`comment ${c.id} on ${key} has an author that isn't a person`);
       }
-      if (seen.has(c.id)) duplicateComments++;
-      else seen.set(c.id, { id: c.id, author: c.author?.displayName ?? null, body: c.body });
+      const copy = { id: c.id, author: c.author?.displayName ?? null, body: c.body };
+      if (seen.has(c.id)) {
+        duplicateComments++;
+        const kept = seen.get(c.id);
+        if (kept.body !== copy.body || kept.author !== copy.author) differingDuplicates.push(`${key} comment ${c.id}`);
+      } else {
+        seen.set(c.id, copy);
+      }
     }
     at += page.comments.length;
     if (at > page.total) incomplete(`${key}'s comments don't add up (Jira reported ${page.total}, ${at} arrived)`);
@@ -614,6 +623,8 @@ const summary = {
   removed_total: removed.length,
   not_assigned_to_me: notMine,
   duplicate_comments_skipped: duplicateComments,
+  // Repeated comment ids whose later copy differed from the kept (first) copy.
+  duplicate_comments_differing: differingDuplicates,
   notes_created: notesCreated,
 };
 
@@ -668,4 +679,4 @@ try {
 releaseLock();
 console.log(`Synchronized "${fixture}" (${phase}): ${pages} page(s), Jira reported ${total}, received ${issues.length}, complete: ${summary.complete}.`);
 console.log(`  stories: ${stories.length} (new ${added.length}, changed ${changed.length}, unchanged ${summary.unchanged.length}); removed this run: ${newlyRemoved.map((r) => r.key).join(", ") || "none"}; still removed: ${removed.length}`);
-console.log(`  duplicate comments skipped: ${duplicateComments}; notes files created: ${notesCreated.join(", ") || "none"} (existing notes untouched)`);
+console.log(`  duplicate comments skipped: ${duplicateComments} (of which differing from the kept copy: ${differingDuplicates.join(", ") || "none"}); notes files created: ${notesCreated.join(", ") || "none"} (existing notes untouched)`);

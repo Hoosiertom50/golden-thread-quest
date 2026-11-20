@@ -44,7 +44,8 @@ It writes into `participant/context/jira/assigned/`:
    summary, not kept. An assignee must be `null` (unassigned) or name an account; a missing or
    broken one stops the run, so it can't quietly move a story to `removed`.
 5. **Read each story's comments, page after page, keeping each comment id once**, however often
-   Jira returns it. Every comment needs an id and text, and the comments must add up the same way
+   Jira returns it (the first copy wins; a later copy with different text or author is listed in
+   the summary). Every comment needs an id and text, and the comments must add up the same way
    as the stories, or nothing is written.
 6. **Normalize each story** into the same fields every time: `key`, `source_url`, `summary`,
    `status`, `priority`, `type`, `assignee`, `labels`, `description`, `acceptance_criteria`,

@@ -266,7 +266,7 @@ A person's note (made-up): asked about the edge case; answer pending.
     fi
     case "$set" in
       pagination) expect "pages read" "$(field "$S" 'd.pages_read')" 2; expect "stories" "$(field "$J" 'd.stories.map(s => s.key).join(",")')" "GTQ-101,GTQ-102,GTQ-201,GTQ-202" ;;
-      duplicate-comment) expect "GTQ-101's comments, each id once" "$(field "$J" 'd.stories.find(s => s.key === "GTQ-101").comments.map(c => c.id).join(",")')" "9001,9002"; expect "duplicate comments skipped" "$(field "$S" 'd.duplicate_comments_skipped')" 1 ;;
+      duplicate-comment) expect "GTQ-101's comments, each id once" "$(field "$J" 'd.stories.find(s => s.key === "GTQ-101").comments.map(c => c.id).join(",")')" "9001,9002"; expect "duplicate comments skipped" "$(field "$S" 'd.duplicate_comments_skipped')" 1; expect "repeated comments whose later copy differed (first copy kept)" "$(field "$S" 'd.duplicate_comments_differing.join(",")')" "GTQ-101 comment 9001" ;;
       happy-path) expect "pages read" "$(field "$S" 'd.pages_read')" 1 ;;
     esac
   done

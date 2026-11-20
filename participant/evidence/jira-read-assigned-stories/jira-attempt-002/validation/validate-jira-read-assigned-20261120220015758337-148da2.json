@@ -38,8 +38,8 @@
       "summary": "No raw API response is in committed context."
     }
   ],
-  "completed_at": "2026-11-20T20:48:39Z",
-  "duration_ms": 46,
+  "completed_at": "2026-11-20T22:00:15Z",
+  "duration_ms": 75,
   "environment": {
     "network": "denied",
     "parameter_fixture_set": "duplicate-comment",
@@ -48,10 +48,10 @@
   "outcome": "pass",
   "quest_id": "jira-read-assigned-stories",
   "redaction_applied": false,
-  "result_path": "participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120204839485532-a3f5e5.json",
-  "run_id": "validate-jira-read-assigned-20261120204839485532-a3f5e5",
+  "result_path": "participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120220015758337-148da2.json",
+  "run_id": "validate-jira-read-assigned-20261120220015758337-148da2",
   "schema_version": 1,
-  "started_at": "2026-11-20T20:48:39Z",
+  "started_at": "2026-11-20T22:00:15Z",
   "validator_id": "validate-jira-read-assigned",
   "validator_version": 2
 }

@@ -56,7 +56,9 @@ the same way, and every comment must have an id and text. Every story must have 
 title:
 
 - notes are never rewritten (criterion 6);
-- comments are kept once per comment id, however often Jira returns them (criterion 7);
+- comments are kept once per comment id, however often Jira returns them (criterion 7); the
+  first copy is kept, and a later copy whose text or author differs is listed in
+  `sync-summary.json` (`duplicate_comments_differing`), so nothing changes without a trace;
 - a story no longer returned moves to `removed` with its last known status and summary, its
   source link, when it was removed and why; it is never deleted, and its notes file stays
   (criterion 8). A story that comes back leaves `removed`.
@@ -132,7 +134,7 @@ node participant/tools/jira-sync-safety-demo.mjs <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 3:48 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 4:59 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -142,7 +144,9 @@ uncommitted (`logs/sync-run.txt`).
   equal Jira's total, on its last page).
 - **happy-path:** 1 page, 3 stories.
 - **pagination:** 2 pages, all 4 stories (GTQ-101, GTQ-102, GTQ-201, GTQ-202).
-- **duplicate-comment:** GTQ-101's comments are 9001 and 9002, each once; 1 duplicate skipped.
+- **duplicate-comment:** GTQ-101's comments are 9001 and 9002, each once; 1 duplicate skipped,
+  and listed as differing from the kept copy (the practice data's second copy of 9001 has other
+  text).
 - **stale-item:** run first in its previous state (GTQ-100 still assigned), then current: GTQ-100
   is listed under `removed` with its last known status, In Progress, and its notes file is kept.
 - **The pretend Jira misbehaving, eleven ways:** claiming more pages but sending an empty one;
@@ -217,9 +221,10 @@ holding a key twice; and, for the synchronization itself, a forced rename failur
 put-back failure, a run killed outright, notes-list paths that alias a note, twenty pairs of
 simultaneous runs, changes made between the first checks and the lock, a notes file that fails
 partway or a read-only notes folder, and folders a failed run made (removed again) or couldn't
-make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded on 11-20-2026 at 4:15 PM: 59 expectations, all as expected, and the real folder unchanged.
+make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded on 11-20-2026 at
+5:00 PM: 59 expectations, all as expected, and the real folder unchanged.
 
-97 expectations in the record, all as expected.
+98 expectations in the record, all as expected.
 
 ## Remaining limitations
 
