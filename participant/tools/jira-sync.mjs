@@ -408,8 +408,10 @@ const releaseLock = () => {
   lockHeld = false;
 };
 process.on("exit", releaseLock);
+// The order matters: the notes go while this run still holds the lock (so no other run can have
+// started using them), then the lock, then the folders (rmdir removes only an empty one, so a
+// folder another run has started writing in stays).
 const removeCreatedNotes = () => {
-  releaseLock();
   for (const key of notesCreated) {
     const notePath = join(out, "notes", `${key}.md`);
     // Removed only while still exactly the empty file this run wrote; anything else is kept.
@@ -417,6 +419,7 @@ const removeCreatedNotes = () => {
       if (readFileSync(notePath, "utf8") === noteTemplate(key)) unlinkSync(notePath);
     } catch { /* already gone */ }
   }
+  releaseLock();
   for (const dir of [...dirsCreated].reverse()) try { rmdirSync(dir); } catch { /* not empty or gone: left */ }
 };
 undoCreated = removeCreatedNotes;
@@ -450,7 +453,7 @@ if (token !== "") {
   } catch (err) {
     if (err.code !== "EEXIST") throw err;
     removeCreatedNotes();
-    console.error("Another synchronization is writing to this folder (.jira-sync.lock is there); nothing was written. If none is running, remove .jira-sync.lock and run again.");
+    console.error("Another synchronization is writing to this folder, or one stopped and left it for a person to check (.jira-sync.lock is there, and says which); nothing was written. If none is running and the folder is fine, remove .jira-sync.lock and run again.");
     process.exit(2);
   }
 }
@@ -531,12 +534,15 @@ try {
     [targets[2], `${JSON.stringify(summary, null, 2)}\n`],
   ]);
 } catch (err) {
-  removeCreatedNotes();
   if (err.notPutBack?.length) {
-    console.error(`Couldn't put the new files in place (${err.code ?? err.message}), and couldn't put back the previous ${err.notPutBack.join(", ")}; check the folder.`);
-  } else {
-    console.error(`Couldn't put the new files in place (${err.code ?? err.message}); the previous files were kept and nothing was changed.`);
+    // The folder now needs a person: the lock stays, so no later run changes what is to be
+    // looked at. Nothing else is removed.
+    lockHeld = false;
+    console.error(`Couldn't put the new files in place (${err.code ?? err.message}), and couldn't put back the previous ${err.notPutBack.join(", ")}; check the folder. .jira-sync.lock is left so no run changes it until you have; remove it afterwards.`);
+    process.exit(2);
   }
+  removeCreatedNotes();
+  console.error(`Couldn't put the new files in place (${err.code ?? err.message}); the previous files were kept and nothing was changed.`);
   process.exit(2);
 }
 

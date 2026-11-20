@@ -128,7 +128,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 1:39 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 1:49 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -195,7 +195,10 @@ stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
   always empty here.
 - **The three files are switched one after another, not in one step.** A run killed between two
   renames, or a reader looking in that instant, could see files from two runs. A run killed
-  outright also leaves its `.jira-sync.lock`; the next run then stops and says to remove it. The run's time is
+  outright also leaves its `.jira-sync.lock`; the next run then stops and says to remove it. If
+  putting a previous file back ever fails, the run names where that file is kept and leaves the
+  lock on purpose, so no later run changes the folder before a person has looked (tried by
+  making the put-back fail: the next run refused). The run's time is
   the same in `stories.json` (`synchronized_at`) and `sync-summary.json` (`retrieved_at`), so a
   mix shows, and the next run rewrites all three.
 - **Changes are found by comparing whole records.** Every run fetches everything; it doesn't yet
