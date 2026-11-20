@@ -164,12 +164,17 @@ END_LINE="End of record."
 
 # notes_print <folder>: SHA-256 of every notes file, one per line: the hash, a space, then the
 # file name as a JSON string (so a name with spaces or anything else stays whole). Exit 1 if any
-# file can't be read; callers treat that as unexpected.
+# entry isn't an ordinary file or can't be read; callers treat that as unexpected.
 notes_print() {
   node -e '
     const fs = require("fs"), c = require("crypto"), d = process.argv[1];
     try {
-      for (const f of fs.readdirSync(d).sort()) console.log(c.createHash("sha256").update(fs.readFileSync(`${d}/${f}`)).digest("hex"), JSON.stringify(f));
+      for (const f of fs.readdirSync(d).sort()) {
+        // Only ordinary files are read (a named pipe could make reading wait forever).
+        const st = fs.lstatSync(`${d}/${f}`);
+        if (st.isSymbolicLink() || !st.isFile()) process.exit(1);
+        console.log(c.createHash("sha256").update(fs.readFileSync(`${d}/${f}`)).digest("hex"), JSON.stringify(f));
+      }
     } catch { process.exit(1); }
   ' "$1/notes"
 }
@@ -321,6 +326,21 @@ PREVIOUS
   expect "exit code" "$code" 2
   expect "the person's index.md, left as it was" "$(cat "$D/index.md")" "$(printf '# My own index\n\nWritten by hand (made-up).')"
   expect "files in the folder (only that index.md)" "$(ls -A "$D" | tr '\n' ' ')" "index.md "
+
+  echo
+  echo "== a named pipe where stories.json should be (reading one could wait forever) =="
+  D="$T/pipe"
+  mkdir -p "$D"
+  mkfifo "$D/stories.json"
+  echo "\$ node jira-sync.mjs --check-only --out pipe   (stopped after 10 s if it waits)"
+  out=$(cd "$REPO" && node -e '
+    const r = require("child_process").spawnSync("node", process.argv.slice(1), { timeout: 10000, encoding: "utf8" });
+    if (r.error?.code === "ETIMEDOUT") { console.log("waited 10 s and was stopped"); process.exit(9); }
+    process.stdout.write(r.stderr); process.exit(r.status ?? 9);
+  ' "$SYNC" --check-only --out "$D" </dev/null 2>&1); code=$?
+  printf '%s\n' "${out//"$T/"/}"
+  expect "exit code" "$code" 2
+  expect "files in the folder (only the pipe)" "$(ls -A "$D" | tr '\n' ' ')" "stories.json "
 
   echo
   echo "== a folder where index.md should be =="

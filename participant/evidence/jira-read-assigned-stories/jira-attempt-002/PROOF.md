@@ -129,7 +129,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 2:21 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 2:30 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -157,6 +157,8 @@ uncommitted (`logs/sync-run.txt`).
   file, the other lock included, is unchanged.
 - **An `index.md` the person wrote, in the output folder:** the run stops with exit 2 and leaves
   it as it was.
+- **A named pipe where `stories.json` should be** (reading one could wait forever): refused at
+  once with exit 2, also with `--check-only`.
 - **A folder where `index.md` should be:** the run stops with exit 2; `stories.json`,
   `sync-summary.json` and the notes are unchanged.
 - **A notes folder that is a link to another folder,** and **a copy of the repository whose
@@ -193,7 +195,7 @@ made to fail, a hand-written `index.md`, and a `stories.json` holding the same k
 time the folder came out byte-identical, Part B left it alone, or the copies were kept, as
 described above.
 
-92 expectations in the record, all as expected.
+94 expectations in the record, all as expected.
 
 ## Remaining limitations
 

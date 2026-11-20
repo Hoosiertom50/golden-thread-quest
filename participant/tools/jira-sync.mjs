@@ -90,7 +90,26 @@ const storiesPath = join(out, "stories.json");
 let before = { stories: [], removed: [] };
 // The previous run's file exactly as read: just before publishing, while holding the lock, it
 // must still be exactly this, or another run (or a person) changed it meanwhile.
-const baselineText = existsSync(storiesPath) ? readFileSync(storiesPath, "utf8") : null;
+// Files in the output folder are read only after lstat says they are ordinary files: a link is
+// not followed, and something special (a named pipe, say) is never opened, since reading one can
+// wait forever. readOrdinary gives the text, null if the file is absent, or NOT_ORDINARY.
+const NOT_ORDINARY = Symbol("not an ordinary file");
+const readOrdinary = (path) => {
+  let st;
+  try {
+    st = lstatSync(path);
+  } catch (err) {
+    if (err.code === "ENOENT") return null;
+    throw err;
+  }
+  if (st.isSymbolicLink() || !st.isFile()) return NOT_ORDINARY;
+  return readFileSync(path, "utf8");
+};
+const baselineText = readOrdinary(storiesPath);
+if (baselineText === NOT_ORDINARY) {
+  console.error("stories.json in the output folder isn't an ordinary file (it is a link or something else); nothing was written.");
+  process.exit(2);
+}
 if (baselineText !== null) {
   let parsed;
   try {
@@ -163,7 +182,7 @@ const checkTargets = (stop) => {
       if (err.code !== "ENOENT") throw err;
     }
     if (st && (st.isSymbolicLink() || !st.isFile())) {
-      stop(`${relative(absOut, t)} in the output folder isn't an ordinary file (it is a link or a folder); nothing was written.`);
+      stop(`${relative(absOut, t)} in the output folder isn't an ordinary file (it is a link or something else); nothing was written.`);
     }
   }
   // A file this tool is about to replace must be one it wrote (stories.json was checked above):
@@ -181,7 +200,9 @@ const checkTargets = (stop) => {
     },
   };
   for (const t of [targets[1], targets[2]]) {
-    if (existsSync(t) && !looksOurs[t](readFileSync(t, "utf8"))) {
+    const text = readOrdinary(t);
+    if (text === NOT_ORDINARY) stop(`${relative(absOut, t)} in the output folder isn't an ordinary file; nothing was written.`);
+    if (text !== null && !looksOurs[t](text)) {
       stop(`${relative(absOut, t)} in the output folder isn't one this tool wrote; nothing was written. Move it, then run again.`);
     }
   }
@@ -421,7 +442,7 @@ let lockHeld = false;
 const releaseLock = () => {
   if (lockHeld) {
     try {
-      if (readFileSync(lockPath, "utf8") === lockText) unlinkSync(lockPath);
+      if (readOrdinary(lockPath) === lockText) unlinkSync(lockPath);
     } catch { /* already gone */ }
   }
   lockHeld = false;
@@ -435,7 +456,7 @@ const removeCreatedNotes = () => {
     const notePath = join(out, "notes", `${key}.md`);
     // Removed only while still exactly the empty file this run wrote; anything else is kept.
     try {
-      if (readFileSync(notePath, "utf8") === noteTemplate(key)) unlinkSync(notePath);
+      if (readOrdinary(notePath) === noteTemplate(key)) unlinkSync(notePath);
     } catch { /* already gone */ }
   }
   releaseLock();
@@ -459,7 +480,7 @@ for (const [n, dir] of missingDirs.entries()) {
 const token = process.env.JIRA_SYNC_LOCK_TOKEN ?? "";
 if (token !== "") {
   let held = null;
-  try { held = readFileSync(lockPath, "utf8"); } catch { /* none */ }
+  try { held = readOrdinary(lockPath); } catch { /* none */ }
   if (held !== token) {
     removeCreatedNotes();
     console.error("JIRA_SYNC_LOCK_TOKEN was given but .jira-sync.lock doesn't hold it; nothing was written.");
@@ -478,7 +499,7 @@ if (token !== "") {
 }
 // Holding the lock, the previous stories.json must still be the one merged against, and the
 // other two files must still be ordinary files this tool wrote (or absent).
-if ((existsSync(storiesPath) ? readFileSync(storiesPath, "utf8") : null) !== baselineText) {
+if (readOrdinary(storiesPath) !== baselineText) {
   removeCreatedNotes();
   console.error("stories.json changed while this run was reading Jira (another synchronization or an edit); nothing was written. Run again.");
   process.exit(2);
