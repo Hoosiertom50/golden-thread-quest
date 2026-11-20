@@ -2,13 +2,13 @@
   "attempt_id": "jira-attempt-002",
   "checks": [
     {
-      "evidence": "2 story/stories accounted for.",
+      "evidence": "3 story/stories accounted for.",
       "id": "pagination-handled",
       "outcome": "pass",
       "summary": "Every assigned story in the fixture appears in the output."
     },
     {
-      "evidence": "2 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.",
+      "evidence": "3 record(s) carry key, source_url, status, summary, retrieved_at. The optional fields criterion 4 names are for the reviewer to judge.",
       "id": "records-are-normalized",
       "outcome": "pass",
       "summary": "Every record carries the fields this check requires."
@@ -26,10 +26,10 @@
       "summary": "Each story appears exactly once."
     },
     {
-      "evidence": "1 disappearance(s) accounted for.",
-      "id": "disappearances-reported",
+      "evidence": "3 comment(s) checked by identifier.",
+      "id": "no-duplicate-comments",
       "outcome": "pass",
-      "summary": "Every story that disappeared between runs is still reported."
+      "summary": "Each comment is recorded exactly once."
     },
     {
       "evidence": "Only normalized records were found.",
@@ -38,20 +38,20 @@
       "summary": "No raw API response is in committed context."
     }
   ],
-  "completed_at": "2026-11-20T19:50:44Z",
-  "duration_ms": 49,
+  "completed_at": "2026-11-20T19:59:13Z",
+  "duration_ms": 48,
   "environment": {
     "network": "denied",
-    "parameter_fixture_set": "stale-item",
+    "parameter_fixture_set": "duplicate-comment",
     "validator_version": 2
   },
   "outcome": "pass",
   "quest_id": "jira-read-assigned-stories",
   "redaction_applied": false,
-  "result_path": "participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120195044131351-d98407.json",
-  "run_id": "validate-jira-read-assigned-20261120195044131351-d98407",
+  "result_path": "participant/evidence/jira-read-assigned-stories/jira-attempt-002/validation/validate-jira-read-assigned-20261120195913765944-d337a5.json",
+  "run_id": "validate-jira-read-assigned-20261120195913765944-d337a5",
   "schema_version": 1,
-  "started_at": "2026-11-20T19:50:44Z",
+  "started_at": "2026-11-20T19:59:13Z",
   "validator_id": "validate-jira-read-assigned",
   "validator_version": 2
 }

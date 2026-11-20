@@ -129,7 +129,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 2:49 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 2:58 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -192,8 +192,8 @@ How Part B protects the real folder:
   Part B replaces only files the synchronization would.
 - **Then copies.** The three generated files are copied before anything changes. On any
   unsuccessful end (an unexpected result, a record that can't be written to its end, or an
-  interruption) the copies are put back, and any notes file Part B created that is still the
-  empty one is removed; if putting back fails, the copies and the lock are kept and named.
+  interruption) the copies are put back, and any notes file Part B's own runs created (as each
+  run's summary lists) that is still the empty one is removed; any other new notes file is kept; if putting back fails, the copies and the lock are kept and named.
 - **The record must be whole.** It ends with "End of record."; if that line is missing, nothing
   is published and the files are put back. The logs folder can't be inside the real output
   folder, checked before the logs folder is made.
