@@ -41,8 +41,8 @@ that no key arrived twice. Every page must start where it was asked to, report t
 the first page, and say plainly (true or false) whether it is the last. If any of that fails, if a
 page that isn't the last is empty, or if more arrive than the total, the run stops and writes
 nothing (exit 1), so an incomplete list can never look complete. Comments are paged and counted
-the same way, and every comment must have an id and text. Every story must have a Jira key (`ABC-123`,
-because keys become notes file names), a summary and a status.
+the same way, and every comment must have an id and text. Every story must have a Jira key
+(`ABC-123`, because keys become notes file names), a summary and a status.
 
 **Normalizing (criteria 4 and 5).** Each story has `key`, `source_url`, `summary`, `status`,
 `priority`, `type`, `assignee`, `labels`, `description`, `acceptance_criteria`, `parent`,
@@ -76,10 +76,10 @@ wrote), and while holding it the run checks that
 `stories.json` is still exactly the one it merged against, and repeats its checks of the other
 two files; otherwise it stops without writing
 (tried with 20 pairs of simultaneous runs: each time one finished and the other refused, and
-the folder never mixed two runs). The folders written into
-must be ordinary folders, not links elsewhere: inside the repository, every folder from the
-repository down to `notes`; outside it, the folder named and its `notes` folder. In `index.md`, ticket text is shown as plain
-characters: every punctuation mark that Markdown or HTML could act on is escaped.
+the folder never mixed two runs). The folders written into must be ordinary folders, not links
+elsewhere: inside the repository, every folder from the repository down to `notes`; outside it,
+the folder named and its `notes` folder. In `index.md`, ticket text is shown as plain characters:
+every punctuation mark that Markdown or HTML could act on is escaped.
 
 ## What tells me the local copy is complete enough
 
@@ -129,7 +129,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 1:59 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 2:07 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -164,25 +164,34 @@ uncommitted (`logs/sync-run.txt`).
   where the link points.
 
 **Part B, in the real folder, run only when all of Part A came out as expected: the app's own
-validator** (`validate-jira-read-assigned`, run with
-`quest-app action run-validator`, network denied) after each set: **pass on all four**, every check
-passing. It confirmed every story present (pagination), normalized fields, links to the source, no
-duplicate records, no duplicate comments (duplicate-comment), the disappearance reported
-(stale-item), and no raw responses committed. The notes files that existed before Part B are
-byte-identical after it. Every folder from the repository down to the real notes folder must be
-an ordinary folder, and the three generated files ordinary files written by the synchronization
-(the same ownership rule the synchronization uses). Part B takes the synchronization's lock
-before any of its checks and holds it throughout and passes its token to its own runs, so no other run can write there meanwhile
-(tried in a copy: another synchronization started during Part B was refused every time); they are copied before Part B
-and put back on any unsuccessful end (an unexpected result, a log that can't be written, or an
-interruption), and any notes file Part B created that is still the empty one is removed; if
-putting back fails, the copies are kept and named. Tried separately: with a stand-in validator
-that always fails (in the real folder, and in a copy missing two notes files), each folder came
-out byte-identical; interrupted during Part B, the real folder came out byte-identical; with
-putting back made to fail, the copies were kept; with a hand-written `index.md` in a copy's real
-folder, Part B left that folder alone. The logs folder can't be inside the real output folder,
-checked before the logs folder is made. The repository keeps the
-stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
+validator** (`validate-jira-read-assigned`, run with `quest-app action run-validator`, network
+denied) after each set: **pass on all four**, every check passing. It confirmed every story
+present (pagination), normalized fields, links to the source, no duplicate records, no duplicate
+comments (duplicate-comment), the disappearance reported (stale-item), and no raw responses
+committed. The notes files that existed before Part B are byte-identical after it. The
+repository keeps the stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
+
+How Part B protects the real folder:
+
+- **First the lock.** Part B takes the synchronization's lock before any of its checks, holds it
+  throughout, and passes its token to its own runs, so no other run can write there meanwhile
+  (tried in a copy: another synchronization started during Part B was refused every time).
+- **Then the checks.** Every folder from the repository down to the real notes folder must be an
+  ordinary folder, and the synchronization itself (`--check-only`) must accept the folder, so
+  Part B replaces only files the synchronization would.
+- **Then copies.** The three generated files are copied before anything changes. On any
+  unsuccessful end (an unexpected result, a record that can't be written to its end, or an
+  interruption) the copies are put back, and any notes file Part B created that is still the
+  empty one is removed; if putting back fails, the copies and the lock are kept and named.
+- **The record must be whole.** It ends with "End of record."; if that line is missing, nothing
+  is published and the files are put back. The logs folder can't be inside the real output
+  folder, checked before the logs folder is made.
+
+Tried separately, in the real folder or in copies of the repository: a stand-in validator that
+always fails (also with two notes files missing), an interruption during Part B, putting back
+made to fail, a hand-written `index.md`, and a `stories.json` holding the same key twice. Each
+time the folder came out byte-identical, Part B left it alone, or the copies were kept, as
+described above.
 
 92 expectations in the record, all as expected.
 

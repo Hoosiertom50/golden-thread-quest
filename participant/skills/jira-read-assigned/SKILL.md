@@ -17,6 +17,7 @@ serving one of the quest's practice data sets; nothing here connects to a real J
 ```sh
 node participant/tools/jira-sync.mjs --fixture <happy-path|pagination|stale-item|duplicate-comment>
 node participant/tools/jira-sync.mjs --fixture stale-item --phase previous   # the earlier state
+node participant/tools/jira-sync.mjs --check-only   # may the folder be written? (writes nothing)
 ```
 
 It writes into `participant/context/jira/assigned/`:

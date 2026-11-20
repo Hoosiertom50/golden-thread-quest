@@ -9,6 +9,8 @@
 //   --phase    "previous" serves the stale-item set as it was on the earlier run (default current)
 //   --out      where the synchronized files go (default participant/context/jira/assigned in this
 //              repository, wherever it is run from)
+//   --check-only  only check that the output folder may be written (ordinary folders, files this
+//              tool wrote or none); contacts nothing and writes nothing (exit 0 fine, 2 not)
 //
 // What it writes into <folder>, the three published together (see "writing" below):
 //   stories.json        the normalized stories, and the stories that stopped being assigned
@@ -54,22 +56,23 @@ const SITE = "https://jira.example.invalid";
 export const JQL = "assignee = currentUser() AND issuetype = Story ORDER BY key ASC";
 
 const usage = () => {
-  console.error("Usage: node participant/tools/jira-sync.mjs --fixture <happy-path|pagination|stale-item|duplicate-comment> [--phase previous|current] [--out <folder>]");
+  console.error("Usage: node participant/tools/jira-sync.mjs --fixture <happy-path|pagination|stale-item|duplicate-comment> [--phase previous|current] [--out <folder>]\n       node participant/tools/jira-sync.mjs --check-only [--out <folder>]");
   process.exit(2);
 };
 let fixture = null;
 let phase = "current";
 let out = join(REPO, "participant", "context", "jira", "assigned");
+let checkOnly = false;
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--fixture" && i + 1 < args.length) fixture = args[++i];
   else if (args[i] === "--phase" && i + 1 < args.length) phase = args[++i];
   else if (args[i] === "--out" && i + 1 < args.length) out = args[++i];
+  else if (args[i] === "--check-only") checkOnly = true;
   else usage();
 }
-if (!FIXTURES.includes(fixture) || !["previous", "current"].includes(phase)) usage();
+if (checkOnly ? fixture !== null : !FIXTURES.includes(fixture) || !["previous", "current"].includes(phase)) usage();
 
-const jira = fakeJira({ fixturesDir: join(REPO, "validators", "fixtures", "jira"), fixture, phase });
 const nowDate = new Date();
 const now = nowDate.toISOString(); // machine fields keep ISO 8601
 // For people: MM-DD-YYYY and a 12-hour time, in this computer's time zone.
@@ -78,6 +81,121 @@ const shownTime = (d) => {
   const h = d.getHours() % 12 || 12;
   return `${p2(d.getMonth() + 1)}-${p2(d.getDate())}-${d.getFullYear()} ${h}:${p2(d.getMinutes())} ${d.getHours() < 12 ? "AM" : "PM"}`;
 };
+
+// ---- 0. the output folder, checked before Jira is asked anything ---------------------------------
+// Everything here is checked again, while holding the lock, just before writing.
+// A Jira key: project letters, a hyphen, a number. Keys become file names, so nothing else passes.
+const KEY = /^[A-Z][A-Z0-9_]*-[1-9][0-9]*$/;
+const storiesPath = join(out, "stories.json");
+let before = { stories: [], removed: [] };
+// The previous run's file exactly as read: just before publishing, while holding the lock, it
+// must still be exactly this, or another run (or a person) changed it meanwhile.
+const baselineText = existsSync(storiesPath) ? readFileSync(storiesPath, "utf8") : null;
+if (baselineText !== null) {
+  let parsed;
+  try {
+    parsed = JSON.parse(baselineText);
+  } catch {
+    parsed = undefined;
+  }
+  // It must look like this tool's own output: an object with a list of stories and a list of
+  // removed ones, each with a Jira key, no key twice, and no key in both lists. Anything else
+  // is left for a person to look at.
+  const okList = (l) => Array.isArray(l) && l.every((x) => x && typeof x === "object" && typeof x.key === "string" && KEY.test(x.key));
+  const allKeys = parsed && typeof parsed === "object" && okList(parsed.stories) && okList(parsed.removed)
+    ? [...parsed.stories, ...parsed.removed].map((x) => x.key) : null;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || allKeys === null || new Set(allKeys).size !== allKeys.length) {
+    console.error("The previous stories.json isn't one this tool wrote; nothing was written. Fix or move it, then run again.");
+    process.exit(2);
+  }
+  before = parsed;
+}
+
+// The folders written into must be real folders, not links to somewhere else: creating a notes
+// file "only if missing" protects the file, not the folder it lands in. Inside this repository,
+// every folder from the repository down to notes is checked, so a link committed to the
+// repository can't send the files elsewhere. Outside it, the folder named is used as named (on
+// macOS even /tmp is a link), and it and its notes folder are checked.
+const absOut = resolve(out);
+const rel = relative(REPO, absOut);
+const inRepo = rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+const dirs = [];
+if (inRepo) {
+  let p = REPO;
+  for (const part of rel.split(sep).filter(Boolean)) dirs.push((p = join(p, part)));
+} else {
+  dirs.push(absOut);
+}
+dirs.push(join(absOut, "notes"));
+// First only checked: a folder that exists must be an ordinary one. Missing folders are made
+// later, once every check has passed, and removed again if the run can't finish.
+const missingDirs = [];
+for (const dir of dirs) {
+  let st = null;
+  try {
+    st = lstatSync(dir);
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+  }
+  if (st === null) {
+    missingDirs.push(dir);
+  } else if (st.isSymbolicLink() || !st.isDirectory()) {
+    const name = inRepo ? relative(REPO, dir) : dir === absOut ? "The output folder" : "The notes folder";
+    console.error(`${inRepo ? `The folder ${name}` : name} isn't an ordinary folder (it is a link or a file); nothing was written.`);
+    process.exit(2);
+  } else if (missingDirs.length) {
+    // An existing folder inside a missing one can't happen; stop rather than guess.
+    console.error(`${dir} exists inside a missing folder; nothing was written.`);
+    process.exit(2);
+  }
+}
+// Each destination must be an ordinary file or not exist yet; anything else (a folder, a link) is
+// found now, before anything is written.
+const targets = ["stories.json", "index.md", "sync-summary.json"].map((f) => join(out, f));
+// checkTargets runs twice: now, before anything is made, and again while holding the lock, just
+// before writing, so nothing put there in between is replaced.
+const checkTargets = (stop) => {
+  for (const t of targets) {
+    let st = null;
+    try {
+      st = lstatSync(t);
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+    }
+    if (st && (st.isSymbolicLink() || !st.isFile())) {
+      stop(`${relative(absOut, t)} in the output folder isn't an ordinary file (it is a link or a folder); nothing was written.`);
+    }
+  }
+  // A file this tool is about to replace must be one it wrote (stories.json was checked above):
+  // anything else in that folder under the same name is the person's, and is never replaced.
+  const INDEX_START = "# My assigned Jira stories\n\nGenerated by `participant/tools/jira-sync.mjs`";
+  const looksOurs = {
+    [targets[1]]: (text) => text.startsWith(INDEX_START),
+    [targets[2]]: (text) => {
+      try {
+        const d = JSON.parse(text);
+        return !!d && typeof d === "object" && !Array.isArray(d) && Number.isInteger(d.pages_read) && "total_reported_by_jira" in d && "practice_set" in d;
+      } catch {
+        return false;
+      }
+    },
+  };
+  for (const t of [targets[1], targets[2]]) {
+    if (existsSync(t) && !looksOurs[t](readFileSync(t, "utf8"))) {
+      stop(`${relative(absOut, t)} in the output folder isn't one this tool wrote; nothing was written. Move it, then run again.`);
+    }
+  }
+};
+checkTargets((message) => {
+  console.error(message);
+  process.exit(2);
+});
+if (checkOnly) {
+  console.log("The output folder is fine to write: its folders are ordinary ones and its files were written by this tool (or are absent).");
+  process.exit(0);
+}
+
+const jira = fakeJira({ fixturesDir: join(REPO, "validators", "fixtures", "jira"), fixture, phase });
 
 // ---- 1. who am I ------------------------------------------------------------------------------
 const me = jira.myself();
@@ -93,8 +211,6 @@ const incomplete = (why) => {
   console.error(`Incomplete: ${why}; nothing was written.`);
   process.exit(1);
 };
-// A Jira key: project letters, a hyphen, a number. Keys become file names, so nothing else passes.
-const KEY = /^[A-Z][A-Z0-9_]*-[1-9][0-9]*$/;
 // Every page, of stories or of comments, must be well formed and agree with the first one: the
 // same total throughout, starting where it was asked to, saying plainly (true or false) whether it
 // is the last. Otherwise a page could quietly shrink the list and still look complete.
@@ -204,31 +320,7 @@ const normalize = (i) => ({
 });
 const stories = mine.map(normalize);
 
-// ---- 5. merge with the previous run -----------------------------------------------------------
-const storiesPath = join(out, "stories.json");
-let before = { stories: [], removed: [] };
-// The previous run's file exactly as read: just before publishing, while holding the lock, it
-// must still be exactly this, or another run (or a person) changed it meanwhile.
-const baselineText = existsSync(storiesPath) ? readFileSync(storiesPath, "utf8") : null;
-if (baselineText !== null) {
-  let parsed;
-  try {
-    parsed = JSON.parse(baselineText);
-  } catch {
-    parsed = undefined;
-  }
-  // It must look like this tool's own output: an object with a list of stories and a list of
-  // removed ones, each with a Jira key, no key twice, and no key in both lists. Anything else
-  // is left for a person to look at.
-  const okList = (l) => Array.isArray(l) && l.every((x) => x && typeof x === "object" && typeof x.key === "string" && KEY.test(x.key));
-  const allKeys = parsed && typeof parsed === "object" && okList(parsed.stories) && okList(parsed.removed)
-    ? [...parsed.stories, ...parsed.removed].map((x) => x.key) : null;
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || allKeys === null || new Set(allKeys).size !== allKeys.length) {
-    console.error("The previous stories.json isn't one this tool wrote; nothing was written. Fix or move it, then run again.");
-    process.exit(2);
-  }
-  before = parsed;
-}
+// ---- 5. merge with the previous run (read and checked in step 0) ------------------------------
 const nowKeys = new Set(stories.map((s) => s.key));
 const prevByKey = new Map(before.stories.map((s) => [s.key, s]));
 const comparable = (s) => JSON.stringify({ ...s, retrieved_at: null });
@@ -315,85 +407,6 @@ const publish = (files) => {
   }
   for (const [, kept] of swapped) if (kept) try { unlinkSync(kept); } catch { /* already gone */ }
 };
-// The folders written into must be real folders, not links to somewhere else: creating a notes
-// file "only if missing" protects the file, not the folder it lands in. Inside this repository,
-// every folder from the repository down to notes is checked, so a link committed to the
-// repository can't send the files elsewhere. Outside it, the folder named is used as named (on
-// macOS even /tmp is a link), and it and its notes folder are checked.
-const absOut = resolve(out);
-const rel = relative(REPO, absOut);
-const inRepo = rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
-const dirs = [];
-if (inRepo) {
-  let p = REPO;
-  for (const part of rel.split(sep).filter(Boolean)) dirs.push((p = join(p, part)));
-} else {
-  dirs.push(absOut);
-}
-dirs.push(join(absOut, "notes"));
-// First only checked: a folder that exists must be an ordinary one. Missing folders are made
-// later, once every check has passed, and removed again if the run can't finish.
-const missingDirs = [];
-for (const dir of dirs) {
-  let st = null;
-  try {
-    st = lstatSync(dir);
-  } catch (err) {
-    if (err.code !== "ENOENT") throw err;
-  }
-  if (st === null) {
-    missingDirs.push(dir);
-  } else if (st.isSymbolicLink() || !st.isDirectory()) {
-    const name = inRepo ? relative(REPO, dir) : dir === absOut ? "The output folder" : "The notes folder";
-    console.error(`${inRepo ? `The folder ${name}` : name} isn't an ordinary folder (it is a link or a file); nothing was written.`);
-    process.exit(2);
-  } else if (missingDirs.length) {
-    // An existing folder inside a missing one can't happen; stop rather than guess.
-    console.error(`${dir} exists inside a missing folder; nothing was written.`);
-    process.exit(2);
-  }
-}
-// Each destination must be an ordinary file or not exist yet; anything else (a folder, a link) is
-// found now, before anything is written.
-const targets = ["stories.json", "index.md", "sync-summary.json"].map((f) => join(out, f));
-// checkTargets runs twice: now, before anything is made, and again while holding the lock, just
-// before writing, so nothing put there in between is replaced.
-const checkTargets = (stop) => {
-  for (const t of targets) {
-    let st = null;
-    try {
-      st = lstatSync(t);
-    } catch (err) {
-      if (err.code !== "ENOENT") throw err;
-    }
-    if (st && (st.isSymbolicLink() || !st.isFile())) {
-      stop(`${relative(absOut, t)} in the output folder isn't an ordinary file (it is a link or a folder); nothing was written.`);
-    }
-  }
-  // A file this tool is about to replace must be one it wrote (stories.json was checked above):
-  // anything else in that folder under the same name is the person's, and is never replaced.
-  const INDEX_START = "# My assigned Jira stories\n\nGenerated by `participant/tools/jira-sync.mjs`";
-  const looksOurs = {
-    [targets[1]]: (text) => text.startsWith(INDEX_START),
-    [targets[2]]: (text) => {
-      try {
-        const d = JSON.parse(text);
-        return !!d && typeof d === "object" && !Array.isArray(d) && Number.isInteger(d.pages_read) && "total_reported_by_jira" in d && "practice_set" in d;
-      } catch {
-        return false;
-      }
-    },
-  };
-  for (const t of [targets[1], targets[2]]) {
-    if (existsSync(t) && !looksOurs[t](readFileSync(t, "utf8"))) {
-      stop(`${relative(absOut, t)} in the output folder isn't one this tool wrote; nothing was written. Move it, then run again.`);
-    }
-  }
-};
-checkTargets((message) => {
-  console.error(message);
-  process.exit(2);
-});
 const dirsCreated = [];
 const notesCreated = [];
 // The notes files and folders this run created are removed again if the run can't finish
