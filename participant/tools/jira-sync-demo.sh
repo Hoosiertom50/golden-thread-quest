@@ -8,8 +8,8 @@
 # place, showing the second run changes nothing and the note stays byte-identical; then the eleven
 # practice faults, each refused with its own message and no output folder made; a ticket summary full of
 # Markdown, shown as plain characters; three previous stories.json files this tool didn't write,
-# each refused and left exactly as it was; an index.md the person wrote, refused and left as it
-# was; a folder where index.md should be, refused with the
+# each refused and left exactly as it was; another run's lock in the folder, refused with every
+# file unchanged; an index.md the person wrote, refused and left as it was; a folder where index.md should be, refused with the
 # other files unchanged; a notes folder that is a link, and a copy of the repository whose
 # participant/context folder is a link, each refused.
 # Part B, in the real folder (participant/context/jira/assigned), only if all of Part A came out as
@@ -284,6 +284,16 @@ PREVIOUS
   expect "exit code" "$code" 2
   expect "files written where the link points" "$(ls -A "$T/somewhere-else" | wc -l | tr -d ' ')" 0
   expect "files in the folder (only the link)" "$(ls -A "$D" | tr '\n' ' ')" "notes "
+
+  echo
+  echo "== another synchronization's lock in the output folder =="
+  D="$T/locked"
+  run_sync "$D" --fixture stale-item --phase previous > /dev/null || { echo "  UNEXPECTED: the setup run failed"; FAIL=1; }
+  printf 'held by another run (made-up)\n' > "$D/.jira-sync.lock"
+  before=$(cd "$D" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do printf '%s ' "$f"; cksum < "$f"; done)
+  run_sync "$D" --fixture stale-item; code=$?
+  expect "exit code" "$code" 2
+  expect "every file in the folder unchanged, the other lock kept" "$( [ "$(cd "$D" && find . -type f | LC_ALL=C sort | while IFS= read -r f; do printf '%s ' "$f"; cksum < "$f"; done)" = "$before" ] && echo yes || echo no)" yes
 
   echo
   echo "== an index.md the person wrote, in the output folder =="

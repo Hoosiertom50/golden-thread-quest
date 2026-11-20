@@ -207,10 +207,13 @@ const stories = mine.map(normalize);
 // ---- 5. merge with the previous run -----------------------------------------------------------
 const storiesPath = join(out, "stories.json");
 let before = { stories: [], removed: [] };
-if (existsSync(storiesPath)) {
+// The previous run's file exactly as read: just before publishing, while holding the lock, it
+// must still be exactly this, or another run (or a person) changed it meanwhile.
+const baselineText = existsSync(storiesPath) ? readFileSync(storiesPath, "utf8") : null;
+if (baselineText !== null) {
   let parsed;
   try {
-    parsed = JSON.parse(readFileSync(storiesPath, "utf8"));
+    parsed = JSON.parse(baselineText);
   } catch {
     parsed = undefined;
   }
@@ -391,7 +394,15 @@ const notesCreated = [];
 // (nobody has had a chance to write in them), so a run that stops leaves things as they were.
 // rmdir removes only an empty folder.
 const noteTemplate = (key) => `# Notes: ${key}\n\nYour own notes on ${key}. The synchronization never changes this file.\n`;
+const lockPath = join(out, ".jira-sync.lock");
+let lockHeld = false;
+const releaseLock = () => {
+  if (lockHeld) try { unlinkSync(lockPath); } catch { /* already gone */ }
+  lockHeld = false;
+};
+process.on("exit", releaseLock);
 const removeCreatedNotes = () => {
+  releaseLock();
   for (const key of notesCreated) {
     const notePath = join(out, "notes", `${key}.md`);
     // Removed only while still exactly the empty file this run wrote; anything else is kept.
@@ -411,6 +422,23 @@ for (const [n, dir] of missingDirs.entries()) {
   } else {
     dirsCreated.push(dir);
   }
+}
+// One run at a time per folder: two at once would each merge against the same previous file, and
+// the later one would overwrite what the earlier one recorded (or their renames would interleave).
+try {
+  writeNew(lockPath, `pid ${process.pid}, started ${now}\n`);
+  lockHeld = true;
+} catch (err) {
+  if (err.code !== "EEXIST") throw err;
+  removeCreatedNotes();
+  console.error("Another synchronization is writing to this folder (.jira-sync.lock is there); nothing was written. If none is running, remove .jira-sync.lock and run again.");
+  process.exit(2);
+}
+// Holding the lock, the previous stories.json must still be the one merged against.
+if ((existsSync(storiesPath) ? readFileSync(storiesPath, "utf8") : null) !== baselineText) {
+  removeCreatedNotes();
+  console.error("stories.json changed while this run was reading Jira (another synchronization or an edit); nothing was written. Run again.");
+  process.exit(2);
 }
 for (const s of stories) {
   const notePath = join(out, "notes", `${s.key}.md`);
@@ -492,6 +520,7 @@ try {
   process.exit(2);
 }
 
+releaseLock();
 console.log(`Synchronized "${fixture}" (${phase}): ${pages} page(s), Jira reported ${total}, received ${issues.length}, complete: ${summary.complete}.`);
 console.log(`  stories: ${stories.length} (new ${added.length}, changed ${changed.length}, unchanged ${summary.unchanged.length}); removed this run: ${newlyRemoved.map((r) => r.key).join(", ") || "none"}; still removed: ${removed.length}`);
 console.log(`  duplicate comments skipped: ${duplicateComments}; notes files created: ${notesCreated.join(", ") || "none"} (existing notes untouched)`);

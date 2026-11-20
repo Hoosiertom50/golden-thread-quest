@@ -70,7 +70,11 @@ removed again if the run then stops, and a file the run had only partly written 
 left behind). The previous `stories.json` must look
 like this tool's own output (both
 lists, Jira keys, no key twice) or the run stops and leaves it alone; the same goes for an
-existing `index.md` or `sync-summary.json` that this tool didn't write. The folders written into
+existing `index.md` or `sync-summary.json` that this tool didn't write. One run at a time writes
+to a folder (a lock file, `.jira-sync.lock`), and while holding it the run checks that
+`stories.json` is still exactly the one it merged against; otherwise it stops without writing
+(tried with 20 pairs of simultaneous runs: each time one finished and the other refused, and
+the folder never mixed two runs). The folders written into
 must be ordinary folders, not links elsewhere: inside the repository, every folder from the
 repository down to `notes`; outside it, the folder named and its `notes` folder. In `index.md`, ticket text is shown as plain
 characters: every punctuation mark that Markdown or HTML could act on is escaped.
@@ -123,7 +127,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 1:19 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 1:29 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -147,6 +151,8 @@ uncommitted (`logs/sync-run.txt`).
   `index.md` shows every mark escaped, as typed.
 - **Three previous `stories.json` files this tool didn't write** (`null`, `{}`, and the same key
   twice): each run stops with exit 2 and leaves that file exactly as it was.
+- **Another synchronization's lock in the output folder:** the run stops with exit 2, and every
+  file, the other lock included, is unchanged.
 - **An `index.md` the person wrote, in the output folder:** the run stops with exit 2 and leaves
   it as it was.
 - **A folder where `index.md` should be:** the run stops with exit 2; `stories.json`,
@@ -174,7 +180,7 @@ folder, Part B left that folder alone. The logs folder can't be inside the real 
 checked before the logs folder is made. The repository keeps the
 stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
 
-90 expectations in the record, all as expected.
+92 expectations in the record, all as expected.
 
 ## Remaining limitations
 
@@ -185,7 +191,8 @@ stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
   custom field would map it to `acceptance_criteria`. None of the practice data has one, so it is
   always empty here.
 - **The three files are switched one after another, not in one step.** A run killed between two
-  renames, or a reader looking in that instant, could see files from two runs. The run's time is
+  renames, or a reader looking in that instant, could see files from two runs. A run killed
+  outright also leaves its `.jira-sync.lock`; the next run then stops and says to remove it. The run's time is
   the same in `stories.json` (`synchronized_at`) and `sync-summary.json` (`retrieved_at`), so a
   mix shows, and the next run rewrites all three.
 - **Changes are found by comparing whole records.** Every run fetches everything; it doesn't yet
