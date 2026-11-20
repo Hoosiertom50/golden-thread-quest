@@ -172,8 +172,13 @@ give_up() {
     cleanup
   else
     echo "Couldn't put the real generated files back; the saved copies are kept in $T/real-saved, and .jira-sync.lock is left in place." >&3
-    # Also on disk, beside where the log would go, in case no terminal is there to show it.
-    printf 'The demonstration stopped and could not put the real generated files back.\nThe saved copies are in: %s\n.jira-sync.lock was left in participant/context/jira/assigned on purpose.\n' "$T/real-saved" > "$LOGS/sync-run.RECOVERY.txt" 2>/dev/null
+    # Also on disk, beside where the log would go, in case no terminal is there to show it. It is
+    # created only if nothing has that name (wx: never through a link, never over a file).
+    node -e '
+      const fs = require("fs"), [path, saved] = process.argv.slice(1);
+      fs.writeFileSync(path, `The demonstration stopped and could not put the real generated files back.\nThe saved copies are in: ${saved}\n.jira-sync.lock was left in participant/context/jira/assigned on purpose.\n`, { flag: "wx" });
+    ' "$LOGS/sync-run.RECOVERY.txt" "$T/real-saved" 2>/dev/null \
+      || echo "Couldn't write sync-run.RECOVERY.txt (something has that name already); nothing there was changed." >&3
   fi
   exit "$1"
 }
