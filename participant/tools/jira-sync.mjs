@@ -488,6 +488,18 @@ checkTargets((message) => {
   console.error(message);
   process.exit(2);
 });
+// And every folder written into is still an ordinary folder (not swapped for a link since the
+// first check). Node has no folder-bound file calls, so a swap in the instant between this check
+// and a write is not caught; that needs someone else writing in the folder (PROOF limitations).
+for (const dir of dirs) {
+  let st = null;
+  try { st = lstatSync(dir); } catch { /* checked below */ }
+  if (!st || st.isSymbolicLink() || !st.isDirectory()) {
+    removeCreatedNotes();
+    console.error(`${inRepo ? relative(REPO, dir) : dir === absOut ? "The output folder" : "The notes folder"} changed (it is no longer an ordinary folder); nothing was written.`);
+    process.exit(2);
+  }
+}
 for (const s of stories) {
   const notePath = join(out, "notes", `${s.key}.md`);
   try {

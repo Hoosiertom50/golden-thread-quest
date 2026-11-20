@@ -129,7 +129,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 2:07 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 2:21 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -211,6 +211,11 @@ described above.
   making the put-back fail: the next run refused). The run's time is
   the same in `stories.json` (`synchronized_at`) and `sync-summary.json` (`retrieved_at`), so a
   mix shows, and the next run rewrites all three.
+- **Folders are checked, not held.** Each folder is checked again while holding the lock, just
+  before writing (tried by swapping `notes` for a link mid-run: refused, nothing written through
+  it), but Node has no folder-bound file calls, so a folder swapped in the instant between that
+  check and a write would not be caught. That needs someone else writing in the folder at the
+  same moment; the practice runs have no such writer.
 - **Changes are found by comparing whole records.** Every run fetches everything; it doesn't yet
   fetch only what changed since the last run (delta synchronization was left as a stretch goal).
 - **Notes from other practice sets stay.** Because notes are never deleted, the notes folder also
