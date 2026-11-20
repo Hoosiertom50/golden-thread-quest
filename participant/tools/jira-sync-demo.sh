@@ -33,6 +33,13 @@ NAME=sync-run.txt
 if [ -L "$LOGS/$NAME" ] || { [ -e "$LOGS/$NAME" ] && [ ! -f "$LOGS/$NAME" ]; }; then
   echo "$NAME in the logs folder is not an ordinary file; stopping."; exit 2
 fi
+# The log must not land among the files this script checks and replaces: not in the real output
+# folder or its notes folder (compared as real paths, so a link to them is caught too).
+REAL_P=$(cd -P -- "$REAL" && printf '%s/.' "$PWD") || exit 2
+REAL_P=${REAL_P%/.}
+case "$LOGS/" in
+  "$REAL_P/"*) echo "The logs folder is inside participant/context/jira/assigned; choose another one."; exit 2 ;;
+esac
 
 T=$(mktemp -d "${TMPDIR:-/tmp}/jira-sync-demo.XXXXXX") || exit 2
 [ -n "$T" ] && [ -d "$T" ] && [ ! -L "$T" ] || { echo "Couldn't make the temp folder."; exit 2; }
@@ -64,7 +71,17 @@ restore_real() {
     }
   ' "$REAL" "$T/real-saved" $GENERATED && echo "The real folder's three generated files were put back as they were."
 }
-trap 'restore_real; cleanup; exit 130' INT TERM
+# give_up <code>: on any unsuccessful end, put the real files back first; the temp folder (with the
+# saved copies) is removed only if that worked, otherwise it is kept and named.
+give_up() {
+  if restore_real; then
+    cleanup
+  else
+    echo "Couldn't put the real generated files back; the saved copies are kept in $T/real-saved."
+  fi
+  exit "$1"
+}
+trap 'give_up 130' INT TERM
 FAIL=0
 OUT="$T/$NAME"
 
@@ -159,6 +176,7 @@ comment-no-id duplicate-comment Incomplete: a comment on GTQ-101 has no id; noth
 unsafe-key pagination Incomplete: Jira returned "../GTQ-101", which is not a Jira key; nothing was written.
 missing-key pagination Incomplete: Jira returned story 1 with no key; nothing was written.
 missing-summary pagination Incomplete: GTQ-101 has no summary; nothing was written.
+assignee-no-id pagination Incomplete: GTQ-101's assignee has no account id; nothing was written.
 FAULTS
 
   echo
@@ -204,9 +222,32 @@ PREVIOUS
   expect "files in the folder (only the link)" "$(ls -A "$D" | tr '\n' ' ')" "notes "
 
   echo
+  echo "== a copy of the repository whose participant/context folder is a link to another folder =="
+  C="$T/repo-copy"
+  mkdir -p "$C/participant/tools" "$C/validators/fixtures" "$T/linked-target"
+  cp "$SYNC" "$REPO/participant/tools/fake-jira.mjs" "$C/participant/tools/"
+  cp -R "$REPO/validators/fixtures/jira" "$C/validators/fixtures/"
+  ln -s "$T/linked-target" "$C/participant/context"
+  echo "\$ node <copy>/participant/tools/jira-sync.mjs --fixture happy-path   (the default output folder)"
+  out=$(cd "$C" && node "$C/participant/tools/jira-sync.mjs" --fixture happy-path </dev/null 2>&1); code=$?
+  printf '%s\n' "${out//"$T/"/}"
+  expect "exit code" "$code" 2
+  expect "message" "$out" "The folder participant/context isn't an ordinary folder (it is a link or a file); nothing was written."
+  expect "files written where the link points" "$(find "$T/linked-target" -type f | wc -l | tr -d ' ')" 0
+
+  echo
   echo "=================== Part B: the real folder, checked by the app's own validator ==================="
   if [ "$FAIL" != 0 ]; then
     echo "  UNEXPECTED: Part A didn't all come out as expected, so the real folder is left alone."
+  elif ! node -e '
+      const fs = require("fs"), [real, ...names] = process.argv.slice(1);
+      for (const f of names) {
+        let st;
+        try { st = fs.lstatSync(`${real}/${f}`); } catch (e) { if (e.code === "ENOENT") continue; throw e; }
+        if (!st.isFile() || st.isSymbolicLink()) { console.log(`  ${f} is not an ordinary file.`); process.exit(1); }
+      }
+    ' "$REAL" $GENERATED; then
+    echo "  UNEXPECTED: a generated file in the real folder is a link or not a file, so the real folder is left alone."; FAIL=1
   elif ! notes_print "$REAL" > "$T/real-notes-before"; then
     echo "  UNEXPECTED: couldn't fingerprint the real notes, so the real folder is left alone."; FAIL=1
   elif ! node -e '
@@ -269,22 +310,18 @@ PREVIOUS
 
 if grep -qF -- "$T" "$OUT" || grep -qF -- "$REPO" "$OUT" || { [ -n "${HOME:-}" ] && grep -qF -- "$HOME" "$OUT"; }; then
   echo "The log contains a temp, repository or home folder address; it is not written or shown."
-  [ "$FAIL" != 0 ] && restore_real
-  cleanup
-  exit 1
+  give_up 1
 fi
 if [ "$FAIL" != 0 ]; then
-  restore_real
   echo "Something unexpected happened; $NAME was not written. The log (temp folder names hidden):"
   while IFS= read -r line || [ -n "$line" ]; do printf '%s\n' "${line//"$T"/<temp>}"; done < "$OUT"
-  cleanup
-  exit 1
+  give_up 1
 fi
 node -e '
   const fs = require("fs"), [src, dir, name] = process.argv.slice(1);
   const tmp = `${dir}/.${name}.${process.pid}.new`;
   fs.copyFileSync(src, tmp, fs.constants.COPYFILE_EXCL);
   try { fs.renameSync(tmp, `${dir}/${name}`); } catch (e) { fs.unlinkSync(tmp); throw e; }
-' "$OUT" "$LOGS" "$NAME" || { echo "Couldn't put $NAME in place."; cleanup; exit 2; }
+' "$OUT" "$LOGS" "$NAME" || { echo "Couldn't put $NAME in place."; give_up 2; }
 cleanup
 echo "Written: $NAME"

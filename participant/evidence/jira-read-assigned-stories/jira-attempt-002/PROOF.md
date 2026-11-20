@@ -28,7 +28,9 @@ normalized files, run only against a pretend Jira serving the quest's practice d
 
 **Identity (criterion 1).** Every run first asks Jira who is signed in (`myself`) and keeps only
 stories whose assignee is that account. No name or email address appears in the code. If Jira
-doesn't say who is signed in, the run stops, rather than treating every story as someone else's.
+doesn't say who is signed in, or a story's assignee is missing or has no account id (Jira sends
+`null` only for an unassigned story), the run stops, rather than treating the story as someone
+else's and moving it to `removed`.
 
 **The query (criterion 2):** `assignee = currentUser() AND issuetype = Story ORDER BY key ASC`, so
 stories assigned to the signed-in user; the work-item type is Story.
@@ -58,8 +60,9 @@ title:
 
 Each output file is written to a new temporary name and renamed into place, so a reader never sees
 a half-written file. The previous `stories.json` must look like this tool's own output (both
-lists, Jira keys, no key twice) or the run stops and leaves it alone. The output and notes folders
-must be ordinary folders, not links elsewhere. In `index.md`, ticket text is shown as plain
+lists, Jira keys, no key twice) or the run stops and leaves it alone. The folders written into
+must be ordinary folders, not links elsewhere: inside the repository, every folder from the
+repository down to `notes`; outside it, the folder named and its `notes` folder. In `index.md`, ticket text is shown as plain
 characters: every punctuation mark that Markdown or HTML could act on is escaped.
 
 ## What tells me the local copy is complete enough
@@ -110,7 +113,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 11:50 AM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 12:06 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -123,18 +126,19 @@ uncommitted (`logs/sync-run.txt`).
 - **duplicate-comment:** GTQ-101's comments are 9001 and 9002, each once; 1 duplicate skipped.
 - **stale-item:** run first in its previous state (GTQ-100 still assigned), then current: GTQ-100
   is listed under `removed` with its last known status, In Progress, and its notes file is kept.
-- **The pretend Jira misbehaving, nine ways:** claiming more pages but sending an empty one;
+- **The pretend Jira misbehaving, ten ways:** claiming more pages but sending an empty one;
   reporting 5 stories while sending 4; sending the first page again and again; a last page that
   reports a smaller total and leaves a story out; claiming more comments but sending an empty
   comment page; comments with no id; the key `../GTQ-101`, which tries to leave the notes folder;
-  a story with no key; and a story with no summary. Each run stops with exit 1, its own message,
-  and nothing written.
+  a story with no key; a story with no summary; and a story whose assignee has no account id.
+  Each run stops with exit 1, its own message, and nothing written.
 - **A summary full of Markdown and HTML** (a link, an image, a tag): the run succeeds and
   `index.md` shows every mark escaped, as typed.
 - **Three previous `stories.json` files this tool didn't write** (`null`, `{}`, and the same key
   twice): each run stops with exit 2 and leaves that file exactly as it was.
-- **A notes folder that is a link to another folder:** the run stops with exit 2 and nothing is
-  written where the link points.
+- **A notes folder that is a link to another folder,** and **a copy of the repository whose
+  `participant/context` folder is a link:** each run stops with exit 2 and nothing is written
+  where the link points.
 
 **Part B, in the real folder, run only when all of Part A came out as expected: the app's own
 validator** (`validate-jira-read-assigned`, run with
@@ -142,12 +146,15 @@ validator** (`validate-jira-read-assigned`, run with
 passing. It confirmed every story present (pagination), normalized fields, links to the source, no
 duplicate records, no duplicate comments (duplicate-comment), the disappearance reported
 (stale-item), and no raw responses committed. The notes files that existed before Part B are
-byte-identical after it. The three generated files are copied before Part B and put back if
-anything in it is unexpected or the script is interrupted (tried separately with a stand-in
-validator that always fails: the real folder came out byte-identical). The repository keeps the
+byte-identical after it. The three generated files must be ordinary files; they are copied
+before Part B and put back on any unsuccessful end (an unexpected result, a log that can't be
+written, or an interruption); if putting them back fails, the copies are kept and named. Tried
+separately: with a stand-in validator that always fails, the real folder came out
+byte-identical; with putting back made to fail, the copies were kept. The logs folder can't be
+inside the real output folder. The repository keeps the
 stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
 
-74 expectations in the record, all as expected.
+80 expectations in the record, all as expected.
 
 ## Remaining limitations
 

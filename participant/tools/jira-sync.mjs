@@ -30,7 +30,7 @@
 // up, a key that isn't a Jira key; nothing was written), 2 usage, file or other error.
 
 import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIXTURES, fakeJira } from "./fake-jira.mjs";
 
@@ -107,6 +107,13 @@ const checkIssue = (i, what) => {
   if (typeof i.key !== "string" || !KEY.test(i.key)) incomplete(`Jira returned ${JSON.stringify(i.key)}, which is not a Jira key`);
   if (typeof i.fields.summary !== "string") incomplete(`${i.key} has no summary`);
   if (typeof i.fields.status?.name !== "string") incomplete(`${i.key} has no status`);
+  // Jira sends null for an unassigned story. Anything else must name an account: a missing or
+  // broken assignee would otherwise look like "assigned to someone else" and move the story to
+  // removed.
+  const a = i.fields.assignee;
+  if (a !== null && (!a || typeof a !== "object" || typeof a.accountId !== "string" || a.accountId === "")) {
+    incomplete(`${i.key}'s assignee ${a === undefined ? "is missing" : "has no account id"}`);
+  }
 };
 const issues = [];
 let pages = 0;
@@ -248,13 +255,29 @@ const writeWhole = (path, content) => {
     throw err;
   }
 };
-// The output folder and its notes folder must be real folders, not links to somewhere else:
-// creating a notes file "only if missing" protects the file, not the folder it lands in.
-for (const dir of [out, join(out, "notes")]) {
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+// The folders written into must be real folders, not links to somewhere else: creating a notes
+// file "only if missing" protects the file, not the folder it lands in. Inside this repository,
+// every folder from the repository down to notes is checked, so a link committed to the
+// repository can't send the files elsewhere. Outside it, the folder named is used as named (on
+// macOS even /tmp is a link), and it and its notes folder are checked.
+const absOut = resolve(out);
+const rel = relative(REPO, absOut);
+const inRepo = rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+const dirs = [];
+if (inRepo) {
+  let p = REPO;
+  for (const part of rel.split(sep).filter(Boolean)) dirs.push((p = join(p, part)));
+} else {
+  dirs.push(absOut);
+}
+dirs.push(join(absOut, "notes"));
+for (const [n, dir] of dirs.entries()) {
+  // Only the first folder outside the repository may need its parents made.
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: n === 0 && !inRepo });
   const st = lstatSync(dir);
   if (st.isSymbolicLink() || !st.isDirectory()) {
-    console.error(`${dir === out ? "The output folder" : "The notes folder"} isn't an ordinary folder (it is a link or a file); nothing was written.`);
+    const name = inRepo ? relative(REPO, dir) : dir === absOut ? "The output folder" : "The notes folder";
+    console.error(`${inRepo ? `The folder ${name}` : name} isn't an ordinary folder (it is a link or a file); nothing was written.`);
     process.exit(2);
   }
 }

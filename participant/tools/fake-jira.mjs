@@ -27,6 +27,7 @@
 //   "missing-key"  returns a story with no key at all
 //   "missing-summary" returns a story with no summary
 //   "comment-no-id" returns comments with no id
+//   "assignee-no-id" returns a story whose assignee has no account id
 // and one that is not refused but must stay harmless text:
 //   "markdown-summary" gives a story a summary full of Markdown and HTML (a link, an image, a tag)
 //
@@ -40,7 +41,7 @@ const SITE = "https://jira.example.invalid";
 const ME = { accountId: "fixture-account-0001", displayName: "Fixture User" };
 
 export function fakeJira({ fixturesDir, fixture, phase = "current", fault = process.env.JIRA_PRACTICE_FAULT ?? "" }) {
-  const FAULTS = ["", "empty-page", "wrong-total", "repeat-page", "comment-gap", "unsafe-key", "shrinking-total", "missing-key", "missing-summary", "comment-no-id", "markdown-summary"];
+  const FAULTS = ["", "empty-page", "wrong-total", "repeat-page", "comment-gap", "unsafe-key", "shrinking-total", "missing-key", "missing-summary", "comment-no-id", "assignee-no-id", "markdown-summary"];
   if (!FAULTS.includes(fault)) throw new Error(`unknown practice fault ${JSON.stringify(fault)}`);
   if (!FIXTURES.includes(fixture)) throw new Error(`unknown practice set ${JSON.stringify(fixture)}`);
   if (phase !== "current" && phase !== "previous") throw new Error(`unknown phase ${JSON.stringify(phase)}`);
@@ -76,6 +77,7 @@ export function fakeJira({ fixturesDir, fixture, phase = "current", fault = proc
     };
     if (n === 0 && fault === "missing-key") delete it.key;
     if (n === 0 && fault === "missing-summary") delete it.fields.summary;
+    if (n === 0 && fault === "assignee-no-id") it.fields.assignee = { displayName: ME.displayName };
     return it;
   };
 

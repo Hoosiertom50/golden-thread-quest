@@ -40,7 +40,8 @@ It writes into `participant/context/jira/assigned/`:
    Every story needs a Jira key (`ABC-123`, because keys become file names), a summary and a
    status.
 4. **Keep only stories assigned to me**: a returned story assigned to anyone else is listed in the
-   summary, not kept.
+   summary, not kept. An assignee must be `null` (unassigned) or name an account; a missing or
+   broken one stops the run, so it can't quietly move a story to `removed`.
 5. **Read each story's comments, page after page, keeping each comment id once**, however often
    Jira returns it. Every comment needs an id, and the comments must add up the same way as the
    stories, or nothing is written.
@@ -52,7 +53,7 @@ It writes into `participant/context/jira/assigned/`:
    `removed` with its last known status and summary, and a reason; it is never silently deleted.
    A story that comes back leaves `removed`.
 8. **Write each file whole**: to a new temporary name, then renamed into place, and only into
-   ordinary folders (never through a link). A previous `stories.json` that doesn't look like
+   ordinary folders (never through a link; inside the repository, every folder down to `notes`). A previous `stories.json` that doesn't look like
    this tool's own output is left for a person, not overwritten.
 
 ## Safety rules
