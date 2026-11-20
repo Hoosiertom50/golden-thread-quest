@@ -198,7 +198,10 @@ check("0. The transcript and the decisions file can be read", (p) => {
 check("1. Each decision cites at least one utterance from the source record", (p, v) => {
   const ds = items.filter((it) => it.section.prefix === "D");
   if (!ds.length) p.push("there are no decisions");
-  for (const it of ds) if (!cites(it).length) p.push(`${it.id}: cites no utterance`);
+  for (const it of ds) {
+    if (!cites(it).length) p.push(`${it.id}: cites no utterance`);
+    else if (!cites(it).some((id) => utterances.has(id))) p.push(`${it.id}: cites no utterance that exists in the source record`);
+  }
   if (!p.length) v.push(`verified (criterion 1): all ${ds.length} decisions cite utterances of the source record, from ${ds.map((it) => `${it.id} (${cites(it).join(" ")})`).slice(0, 2).join(" and ")} on`);
 });
 
@@ -343,6 +346,9 @@ check("Stretch: changes, doubts and counts", (p, v) => {
     if (changed) {
       const old = byId.get(changed[1]);
       if (!old || old.fields.get("Not accepted") !== `changed at ${changed[2]} into ${it.id}`) p.push(`${it.id}: changed from ${changed[1]}, but ${changed[1]} doesn't say "Not accepted: changed at ${changed[2]} into ${it.id}"`);
+      // The final decision cites every line that led to it: the change and what it changed.
+      if (!cites(it).includes(changed[2])) p.push(`${it.id}: changed at ${changed[2]}, which it doesn't cite`);
+      for (const id of old ? cites(old) : []) if (!cites(it).includes(id)) p.push(`${it.id}: changed from ${changed[1]}, but doesn't cite ${changed[1]}'s ${id}`);
     }
     const into = /^changed at (U\d+) into (D\d+)$/.exec(it.fields.get("Not accepted") ?? "");
     if (into && byId.get(into[2])?.fields.get("Changed in the meeting") !== `from ${it.id} at ${into[1]}`) p.push(`${it.id}: changed into ${into[2]}, but ${into[2]} doesn't say "Changed in the meeting: from ${it.id} at ${into[1]}"`);

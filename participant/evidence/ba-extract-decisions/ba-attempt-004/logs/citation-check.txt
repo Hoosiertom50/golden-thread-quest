@@ -1,5 +1,5 @@
 ba-extract-decisions: the citation check
-Recorded 11-20-2026 09:32 AM with Node v22.23.3, by participant/tools/citation-check-demo.sh.
+Recorded 11-20-2026 09:44 AM with Node v22.23.3, by participant/tools/citation-check-demo.sh.
 Case 1 checks the real files. Every other case is a copy of the transcript and the decisions file
 in a temp folder with one mistake, checked against the original transcript; each must fail exactly
 the checks named, with the message named, and every check must report. Every check is the expected
@@ -407,7 +407,56 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) Stretch failed, with "D8: "See also" names O1, but O1 doesn't name D8 back".
 
-== 19. An item placed above the five lists ==
+== 19. A decision whose citations all point to lines that don't exist ==
+What was changed in this copy:
+  decisions, before: - Cites: U003 U004
+  decisions, before: - Key line: U004 "Yes, both. Drag is an extra, not a replacement."
+  decisions, before: - Agreed by: Dana Ruiz at U004
+  decisions, after:  - Cites: U098 U099
+  decisions, after:  - Key line: U099 "Yes, both. Drag is an extra, not a replacement."
+  decisions, after:  - Agreed by: Dana Ruiz at U099
+$ node citation-check.mjs --transcript no-real-cite/sample-meeting.md --decisions no-real-cite/sample-meeting.decisions.md --original original.md
+Citation check: no-real-cite/sample-meeting.decisions.md against no-real-cite/sample-meeting.md (19 items, 41 utterances)
+PASS  0. The transcript and the decisions file can be read
+FAIL  1. Each decision cites at least one utterance from the source record
+      - D2: cites no utterance that exists in the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+FAIL  6. A cited identifier that doesn't exist is reported
+      - D2: cites U098, which isn't in the transcript
+      - D2: cites U099, which isn't in the transcript
+      - D2: "Agreed by" names U099, which isn't in the transcript
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+PASS  Stretch: changes, doubts and counts
+Result: FAIL, 4 problems.
+exit code: 1
+As expected: exactly check(s) 1 6 failed, with "D2: cites no utterance that exists in the source record".
+
+== 20. A changed decision that doesn't cite what it changed ==
+What was changed in this copy:
+  decisions, before: - Cites: U009 U010 U011 U034 U035
+  decisions, after:  - Cites: U009 U011 U034 U035
+$ node citation-check.mjs --transcript uncited-change/sample-meeting.md --decisions uncited-change/sample-meeting.decisions.md --original original.md
+Citation check: uncited-change/sample-meeting.decisions.md against uncited-change/sample-meeting.md (19 items, 41 utterances)
+PASS  0. The transcript and the decisions file can be read
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+PASS  6. A cited identifier that doesn't exist is reported
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+FAIL  Stretch: changes, doubts and counts
+      - D4: changed from P1, but doesn't cite P1's U010
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) Stretch failed, with "D4: changed from P1, but doesn't cite P1's U010".
+
+== 21. An item placed above the five lists ==
 What was changed in this copy:
   decisions, after:  ### D9 · Tablet touch is required
 $ node citation-check.mjs --transcript above-lists/sample-meeting.md --decisions above-lists/sample-meeting.decisions.md --original original.md
@@ -427,7 +476,7 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 0 failed, with "an item outside the five lists".
 
-== 20. A count given twice ==
+== 22. A count given twice ==
 What was changed in this copy:
   decisions, after:  - Open questions: 999
 $ node citation-check.mjs --transcript double-count/sample-meeting.md --decisions double-count/sample-meeting.decisions.md --original original.md
@@ -448,7 +497,7 @@ Result: FAIL, 2 problems.
 exit code: 1
 As expected: exactly check(s) 0 Stretch failed, with "Counts lists "Open questions" twice".
 
-== 21. A list line in the introduction ==
+== 23. A list line in the introduction ==
 What was changed in this copy:
   decisions, after:  + Decision: tablet touch is required.
 $ node citation-check.mjs --transcript intro-list/sample-meeting.md --decisions intro-list/sample-meeting.decisions.md --original original.md
@@ -468,7 +517,7 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 0 failed, with "lists are only "- Field: value" lines inside an item".
 
-== 22. An open question raised at a line it doesn't cite ==
+== 24. An open question raised at a line it doesn't cite ==
 What was changed in this copy:
   decisions, before: - Raised by: Priya Shah at U036
   decisions, after:  - Raised by: Sam Okafor at U005
@@ -489,7 +538,7 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 4 failed, with "O3: raised at U005, which it doesn't cite".
 
-== 23. The instruction-like line used as evidence outside the citations ==
+== 25. The instruction-like line used as evidence outside the citations ==
 What was changed in this copy:
   decisions, before: - Not yet confirmed: Priya will test it rather than assume it (U019), see C2
   decisions, after:  - Not yet confirmed: Priya will test it rather than assume it (U027), see C2
@@ -510,7 +559,7 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) Safety failed, with "D7: its "Not yet confirmed" names U027".
 
-== 24. A doubt pointing at the wrong commitment ==
+== 26. A doubt pointing at the wrong commitment ==
 What was changed in this copy:
   decisions, before: - Not yet confirmed: Priya will test it rather than assume it (U019), see C2
   decisions, after:  - Not yet confirmed: Priya will test it rather than assume it (U019), see C5
@@ -532,7 +581,7 @@ Result: FAIL, 2 problems.
 exit code: 1
 As expected: exactly check(s) Stretch failed, with "D7: is settled by C5, but C5 doesn't say "Settles: D7"".
 
-== 25. A link whose syntax changes what counts as code ==
+== 27. A link whose syntax changes what counts as code ==
 What was changed in this copy:
   decisions, before: ### D2 · The dropdown stays: drag is an extra, not a replacement
   decisions, after:  ### D2 · [x](a`b) <!-- The dropdown stays --> `
@@ -561,4 +610,4 @@ As expected: exactly check(s) 0 Stretch failed, with "brackets (links or referen
 SHA-256 of the transcript, the decisions file and the rules, before: a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e ef0667ca45eca35cc618e04c8530abebcf3df7ba2b664cac85f4c58d8a48359f 6ccb04c9094fb7335b2e04b58f7e595fbe8ecc9bb2f438d245aeb14ea234a730
 and after:                                                       a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e ef0667ca45eca35cc618e04c8530abebcf3df7ba2b664cac85f4c58d8a48359f 6ccb04c9094fb7335b2e04b58f7e595fbe8ecc9bb2f438d245aeb14ea234a730
 identical
-SHA-256 of participant/tools/citation-check.mjs: 09e1fcdf157d37f3604d1ae04bc25c294d7c2096914e0ce479450c56baf0d76f
+SHA-256 of participant/tools/citation-check.mjs: 46d505496f042234e6ae3ea62253ffad02649ad5a0924ffef6164482d785c226

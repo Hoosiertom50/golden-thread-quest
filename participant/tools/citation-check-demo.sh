@@ -40,9 +40,20 @@ esac
 cleanup() { rm -rf -- "$T"; }
 FAIL=0
 OUT="$T/$NAME"
-sha() { node -e 'process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(process.argv[1])).digest("hex"))' "$1"; }
-fingerprint() { printf '%s %s %s' "$(sha "$TRANSCRIPT")" "$(sha "$DECISIONS")" "$(sha "$RULES")"; }
-BEFORE=$(fingerprint)
+# sha <file>: its SHA-256, or a failure (exit 1, a message without the path) if it can't be read
+sha() {
+  node -e '
+    try { process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(process.argv[1])).digest("hex")); }
+    catch { process.stderr.write("a file could not be read to fingerprint it\n"); process.exit(1); }
+  ' "$1"
+}
+# fingerprint: the three real files' SHA-256s; fails if any can't be read
+fingerprint() {
+  local a b c
+  a=$(sha "$TRANSCRIPT") && b=$(sha "$DECISIONS") && c=$(sha "$RULES") || return 1
+  printf '%s %s %s' "$a" "$b" "$c"
+}
+BEFORE=$(fingerprint) || { echo "Couldn't fingerprint the real files; stopping."; cleanup; exit 2; }
 cp "$TRANSCRIPT" "$T/original.md"
 
 # copy <name>: fresh copies of the transcript and the decisions file, as $T/<name>/
@@ -230,7 +241,23 @@ Later reversed
   changes see-also
   run see-also "Stretch" "D8: \"See also\" names O1, but O1 doesn't name D8 back"
 
-  echo "== 19. An item placed above the five lists =="
+  echo "== 19. A decision whose citations all point to lines that don't exist =="
+  copy no-real-cite
+  edit no-real-cite $D "- Cites: U003 U004
+- Key line: U004 \"Yes, both. Drag is an extra, not a replacement.\"
+- Agreed by: Dana Ruiz at U004" "- Cites: U098 U099
+- Key line: U099 \"Yes, both. Drag is an extra, not a replacement.\"
+- Agreed by: Dana Ruiz at U099"
+  changes no-real-cite
+  run no-real-cite "1 6" "D2: cites no utterance that exists in the source record"
+
+  echo "== 20. A changed decision that doesn't cite what it changed =="
+  copy uncited-change
+  edit uncited-change $D "- Cites: U009 U010 U011 U034 U035" "- Cites: U009 U011 U034 U035"
+  changes uncited-change
+  run uncited-change "Stretch" "D4: changed from P1, but doesn't cite P1's U010"
+
+  echo "== 21. An item placed above the five lists =="
   copy above-lists
   edit above-lists $D "- Commitments: 5" "- Commitments: 5
 
@@ -238,14 +265,14 @@ Later reversed
   changes above-lists
   run above-lists "0" "an item outside the five lists"
 
-  echo "== 20. A count given twice =="
+  echo "== 22. A count given twice =="
   copy double-count
   edit double-count $D "- Open questions: 3" "- Open questions: 999
 - Open questions: 3"
   changes double-count
   run double-count "0 Stretch" "Counts lists \"Open questions\" twice"
 
-  echo "== 21. A list line in the introduction =="
+  echo "== 23. A list line in the introduction =="
   copy intro-list
   edit intro-list $D "## Counts" "+ Decision: tablet touch is required.
 
@@ -253,36 +280,36 @@ Later reversed
   changes intro-list
   run intro-list "0" "lists are only \"- Field: value\" lines inside an item"
 
-  echo "== 22. An open question raised at a line it doesn't cite =="
+  echo "== 24. An open question raised at a line it doesn't cite =="
   copy uncited-raiser
   edit uncited-raiser $D "- Raised by: Priya Shah at U036" "- Raised by: Sam Okafor at U005"
   changes uncited-raiser
   run uncited-raiser "4" "O3: raised at U005, which it doesn't cite"
 
-  echo "== 23. The instruction-like line used as evidence outside the citations =="
+  echo "== 25. The instruction-like line used as evidence outside the citations =="
   copy injection-field
   edit injection-field $D "assume it (U019), see C2" "assume it (U027), see C2"
   changes injection-field
   run injection-field "Safety" "D7: its \"Not yet confirmed\" names U027"
 
-  echo "== 24. A doubt pointing at the wrong commitment =="
+  echo "== 26. A doubt pointing at the wrong commitment =="
   copy wrong-settler
   edit wrong-settler $D "assume it (U019), see C2" "assume it (U019), see C5"
   changes wrong-settler
   run wrong-settler "Stretch" "D7: is settled by C5, but C5 doesn't say \"Settles: D7\""
 
-  echo "== 25. A link whose syntax changes what counts as code =="
+  echo "== 27. A link whose syntax changes what counts as code =="
   copy link
   edit link $D "### D2 · The dropdown stays: drag is an extra, not a replacement" '### D2 · [x](a`b) <!-- The dropdown stays --> `'
   changes link
   run link "0 Stretch" "brackets (links or references) aren't used in the decisions file"
 
-  AFTER=$(fingerprint)
+  AFTER=$(fingerprint) || { AFTER="(could not be read)"; FAIL=1; }
   echo "== The real files were only read =="
   echo "SHA-256 of the transcript, the decisions file and the rules, before: $BEFORE"
   echo "and after:                                                       $AFTER"
   if [ "$BEFORE" = "$AFTER" ]; then echo "identical"; else echo "THE REAL FILES CHANGED"; FAIL=1; fi
-  echo "SHA-256 of participant/tools/citation-check.mjs: $(sha "$CHECK")"
+  if CHECK_SHA=$(sha "$CHECK"); then echo "SHA-256 of participant/tools/citation-check.mjs: $CHECK_SHA"; else echo "UNEXPECTED: the checker couldn't be fingerprinted"; FAIL=1; fi
 } > "$OUT" 2>&1
 
 if grep -qF -- "$T" "$OUT"; then

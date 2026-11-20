@@ -58,7 +58,8 @@ The two borderline lines, as `decision-rules.md` records them:
 ## How a decision changed later in the same meeting was handled
 
 Nothing is overwritten and nothing silently disappears: the final decision cites every line that
-led to it, and the earlier version stays, linked both ways (criteria 1, 2 and 4).
+led to it (the checker requires the change and every line of the earlier version), and the earlier
+version stays, linked both ways (criteria 1, 2 and 4).
 
 - **The full-table message (U010 to U011).** Marcus proposed "I'd block it and shake the table, maybe
   a message" (U010); Dana changed it: "A message, please. Shaking alone isn't clear enough." (U011).
@@ -104,7 +105,7 @@ The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 9:32 AM with Node 22.23.3, at commit ff85888 with the quest's files
+Recorded on 11-20-2026 at 9:44 AM with Node 22.23.3, at commit ff85888 with the quest's files
 uncommitted (`logs/citation-check.txt`). Every broken case must fail exactly the checks named for it,
 with the expected message, and every check must report; every check is the expected failure of at
 least one case.
@@ -132,15 +133,19 @@ least one case.
     code, and is itself reported.
 17. **A short underline ("--") turning a line into a heading** that would split an item: check 0.
 18. **A "See also" that points only one way:** the stretch check.
-19. **An item placed above the five lists:** check 0.
-20. **A count given twice** (a reader would see both): checks 0 and the stretch check.
-21. **A list line in the introduction** ("+ Decision: …"): check 0.
-22. **An open question raised at a line it doesn't cite:** check 4.
-23. **The instruction-like line U027 used as evidence outside the citations** (in a doubt): the
+19. **A decision whose citations all point to lines that don't exist:** checks 1 and 6; a decision must
+    cite at least one line that exists.
+20. **A changed decision that doesn't cite what it changed** (D4 without P1's U010): the stretch
+    check; a changed decision cites the change and every line of what it changed.
+21. **An item placed above the five lists:** check 0.
+22. **A count given twice** (a reader would see both): checks 0 and the stretch check.
+23. **A list line in the introduction** ("+ Decision: …"): check 0.
+24. **An open question raised at a line it doesn't cite:** check 4.
+25. **The instruction-like line U027 used as evidence outside the citations** (in a doubt): the
     safety check, which looks at every field.
-24. **A doubt pointing at the wrong commitment:** the stretch check; the doubt and the commitment's
+26. **A doubt pointing at the wrong commitment:** the stretch check; the doubt and the commitment's
     "Settles" line must name each other.
-25. **A link whose syntax changes what counts as code:** check 0, and the stretch check's count,
+27. **A link whose syntax changes what counts as code:** check 0, and the stretch check's count,
     since the disguised decision isn't read; brackets aren't used in the decisions file.
 
 The real files' SHA-256, before and after, is identical.
