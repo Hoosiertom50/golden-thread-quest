@@ -4,26 +4,30 @@
 #
 #   bash participant/tools/jira-sync-demo.sh <logs folder>   (from the repository's top folder)
 #
-# Part A, in a new temp folder: every practice set synchronized twice, with a person's note in
-# place, showing the second run changes nothing and the note stays byte-identical; then the eleven
-# practice faults, each refused with its own message and no output folder made; a ticket summary full of
-# Markdown, shown as plain characters; three previous stories.json files this tool didn't write,
-# each refused and left exactly as it was; another run's lock in the folder, refused with every
-# file unchanged; an index.md the person wrote, refused and left as it was; a folder where index.md should be, refused with the
-# other files unchanged; a notes folder that is a link, and a copy of the repository whose
-# participant/context folder is a link, each refused.
+# Part A, in a new temp folder:
+#   - every practice set synchronized twice, with a person's note in place: the second run changes
+#     nothing and the note stays byte-identical;
+#   - the eleven practice faults, each refused with its own message and no output folder made;
+#   - a ticket summary full of Markdown, shown as plain characters;
+#   - things in the output folder the synchronization must not write over, each refused and left
+#     as it was: three stories.json files it didn't write, another run's lock, an index.md the
+#     person wrote, a named pipe at stories.json (under a 10-second limit), a folder where a notes
+#     file should be, and a folder where index.md should be;
+#   - a notes folder that is a link, and a repository copy whose participant/context is a link.
 # Part B, in the real folder (participant/context/jira/assigned), only if all of Part A came out as
-# expected and the three generated files there are ordinary files written by the synchronization: each practice set synchronized
-# (twice), then checked by the app's own validator (`quest-app action run-validator`), ending with
-# stale-item, whose result is the one kept. Part B holds the synchronization's lock
-# (.jira-sync.lock) throughout and passes its token to its own runs, so no other run can write
-# there meanwhile. Only the three generated files are replaced between
-# sets, and they are copied first. On any unsuccessful end (something unexpected, a log that can't
-# be written, an interruption) the copies are put back, and any notes file Part B created that is
-# still the empty one is removed; if putting back fails, the copies are kept and named. Every
-# folder from the repository down to the real notes folder must be an ordinary folder.
-# The notes folder is never touched by this script, and its existing files are fingerprinted
-# before and after.
+# expected:
+#   - it first takes the synchronization's lock (.jira-sync.lock) and holds it throughout, passing
+#     its token to its own runs, so no other run can write there meanwhile;
+#   - every folder from the repository down to the real notes folder must be an ordinary folder,
+#     and the synchronization itself (--check-only) must accept the real folder;
+#   - the real notes are fingerprinted and the three generated files copied;
+#   - each practice set is synchronized twice and checked by the app's own validator
+#     (`quest-app action run-validator`), ending with stale-item, whose result is the one kept;
+#   - the notes that existed before are compared after.
+# On any unsuccessful end (something unexpected, a record not written to its end, an interruption)
+# the copies are put back, any notes file Part B created that is still the empty one is removed,
+# and the lock is released; if putting back fails, the copies and the lock are kept and named.
+# Existing notes files are never written by this script.
 #
 # Writes sync-run.txt into <logs folder>, which can't be inside the real output folder, only if
 # everything came out as expected. Exit codes: 0 all as expected, 1 something unexpected (the log
@@ -341,6 +345,15 @@ PREVIOUS
   printf '%s\n' "${out//"$T/"/}"
   expect "exit code" "$code" 2
   expect "files in the folder (only the pipe)" "$(ls -A "$D" | tr '\n' ' ')" "stories.json "
+
+  echo
+  echo "== a folder where a story's notes file should be (notes/GTQ-101.md) =="
+  D="$T/notes-folder"
+  mkdir -p "$D/notes/GTQ-101.md"
+  run_sync "$D" --fixture happy-path; code=$?
+  expect "exit code" "$code" 2
+  expect "files and folders in the output folder (only notes)" "$(ls -A "$D" | tr '\n' ' ')" "notes "
+  expect "entries in notes (only that folder)" "$(ls -A "$D/notes" | tr '\n' ' ')" "GTQ-101.md "
 
   echo
   echo "== a folder where index.md should be =="

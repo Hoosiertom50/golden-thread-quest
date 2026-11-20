@@ -129,7 +129,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 2:41 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 2:49 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -159,6 +159,8 @@ uncommitted (`logs/sync-run.txt`).
   it as it was.
 - **A named pipe where `stories.json` should be** (reading one could wait forever): refused at
   once with exit 2, also with `--check-only`.
+- **A folder where a story's notes file should be** (`notes/GTQ-101.md`): the run stops with
+  exit 2 rather than report success with notes that can't be opened; nothing is written.
 - **A folder where `index.md` should be:** the run stops with exit 2; `stories.json`,
   `sync-summary.json` and the notes are unchanged.
 - **A notes folder that is a link to another folder,** and **a copy of the repository whose
@@ -202,7 +204,7 @@ made to fail, a hand-written `index.md`, and a `stories.json` holding the same k
 time the folder came out byte-identical, Part B left it alone, or the copies were kept, as
 described above.
 
-94 expectations in the record, all as expected.
+97 expectations in the record, all as expected.
 
 ## Remaining limitations
 
@@ -230,9 +232,10 @@ described above.
 - **Notes from other practice sets stay.** Because notes are never deleted, the notes folder also
   holds the empty notes files created for the stories of the other three practice sets
   (GTQ-103, GTQ-201, GTQ-202).
-- **Several validator results are kept.** The validation folder holds one result per validator
-  run: two from the first checks, then four (one per practice set) for each run of the
-  demonstration. All of them passed; the one that matches the record is the latest of each set.
+- **Only the final validator results are kept.** The validation folder holds the four results
+  the final record names (one per practice set). The validator also ran during the first checks
+  and each earlier run of the demonstration; every one of those results passed too, and they were
+  moved out of the hand-in (to the ignored `local-data` folder) to keep it readable.
 
 ## Sensitive values
 
