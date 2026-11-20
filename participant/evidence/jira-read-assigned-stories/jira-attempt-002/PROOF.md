@@ -116,6 +116,8 @@ All paths are under `participant/`.
 - The notes: `context/jira/assigned/notes/`
 - The demonstration: `tools/jira-sync-demo.sh`; its record:
   `evidence/jira-read-assigned-stories/jira-attempt-002/logs/sync-run.txt`
+- The safety checks: `tools/jira-sync-safety-demo.mjs`; their record:
+  `evidence/jira-read-assigned-stories/jira-attempt-002/logs/safety-checks.txt`
 - The validator's results: `evidence/jira-read-assigned-stories/jira-attempt-002/validation/`
 
 ## How to reproduce the behavior
@@ -128,6 +130,7 @@ node participant/tools/jira-sync.mjs --fixture stale-item
 .venv/bin/quest-app action run-validator --quest jira-read-assigned-stories \
   --validator validate-jira-read-assigned --param fixture_set=stale-item
 bash participant/tools/jira-sync-demo.sh <a new logs folder>
+node participant/tools/jira-sync-safety-demo.mjs <a new logs folder>
 ```
 
 ## What was tested or validated
@@ -206,11 +209,19 @@ How Part B protects the real folder:
   is published and the files are put back. The logs folder can't be inside the real output
   folder, checked before the logs folder is made.
 
-Tried separately, in the real folder or in copies of the repository: a stand-in validator that
-always fails (also with two notes files missing), an interruption during Part B, putting back
-made to fail, a hand-written `index.md`, and a `stories.json` holding the same key twice. Each
-time the folder came out byte-identical, Part B left it alone, or the copies were kept, as
-described above.
+The failure paths that can't be shown on the real folder are recorded separately, so they can be
+run again: `participant/tools/jira-sync-safety-demo.mjs` rebuilds each one in throwaway copies of
+the repository (a stand-in validator replaces the app there, and a failure at one exact point uses
+a copy of a tool with one marked TEST ONLY line) and writes `logs/safety-checks.txt`. Its 15
+cases: a validator that fails; notes made by Part B's runs removed while a person's new note is
+kept; putting back made to fail; an interruption (TERM) and a closed terminal (HUP) during Part B;
+another synchronization started during Part B; a hand-written `index.md` and a `stories.json`
+holding a key twice; and, for the synchronization itself, a forced rename failure, a forced
+put-back failure, a run killed outright, notes-list paths that alias a note, twenty pairs of
+simultaneous runs, changes made between the first checks and the lock, a notes file that fails
+partway or a read-only notes folder, and folders a failed run made (removed again) or couldn't
+make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded on 11-20-2026 at
+3:57 PM: 58 expectations, all as expected, and the real folder unchanged.
 
 97 expectations in the record, all as expected.
 
