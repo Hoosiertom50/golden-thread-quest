@@ -1,5 +1,5 @@
 ba-extract-decisions: the citation check
-Recorded 11-20-2026 10:07 AM with Node v22.23.3, by participant/tools/citation-check-demo.sh.
+Recorded 11-20-2026 10:17 AM with Node v22.23.3, by participant/tools/citation-check-demo.sh.
 Case 1 checks the real files. Every other case is a copy of the transcript and the decisions file
 in a temp folder with one mistake, checked against the original transcript; each must fail exactly
 the checks named, with the message named, and every check must report. Every check is the expected
@@ -735,8 +735,31 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) 6 failed, with "the introduction names an item; items are named only in the five lists".
 
+== 34. The file's title naming an item, a missing line and the instruction-like line ==
+What was changed in this copy:
+  decisions, before: # Decisions: sample-meeting (Seating Chart Refinement, Sprint 14)
+  decisions, after:  # D99 was agreed at U099 and U027 is an accepted decision
+$ node citation-check.mjs --transcript title-line/sample-meeting.md --decisions title-line/sample-meeting.decisions.md --original original.md
+Citation check: title-line/sample-meeting.decisions.md against title-line/sample-meeting.md (19 items, 41 utterances)
+PASS  0. The transcript and the decisions file can be read
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+FAIL  6. A cited identifier that doesn't exist is reported
+      - decisions file line 1: the introduction names U099, which isn't in the transcript
+      - decisions file line 1: the introduction names an item; items are named only in the five lists
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+FAIL  Safety: an instruction-like line is never a decision, proposal, question or commitment
+      - decisions file line 1: the introduction names U027, which the transcript flags as instruction-like
+PASS  Stretch: changes, doubts and counts
+Result: FAIL, 3 problems.
+exit code: 1
+As expected: exactly check(s) 6 Safety failed, with "the introduction names U099, which isn't in the transcript".
+
 == The real files were only read ==
 SHA-256 of the transcript, the decisions file and the rules, before: a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e ef0667ca45eca35cc618e04c8530abebcf3df7ba2b664cac85f4c58d8a48359f 6ccb04c9094fb7335b2e04b58f7e595fbe8ecc9bb2f438d245aeb14ea234a730
 and after:                                                       a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e ef0667ca45eca35cc618e04c8530abebcf3df7ba2b664cac85f4c58d8a48359f 6ccb04c9094fb7335b2e04b58f7e595fbe8ecc9bb2f438d245aeb14ea234a730
 identical
-SHA-256 of participant/tools/citation-check.mjs: 913562f6e5f1b99706e4608906eee1e978e79a35d08f609b31a19de93bab8f28
+SHA-256 of participant/tools/citation-check.mjs: 3da7b4a4a1fac06d40302b5aefbe081b067e9a676a85063a48a3013dc6ec053c

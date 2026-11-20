@@ -345,6 +345,12 @@ Later reversed
   changes intro-item
   run intro-item "6" "the introduction names an item; items are named only in the five lists"
 
+  echo "== 34. The file's title naming an item, a missing line and the instruction-like line =="
+  copy title-line
+  edit title-line $D "# Decisions: sample-meeting (Seating Chart Refinement, Sprint 14)" "# D99 was agreed at U099 and U027 is an accepted decision"
+  changes title-line
+  run title-line "6 Safety" "the introduction names U099, which isn't in the transcript"
+
   AFTER=$(fingerprint) || { AFTER="(could not be read)"; FAIL=1; }
   echo "== The real files were only read =="
   echo "SHA-256 of the transcript, the decisions file and the rules, before: $BEFORE"

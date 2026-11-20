@@ -156,6 +156,8 @@ lines.forEach((line, i) => {
   }
   if (/^#/.test(line)) {
     if (!/^# \S/.test(line) || i !== firstHeading) fileProblems.push(`${where}: a heading that isn't the title, one of the lists or an item`);
+    // The title is read like the introduction: its references are checked too.
+    else intro.push({ line: line.replace(/^# /, ""), where });
     return;
   }
   const f = /^- ([A-Za-z ]+): (.*)$/.exec(line);
