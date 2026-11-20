@@ -5,14 +5,16 @@
 #   bash participant/tools/jira-sync-demo.sh <logs folder>   (from the repository's top folder)
 #
 # Part A, in a new temp folder: every practice set synchronized twice, with a person's note in
-# place, showing the second run changes nothing and the note stays byte-identical; then the five
-# practice faults, each refused with its own message and nothing written, and a previous
-# stories.json this tool didn't write, refused and left exactly as it was.
-# Part B, in the real folder (participant/context/jira/assigned): each practice set synchronized
-# (twice), then checked by the app's own validator (`quest-app action run-validator`), ending with
-# stale-item, whose result is the one kept. Only the three generated files are replaced between
-# sets; the notes folder is never touched by this script, and its existing files are fingerprinted
-# before and after.
+# place, showing the second run changes nothing and the note stays byte-identical; then the nine
+# practice faults, each refused with its own message and nothing written; a ticket summary full of
+# Markdown, shown as plain characters; three previous stories.json files this tool didn't write,
+# each refused and left exactly as it was; and a notes folder that is a link, refused.
+# Part B, in the real folder (participant/context/jira/assigned), only if all of Part A came out as
+# expected: each practice set synchronized (twice), then checked by the app's own validator
+# (`quest-app action run-validator`), ending with stale-item, whose result is the one kept. Only
+# the three generated files are replaced between sets, and they are copied first: if anything in
+# Part B is unexpected, or the script is interrupted, the copies are put back. The notes folder is
+# never touched by this script, and its existing files are fingerprinted before and after.
 #
 # Writes sync-run.txt into <logs folder> only if everything came out as expected. Exit codes:
 # 0 all as expected, 1 something unexpected (nothing written), 2 setup error.
@@ -42,16 +44,38 @@ case "$(basename "$T")" in
 esac
 [ -z "$(ls -A "$T")" ] || { echo "The temp folder isn't new; stopping."; exit 2; }
 cleanup() { rm -rf -- "$T"; }
-trap 'cleanup; exit 130' INT TERM
+GENERATED="stories.json index.md sync-summary.json"
+PARTB=0
+# restore_real: put the real folder's three generated files back as they were before Part B (a
+# file that didn't exist then is removed). Each copy goes to a new name, then is renamed into place.
+restore_real() {
+  [ "$PARTB" = 1 ] || return 0
+  node -e '
+    const fs = require("fs"), [real, saved, ...names] = process.argv.slice(1);
+    for (const f of names) {
+      const target = `${real}/${f}`, copy = `${saved}/${f}`;
+      if (fs.existsSync(copy)) {
+        const tmp = `${target}.${process.pid}.restore`;
+        fs.copyFileSync(copy, tmp, fs.constants.COPYFILE_EXCL);
+        fs.renameSync(tmp, target);
+      } else {
+        try { fs.unlinkSync(target); } catch (e) { if (e.code !== "ENOENT") throw e; }
+      }
+    }
+  ' "$REAL" "$T/real-saved" $GENERATED && echo "The real folder's three generated files were put back as they were."
+}
+trap 'restore_real; cleanup; exit 130' INT TERM
 FAIL=0
 OUT="$T/$NAME"
 
-# notes_print <folder>: SHA-256 of every notes file, one per line (empty when there are none)
+# notes_print <folder>: SHA-256 of every notes file, one per line: the hash, a space, then the
+# file name as a JSON string (so a name with spaces or anything else stays whole). Exit 1 if any
+# file can't be read; callers treat that as unexpected.
 notes_print() {
   node -e '
     const fs = require("fs"), c = require("crypto"), d = process.argv[1];
     try {
-      for (const f of fs.readdirSync(d).sort()) console.log(c.createHash("sha256").update(fs.readFileSync(`${d}/${f}`)).digest("hex"), f);
+      for (const f of fs.readdirSync(d).sort()) console.log(c.createHash("sha256").update(fs.readFileSync(`${d}/${f}`)).digest("hex"), JSON.stringify(f));
     } catch { process.exit(1); }
   ' "$1/notes"
 }
@@ -90,9 +114,9 @@ A person's note (made-up): asked about the edge case; answer pending.
     if [ "$set" = stale-item ]; then first="--phase previous"; else first=""; fi
     # shellcheck disable=SC2086
     run_sync "$D" --fixture "$set" $first || { echo "  UNEXPECTED: the first run failed"; FAIL=1; }
-    notes_print "$D" > "$T/$set.before"
+    notes_print "$D" > "$T/$set.before" || { echo "  UNEXPECTED: couldn't fingerprint the notes"; FAIL=1; }
     run_sync "$D" --fixture "$set" || { echo "  UNEXPECTED: the second run failed"; FAIL=1; }
-    notes_print "$D" > "$T/$set.after"
+    notes_print "$D" > "$T/$set.after" || { echo "  UNEXPECTED: couldn't fingerprint the notes"; FAIL=1; }
     echo "Checked after the second run:"
     if cmp -s "$T/$set.before" "$T/$set.after"; then echo "  as expected: every notes file is byte-identical across the second run (SHA-256 before and after):"; sed 's/^/    /' "$T/$set.after"; else echo "  UNEXPECTED: a notes file changed"; diff "$T/$set.before" "$T/$set.after"; FAIL=1; fi
     expect "the person's note GTQ-101.md" "$(cat "$D/notes/GTQ-101.md")" "$(printf '%s' "$NOTE")"
@@ -128,24 +152,72 @@ A person's note (made-up): asked about the edge case; answer pending.
   done <<'FAULTS'
 empty-page pagination Incomplete: Jira reported 4 stories but page 3 was empty; nothing was written.
 wrong-total pagination Incomplete: Jira reported 5 stories, 4 arrived (4 distinct); nothing was written.
-repeat-page pagination Incomplete: Jira reported 4 stories but sent more (6 after page 3); nothing was written.
+repeat-page pagination Incomplete: page 2 started at 0, not 2 as asked; nothing was written.
+shrinking-total pagination Incomplete: page 2 reported a total of 3, but the first page reported 4; nothing was written.
 comment-gap duplicate-comment Incomplete: Jira reported 3 comments on GTQ-101 but comment page 1 was empty; nothing was written.
+comment-no-id duplicate-comment Incomplete: a comment on GTQ-101 has no id; nothing was written.
 unsafe-key pagination Incomplete: Jira returned "../GTQ-101", which is not a Jira key; nothing was written.
+missing-key pagination Incomplete: Jira returned story 1 with no key; nothing was written.
+missing-summary pagination Incomplete: GTQ-101 has no summary; nothing was written.
 FAULTS
 
   echo
-  echo "== a previous stories.json this tool didn't write (it holds just null) =="
-  D="$T/not-ours"
-  mkdir -p "$D"
-  printf 'null\n' > "$D/stories.json"
+  echo "== ticket text full of Markdown and HTML (practice twist: markdown-summary) =="
+  D="$T/markdown"
+  echo "\$ JIRA_PRACTICE_FAULT=markdown-summary node jira-sync.mjs --fixture pagination --out markdown"
+  out=$(cd "$REPO" && JIRA_PRACTICE_FAULT=markdown-summary node "$SYNC" --fixture pagination --out "$D" </dev/null 2>&1); code=$?
+  printf '%s\n' "${out//"$T/"/}"
+  expect "exit code" "$code" 0
+  echo "  GTQ-101's row in index.md:"
+  grep -F '| GTQ-101 |' "$D/index.md" | sed 's/^/    /'
+  expect "the link, image and tag shown as typed (every mark escaped)" "$(node -e '
+    const t = require("fs").readFileSync(process.argv[1], "utf8");
+    const row = t.split("\n").find((l) => l.startsWith("| GTQ-101 |")) ?? "";
+    console.log(row.includes("\\[click me\\]\\(https\\:") && row.includes("\\!\\[x\\]") && row.includes("\\<b\\>") && !/(^|[^\\])[<[!*]/.test(row.replace(/^\| GTQ-101 \|/, "")) ? "yes" : "no");
+  ' "$D/index.md")" yes
+
+  # <case name> <previous stories.json content>
+  while read -r name content; do
+    echo
+    echo "== a previous stories.json this tool didn't write ($name): $content =="
+    D="$T/not-ours-$name"
+    mkdir -p "$D"
+    printf '%s\n' "$content" > "$D/stories.json"
+    run_sync "$D" --fixture happy-path; code=$?
+    expect "exit code" "$code" 2
+    expect "the previous stories.json, left as it was" "$(cat "$D/stories.json")" "$content"
+    expect "files in the folder (only that stories.json)" "$(ls -A "$D" | tr '\n' ' ')" "stories.json "
+  done <<'PREVIOUS'
+null null
+no-lists {}
+same-key-twice {"stories":[{"key":"GTQ-101"},{"key":"GTQ-101"}],"removed":[]}
+PREVIOUS
+
+  echo
+  echo "== a notes folder that is a link to another folder =="
+  D="$T/linked-notes"
+  mkdir -p "$D" "$T/somewhere-else"
+  ln -s "$T/somewhere-else" "$D/notes"
   run_sync "$D" --fixture happy-path; code=$?
   expect "exit code" "$code" 2
-  expect "the previous stories.json, left as it was" "$(cat "$D/stories.json")" null
-  expect "files in the folder (only that stories.json)" "$(ls -A "$D" | tr '\n' ' ')" "stories.json "
+  expect "files written where the link points" "$(ls -A "$T/somewhere-else" | wc -l | tr -d ' ')" 0
+  expect "files in the folder (only the link)" "$(ls -A "$D" | tr '\n' ' ')" "notes "
 
   echo
   echo "=================== Part B: the real folder, checked by the app's own validator ==================="
-  notes_print "$REAL" > "$T/real-notes-before"
+  if [ "$FAIL" != 0 ]; then
+    echo "  UNEXPECTED: Part A didn't all come out as expected, so the real folder is left alone."
+  elif ! notes_print "$REAL" > "$T/real-notes-before"; then
+    echo "  UNEXPECTED: couldn't fingerprint the real notes, so the real folder is left alone."; FAIL=1
+  elif ! node -e '
+      const fs = require("fs"), [real, saved, ...names] = process.argv.slice(1);
+      fs.mkdirSync(saved);
+      for (const f of names) if (fs.existsSync(`${real}/${f}`)) fs.copyFileSync(`${real}/${f}`, `${saved}/${f}`, fs.constants.COPYFILE_EXCL);
+    ' "$REAL" "$T/real-saved" $GENERATED; then
+    echo "  UNEXPECTED: couldn't copy the real generated files first, so the real folder is left alone."; FAIL=1
+  else
+  PARTB=1
+  echo "The three generated files were copied first, to be put back if anything goes wrong."
   echo "Notes files in participant/context/jira/assigned/notes before Part B (SHA-256):"
   sed 's/^/  /' "$T/real-notes-before"
   for set in happy-path pagination duplicate-comment stale-item; do
@@ -170,15 +242,18 @@ FAULTS
     expect "validator outcome" "$(field "$REPO/$path" 'd.outcome')" pass
     expect "checks that didn't pass" "$(field "$REPO/$path" 'd.checks.filter(c => c.outcome !== "pass").length')" 0
   done
-  notes_print "$REAL" > "$T/real-notes-after"
+  notes_print "$REAL" > "$T/real-notes-after" || { echo "  UNEXPECTED: couldn't fingerprint the real notes after Part B"; FAIL=1; }
   echo
   echo "Notes files that existed before Part B, compared after it:"
   node -e '
     const fs = require("fs"), [a, b] = process.argv.slice(1);
-    const after = new Map(fs.readFileSync(b, "utf8").trim().split("\n").filter(Boolean).map((l) => [l.split(" ")[1], l.split(" ")[0]]));
+    // Each line: the hash, one space, the file name as a JSON string.
+    const parse = (l) => { const i = l.indexOf(" "); return [JSON.parse(l.slice(i + 1)), l.slice(0, i)]; };
+    const lines = (p) => fs.readFileSync(p, "utf8").split("\n").filter(Boolean);
+    const after = new Map(lines(b).map(parse));
     let bad = 0;
-    for (const l of fs.readFileSync(a, "utf8").trim().split("\n").filter(Boolean)) {
-      const [h, f] = l.split(" ");
+    for (const l of lines(a)) {
+      const [f, h] = parse(l);
       const same = after.get(f) === h;
       if (!same) bad++;
       console.log(`  ${same ? "identical" : "CHANGED"}  ${f}`);
@@ -189,15 +264,18 @@ FAULTS
   echo "The repository keeps the stale-item result: stories.json lists GTQ-101 and GTQ-102, and GTQ-100 under \"removed\"."
   expect "kept stories" "$(field "$REAL/stories.json" 'd.stories.map(s => s.key).join(",")')" "GTQ-101,GTQ-102"
   expect "kept removed" "$(field "$REAL/stories.json" 'd.removed.map(r => r.key).join(",")')" "GTQ-100"
+  fi
 } > "$OUT" 2>&1
 
 if grep -qF -- "$T" "$OUT" || grep -qF -- "$REPO" "$OUT" || { [ -n "${HOME:-}" ] && grep -qF -- "$HOME" "$OUT"; }; then
-  echo "The log contains a temp, repository or home folder address; nothing is written or shown."
+  echo "The log contains a temp, repository or home folder address; it is not written or shown."
+  [ "$FAIL" != 0 ] && restore_real
   cleanup
   exit 1
 fi
 if [ "$FAIL" != 0 ]; then
-  echo "Something unexpected happened; nothing was written. The log (temp folder names hidden):"
+  restore_real
+  echo "Something unexpected happened; $NAME was not written. The log (temp folder names hidden):"
   while IFS= read -r line || [ -n "$line" ]; do printf '%s\n' "${line//"$T"/<temp>}"; done < "$OUT"
   cleanup
   exit 1

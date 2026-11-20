@@ -35,10 +35,12 @@ stories assigned to the signed-in user; the work-item type is Story.
 
 **Pagination (criterion 3).** The synchronization asks for the next page until Jira says the page
 was the last (`isLast`), then checks that the stories received equal the `total` Jira reported and
-that no key arrived twice. If Jira says there is more but sends an empty page, sends more than its
-total (repeating itself), or its total doesn't match, the run stops and writes nothing (exit 1),
-so an incomplete list can never look complete. Comments are paged and counted the same way. Every
-key must look like a Jira key (`ABC-123`), because keys become notes file names.
+that no key arrived twice. Every page must start where it was asked to, report the same total as
+the first page, and say plainly (true or false) whether it is the last. If any of that fails, if a
+page that isn't the last is empty, or if more arrive than the total, the run stops and writes
+nothing (exit 1), so an incomplete list can never look complete. Comments are paged and counted
+the same way, and every comment must have an id. Every story must have a Jira key (`ABC-123`,
+because keys become notes file names), a summary and a status.
 
 **Normalizing (criteria 4 and 5).** Each story has `key`, `source_url`, `summary`, `status`,
 `priority`, `type`, `assignee`, `labels`, `description`, `acceptance_criteria`, `parent`,
@@ -55,7 +57,10 @@ title:
   (criterion 8). A story that comes back leaves `removed`.
 
 Each output file is written to a new temporary name and renamed into place, so a reader never sees
-a half-written file.
+a half-written file. The previous `stories.json` must look like this tool's own output (both
+lists, Jira keys, no key twice) or the run stops and leaves it alone. The output and notes folders
+must be ordinary folders, not links elsewhere. In `index.md`, ticket text is shown as plain
+characters: every punctuation mark that Markdown or HTML could act on is escaped.
 
 ## What tells me the local copy is complete enough
 
@@ -105,7 +110,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 11:32 AM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 11:50 AM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -118,22 +123,31 @@ uncommitted (`logs/sync-run.txt`).
 - **duplicate-comment:** GTQ-101's comments are 9001 and 9002, each once; 1 duplicate skipped.
 - **stale-item:** run first in its previous state (GTQ-100 still assigned), then current: GTQ-100
   is listed under `removed` with its last known status, In Progress, and its notes file is kept.
-- **The pretend Jira misbehaving, five ways:** claiming more pages but sending an empty one;
-  reporting 5 stories while sending 4; sending the first page again and again; claiming more
-  comments but sending an empty comment page; and returning the key `../GTQ-101`, which tries to
-  leave the notes folder. Each run stops with exit 1, its own message, and nothing written.
-- **A previous `stories.json` this tool didn't write** (it holds just `null`): the run stops with
-  exit 2 and leaves that file exactly as it was.
+- **The pretend Jira misbehaving, nine ways:** claiming more pages but sending an empty one;
+  reporting 5 stories while sending 4; sending the first page again and again; a last page that
+  reports a smaller total and leaves a story out; claiming more comments but sending an empty
+  comment page; comments with no id; the key `../GTQ-101`, which tries to leave the notes folder;
+  a story with no key; and a story with no summary. Each run stops with exit 1, its own message,
+  and nothing written.
+- **A summary full of Markdown and HTML** (a link, an image, a tag): the run succeeds and
+  `index.md` shows every mark escaped, as typed.
+- **Three previous `stories.json` files this tool didn't write** (`null`, `{}`, and the same key
+  twice): each run stops with exit 2 and leaves that file exactly as it was.
+- **A notes folder that is a link to another folder:** the run stops with exit 2 and nothing is
+  written where the link points.
 
-**Part B, in the real folder: the app's own validator** (`validate-jira-read-assigned`, run with
+**Part B, in the real folder, run only when all of Part A came out as expected: the app's own
+validator** (`validate-jira-read-assigned`, run with
 `quest-app action run-validator`, network denied) after each set: **pass on all four**, every check
 passing. It confirmed every story present (pagination), normalized fields, links to the source, no
 duplicate records, no duplicate comments (duplicate-comment), the disappearance reported
 (stale-item), and no raw responses committed. The notes files that existed before Part B are
-byte-identical after it. The repository keeps the stale-item result: GTQ-101 and GTQ-102, with
-GTQ-100 under `removed`.
+byte-identical after it. The three generated files are copied before Part B and put back if
+anything in it is unexpected or the script is interrupted (tried separately with a stand-in
+validator that always fails: the real folder came out byte-identical). The repository keeps the
+stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
 
-51 expectations in the record, all as expected.
+74 expectations in the record, all as expected.
 
 ## Remaining limitations
 

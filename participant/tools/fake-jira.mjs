@@ -23,6 +23,12 @@
 //   "repeat-page"  ignores startAt, sending the first page again and again, never the last
 //   "comment-gap"  claims more comments but sends an empty comment page
 //   "unsafe-key"   returns a story whose key is not a Jira key (it tries to leave the folder)
+//   "shrinking-total" reports one story fewer on the last page, and leaves that story out
+//   "missing-key"  returns a story with no key at all
+//   "missing-summary" returns a story with no summary
+//   "comment-no-id" returns comments with no id
+// and one that is not refused but must stay harmless text:
+//   "markdown-summary" gives a story a summary full of Markdown and HTML (a link, an image, a tag)
 //
 // It reads only the practice file and returns copies; it has no network access and writes
 // nothing. Every address in its answers uses jira.example.invalid, which can never resolve.
@@ -34,7 +40,8 @@ const SITE = "https://jira.example.invalid";
 const ME = { accountId: "fixture-account-0001", displayName: "Fixture User" };
 
 export function fakeJira({ fixturesDir, fixture, phase = "current", fault = process.env.JIRA_PRACTICE_FAULT ?? "" }) {
-  if (!["", "empty-page", "wrong-total", "repeat-page", "comment-gap", "unsafe-key"].includes(fault)) throw new Error(`unknown practice fault ${JSON.stringify(fault)}`);
+  const FAULTS = ["", "empty-page", "wrong-total", "repeat-page", "comment-gap", "unsafe-key", "shrinking-total", "missing-key", "missing-summary", "comment-no-id", "markdown-summary"];
+  if (!FAULTS.includes(fault)) throw new Error(`unknown practice fault ${JSON.stringify(fault)}`);
   if (!FIXTURES.includes(fixture)) throw new Error(`unknown practice set ${JSON.stringify(fixture)}`);
   if (phase !== "current" && phase !== "previous") throw new Error(`unknown phase ${JSON.stringify(phase)}`);
   const data = JSON.parse(readFileSync(`${fixturesDir}/${fixture}.json`, "utf8"));
@@ -45,12 +52,15 @@ export function fakeJira({ fixturesDir, fixture, phase = "current", fault = proc
   let calls = 0;
 
   // A story as Jira's search returns it: identity and fields, with Jira's own field names.
-  const issue = (s, n) => ({
+  const issue = (s, n) => {
+    const it = {
     id: String(10000 + n),
     key: fault === "unsafe-key" && n === 0 ? `../${s.key}` : s.key,
     self: `${SITE}/rest/api/3/issue/${10000 + n}`,
     fields: {
-      summary: s.summary,
+      summary: fault === "markdown-summary" && n === 0
+        ? `${s.summary} [click me](https://phish.example.invalid) ![x](https://img.example.invalid/x.png) <b>bold</b> *star*`
+        : s.summary,
       status: { name: s.status },
       issuetype: { name: "Story" },
       priority: { name: "Medium" },
@@ -63,7 +73,11 @@ export function fakeJira({ fixturesDir, fixture, phase = "current", fault = proc
       // A field only this platform has; it is kept, but apart from the normal fields.
       customfield_10016: 3,
     },
-  });
+    };
+    if (n === 0 && fault === "missing-key") delete it.key;
+    if (n === 0 && fault === "missing-summary") delete it.fields.summary;
+    return it;
+  };
 
   return {
     calls: () => calls,
@@ -75,7 +89,12 @@ export function fakeJira({ fixturesDir, fixture, phase = "current", fault = proc
       calls++;
       const size = Math.max(0, Math.min(maxResults, storyPage));
       if (fault === "repeat-page") startAt = 0;
-      const page = stories.slice(startAt, startAt + size).map((s) => issue(s, stories.indexOf(s)));
+      let page = stories.slice(startAt, startAt + size).map((s) => issue(s, stories.indexOf(s)));
+      if (fault === "shrinking-total" && startAt > 0) {
+        // The last page claims a smaller total and leaves one story out.
+        page = page.slice(0, -1);
+        return { startAt, maxResults: size, total: stories.length - 1, isLast: true, issues: page };
+      }
       const total = stories.length + (fault === "wrong-total" ? 1 : 0);
       const isLast = fault === "empty-page" || fault === "repeat-page" ? false : fault === "wrong-total" ? startAt + page.length >= stories.length : startAt + page.length >= total;
       return { startAt, maxResults: size, total, isLast, issues: page };
@@ -83,7 +102,7 @@ export function fakeJira({ fixturesDir, fixture, phase = "current", fault = proc
     comments(key, { startAt = 0 } = {}) {
       calls++;
       const s = stories.find((x) => x.key === key);
-      const all = (s?.comments ?? []).map((c) => ({ id: c.id, author: { displayName: c.author }, body: c.body }));
+      const all = (s?.comments ?? []).map((c) => ({ ...(fault === "comment-no-id" ? {} : { id: c.id }), author: { displayName: c.author }, body: c.body }));
       if (fault === "comment-gap" && all.length > 0) return { startAt, maxResults: commentPage, total: all.length, isLast: false, comments: [] };
       const page = all.slice(startAt, startAt + commentPage);
       return { startAt, maxResults: commentPage, total: all.length, isLast: startAt + page.length >= all.length, comments: page };

@@ -29,7 +29,7 @@
 // Exit codes: 0 synchronized, 1 incomplete or unexpected answer from Jira (paging that doesn't add
 // up, a key that isn't a Jira key; nothing was written), 2 usage, file or other error.
 
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FIXTURES, fakeJira } from "./fake-jira.mjs";
@@ -89,6 +89,25 @@ const incomplete = (why) => {
 };
 // A Jira key: project letters, a hyphen, a number. Keys become file names, so nothing else passes.
 const KEY = /^[A-Z][A-Z0-9_]*-[1-9][0-9]*$/;
+// Every page, of stories or of comments, must be well formed and agree with the first one: the
+// same total throughout, starting where it was asked to, saying plainly (true or false) whether it
+// is the last. Otherwise a page could quietly shrink the list and still look complete.
+const checkPage = (page, list, wantStart, firstTotal, what) => {
+  if (!page || typeof page !== "object" || !Array.isArray(page[list])) incomplete(`${what} isn't a page Jira would send`);
+  if (!Number.isInteger(page.total) || page.total < 0) incomplete(`${what} gave no usable total`);
+  if (firstTotal !== null && page.total !== firstTotal) incomplete(`${what} reported a total of ${page.total}, but the first page reported ${firstTotal}`);
+  if (page.startAt !== wantStart) incomplete(`${what} started at ${page.startAt}, not ${wantStart} as asked`);
+  if (typeof page.isLast !== "boolean") incomplete(`${what} didn't say whether it was the last`);
+};
+// What a story needs before it can be kept: a Jira key (it becomes a file name), and the summary
+// and status every record must carry.
+const checkIssue = (i, what) => {
+  if (!i || typeof i !== "object" || !i.fields || typeof i.fields !== "object") incomplete(`${what} has no fields`);
+  if (i.key === undefined || i.key === null) incomplete(`Jira returned ${what} with no key`);
+  if (typeof i.key !== "string" || !KEY.test(i.key)) incomplete(`Jira returned ${JSON.stringify(i.key)}, which is not a Jira key`);
+  if (typeof i.fields.summary !== "string") incomplete(`${i.key} has no summary`);
+  if (typeof i.fields.status?.name !== "string") incomplete(`${i.key} has no status`);
+};
 const issues = [];
 let pages = 0;
 let total = null;
@@ -96,8 +115,9 @@ let startAt = 0;
 for (;;) {
   const page = jira.searchAssigned({ startAt, maxResults: 50 });
   pages++;
+  checkPage(page, "issues", startAt, total, `page ${pages}`);
   total = page.total;
-  if (!Number.isInteger(total) || total < 0) incomplete(`page ${pages} gave no usable total`);
+  page.issues.forEach((i, n) => checkIssue(i, `story ${startAt + n + 1}`));
   issues.push(...page.issues);
   // More than Jira said it has: it is repeating itself, so stop rather than loop forever.
   if (issues.length > total) incomplete(`Jira reported ${total} stories but sent more (${issues.length} after page ${pages})`);
@@ -110,8 +130,6 @@ const keys = issues.map((i) => i.key);
 if (issues.length !== total || new Set(keys).size !== keys.length) {
   incomplete(`Jira reported ${total} stories, ${issues.length} arrived (${new Set(keys).size} distinct)`);
 }
-const badKey = keys.find((k) => typeof k !== "string" || !KEY.test(k));
-if (badKey !== undefined) incomplete(`Jira returned ${JSON.stringify(badKey)}, which is not a Jira key`);
 const mine = issues.filter((i) => i.fields.assignee?.accountId === me.accountId);
 const notMine = issues.filter((i) => i.fields.assignee?.accountId !== me.accountId).map((i) => i.key);
 
@@ -121,16 +139,21 @@ const commentsOf = (key) => {
   const seen = new Map();
   let at = 0;
   let pageNo = 0;
+  let commentTotal = null;
   for (;;) {
     const page = jira.comments(key, { startAt: at });
     pageNo++;
+    // The same rules as the stories: well-formed pages, one total, every comment counted.
+    checkPage(page, "comments", at, commentTotal, `comment page ${pageNo} of ${key}`);
+    commentTotal = page.total;
     for (const c of page.comments) {
+      // A comment is kept once per id, so it must have one: two without would look like one.
+      if (!c || typeof c !== "object" || typeof c.id !== "string" || c.id === "") incomplete(`a comment on ${key} has no id`);
       if (seen.has(c.id)) duplicateComments++;
-      else seen.set(c.id, { id: c.id, author: c.author?.displayName ?? null, body: c.body });
+      else seen.set(c.id, { id: c.id, author: c.author?.displayName ?? null, body: c.body ?? null });
     }
     at += page.comments.length;
-    // The same rules as the stories: every comment Jira counts must arrive, and no more.
-    if (!Number.isInteger(page.total) || at > page.total) incomplete(`${key}'s comments don't add up (Jira reported ${page.total}, ${at} arrived)`);
+    if (at > page.total) incomplete(`${key}'s comments don't add up (Jira reported ${page.total}, ${at} arrived)`);
     if (page.isLast) {
       if (at !== page.total) incomplete(`Jira reported ${page.total} comments on ${key}, ${at} arrived`);
       break;
@@ -174,43 +197,46 @@ if (existsSync(storiesPath)) {
   } catch {
     parsed = undefined;
   }
-  // It must look like this tool's own output: an object with a list of stories and of removed
-  // ones, each with a key. Anything else is left for a person to look at.
-  const okList = (l) => l === undefined || (Array.isArray(l) && l.every((x) => x && typeof x === "object" && typeof x.key === "string"));
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || !okList(parsed.stories) || !okList(parsed.removed)) {
+  // It must look like this tool's own output: an object with a list of stories and a list of
+  // removed ones, each with a Jira key, no key twice, and no key in both lists. Anything else
+  // is left for a person to look at.
+  const okList = (l) => Array.isArray(l) && l.every((x) => x && typeof x === "object" && typeof x.key === "string" && KEY.test(x.key));
+  const allKeys = parsed && typeof parsed === "object" && okList(parsed.stories) && okList(parsed.removed)
+    ? [...parsed.stories, ...parsed.removed].map((x) => x.key) : null;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || allKeys === null || new Set(allKeys).size !== allKeys.length) {
     console.error("The previous stories.json isn't one this tool wrote; nothing was written. Fix or move it, then run again.");
     process.exit(2);
   }
   before = parsed;
 }
 const nowKeys = new Set(stories.map((s) => s.key));
-const prevByKey = new Map((before.stories ?? []).map((s) => [s.key, s]));
+const prevByKey = new Map(before.stories.map((s) => [s.key, s]));
 const comparable = (s) => JSON.stringify({ ...s, retrieved_at: null });
 const added = stories.filter((s) => !prevByKey.has(s.key)).map((s) => s.key);
 const changed = stories.filter((s) => prevByKey.has(s.key) && comparable(prevByKey.get(s.key)) !== comparable(s)).map((s) => s.key);
 // Gone now: kept, with its last known state. Already-removed stories stay removed until they
 // come back.
-const newlyRemoved = (before.stories ?? []).filter((s) => !nowKeys.has(s.key)).map((s) => ({
+const newlyRemoved = before.stories.filter((s) => !nowKeys.has(s.key)).map((s) => ({
   key: s.key,
-  last_known_status: s.status,
-  last_known_summary: s.summary,
-  source_url: s.source_url,
+  last_known_status: s.status ?? null,
+  last_known_summary: s.summary ?? null,
+  source_url: s.source_url ?? `${SITE}/browse/${s.key}`,
   removed_at: now,
   reason: notMine.includes(s.key) ? "assigned to someone else" : "no longer returned for the authenticated user",
 }));
-const stillRemoved = (before.removed ?? []).filter((r) => !nowKeys.has(r.key) && !newlyRemoved.some((n) => n.key === r.key));
+const stillRemoved = before.removed.filter((r) => !nowKeys.has(r.key) && !newlyRemoved.some((n) => n.key === r.key));
 const removed = [...stillRemoved, ...newlyRemoved].sort((a, b) => a.key.localeCompare(b.key, "en", { numeric: true }));
-const returned = (before.removed ?? []).filter((r) => nowKeys.has(r.key)).map((r) => r.key);
+const returned = before.removed.filter((r) => nowKeys.has(r.key)).map((r) => r.key);
 
 // ---- writing ----------------------------------------------------------------------------------
 // Each file is written to a new temporary name and renamed into place, so a reader never sees a
 // half-written file. Notes files are created only when missing ("wx"), never rewritten.
-const writeWhole = (path, text) => {
+const writeWhole = (path, content) => {
   const tmp = `${path}.${process.pid}.new`;
   const fd = openSync(tmp, "wx", 0o644);
   try {
     try {
-      const bytes = Buffer.from(text, "utf8");
+      const bytes = Buffer.from(content, "utf8");
       let done = 0;
       while (done < bytes.length) done += writeSync(fd, bytes, done, bytes.length - done);
     } finally {
@@ -222,7 +248,16 @@ const writeWhole = (path, text) => {
     throw err;
   }
 };
-mkdirSync(join(out, "notes"), { recursive: true });
+// The output folder and its notes folder must be real folders, not links to somewhere else:
+// creating a notes file "only if missing" protects the file, not the folder it lands in.
+for (const dir of [out, join(out, "notes")]) {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  const st = lstatSync(dir);
+  if (st.isSymbolicLink() || !st.isDirectory()) {
+    console.error(`${dir === out ? "The output folder" : "The notes folder"} isn't an ordinary folder (it is a link or a file); nothing was written.`);
+    process.exit(2);
+  }
+}
 const notesCreated = [];
 for (const s of stories) {
   const notePath = join(out, "notes", `${s.key}.md`);
@@ -261,15 +296,17 @@ const summary = {
   notes_created: notesCreated,
 };
 
-// Ticket text is shown, never trusted: line breaks become spaces so one cell can't break the table.
-const oneLine = (v) => String(v ?? "").replace(/\s+/g, " ").trim();
-const row = (cells) => `| ${cells.map((c) => oneLine(c).replace(/\|/g, "\\|")).join(" | ")} |`;
+// Ticket text is shown, never trusted: line breaks become spaces, so one cell can't break the
+// table, and every ASCII punctuation mark except - , ' is backslash-escaped, so a link, image,
+// address, HTML tag or emphasis in a summary shows as the characters typed, never as Markdown.
+const text = (v) => String(v ?? "").replace(/\s+/g, " ").trim().replace(/[!-&(-+./:-@[-`{-~]/g, "\\$&");
+const row = (cells) => `| ${cells.join(" | ")} |`;
 const index = [
   "# My assigned Jira stories",
   "",
   `Generated by \`participant/tools/jira-sync.mjs\` from the practice data set "${fixture}" (${phase} state), not a real Jira. Do not edit: it is rewritten on every run. Your own notes go in \`notes/<KEY>.md\`, which the synchronization never changes.`,
   "",
-  `- Signed-in user (asked of Jira, not assumed): ${oneLine(me.displayName)}`,
+  `- Signed-in user (asked of Jira, not assumed): ${text(me.displayName)}`,
   `- Query: \`${JQL}\``,
   `- Pages read: ${pages}; Jira reported ${total} stories and ${issues.length} arrived, so the list is ${summary.complete ? "complete" : "INCOMPLETE"}.`,
   `- Retrieved: ${shownTime(nowDate)}`,
@@ -278,12 +315,12 @@ const index = [
   "",
   row(["Key", "Summary", "Status", "Comments", "Notes"]),
   row(["---", "---", "---", "---", "---"]),
-  ...stories.map((s) => row([s.key, s.summary, s.status, s.comments.length, `notes/${s.key}.md`])),
+  ...stories.map((s) => row([s.key, text(s.summary), text(s.status), s.comments.length, `notes/${s.key}.md`])),
   "",
   "## No longer assigned",
   "",
   ...(removed.length
-    ? [row(["Key", "Last known summary", "Last known status", "Removed at", "Notes"]), row(["---", "---", "---", "---", "---"]), ...removed.map((r) => row([r.key, r.last_known_summary, r.last_known_status, shownTime(new Date(r.removed_at)), `notes/${r.key}.md (kept)`]))]
+    ? [row(["Key", "Last known summary", "Last known status", "Removed at", "Notes"]), row(["---", "---", "---", "---", "---"]), ...removed.map((r) => row([r.key, text(r.last_known_summary), text(r.last_known_status), (Number.isNaN(Date.parse(r.removed_at)) ? "unknown" : shownTime(new Date(r.removed_at))), `notes/${r.key}.md (kept)`]))]
     : ["None."]),
   "",
 ].join("\n");
