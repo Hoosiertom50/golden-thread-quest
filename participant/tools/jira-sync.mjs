@@ -390,8 +390,15 @@ const notesCreated = [];
 // The notes files and folders this run created are removed again if the run can't finish
 // (nobody has had a chance to write in them), so a run that stops leaves things as they were.
 // rmdir removes only an empty folder.
+const noteTemplate = (key) => `# Notes: ${key}\n\nYour own notes on ${key}. The synchronization never changes this file.\n`;
 const removeCreatedNotes = () => {
-  for (const key of notesCreated) try { unlinkSync(join(out, "notes", `${key}.md`)); } catch { /* already gone */ }
+  for (const key of notesCreated) {
+    const notePath = join(out, "notes", `${key}.md`);
+    // Removed only while still exactly the empty file this run wrote; anything else is kept.
+    try {
+      if (readFileSync(notePath, "utf8") === noteTemplate(key)) unlinkSync(notePath);
+    } catch { /* already gone */ }
+  }
   for (const dir of [...dirsCreated].reverse()) try { rmdirSync(dir); } catch { /* not empty or gone: left */ }
 };
 undoCreated = removeCreatedNotes;
@@ -408,7 +415,7 @@ for (const [n, dir] of missingDirs.entries()) {
 for (const s of stories) {
   const notePath = join(out, "notes", `${s.key}.md`);
   try {
-    writeNew(notePath, `# Notes: ${s.key}\n\nYour own notes on ${s.key}. The synchronization never changes this file.\n`);
+    writeNew(notePath, noteTemplate(s.key));
     notesCreated.push(s.key);
   } catch (err) {
     if (err.code === "EEXIST") continue; // an existing notes file is left exactly as it is

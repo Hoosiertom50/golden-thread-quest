@@ -123,7 +123,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 1:09 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 1:19 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -162,14 +162,16 @@ passing. It confirmed every story present (pagination), normalized fields, links
 duplicate records, no duplicate comments (duplicate-comment), the disappearance reported
 (stale-item), and no raw responses committed. The notes files that existed before Part B are
 byte-identical after it. Every folder from the repository down to the real notes folder must be
-an ordinary folder, and the three generated files ordinary files; they are copied before Part B
+an ordinary folder, and the three generated files ordinary files written by the synchronization
+(the same ownership rule the synchronization uses); they are copied before Part B
 and put back on any unsuccessful end (an unexpected result, a log that can't be written, or an
 interruption), and any notes file Part B created that is still the empty one is removed; if
 putting back fails, the copies are kept and named. Tried separately: with a stand-in validator
 that always fails (in the real folder, and in a copy missing two notes files), each folder came
 out byte-identical; interrupted during Part B, the real folder came out byte-identical; with
-putting back made to fail, the copies were kept. The logs folder can't be inside the real output
-folder. The repository keeps the
+putting back made to fail, the copies were kept; with a hand-written `index.md` in a copy's real
+folder, Part B left that folder alone. The logs folder can't be inside the real output folder,
+checked before the logs folder is made. The repository keeps the
 stale-item result: GTQ-101 and GTQ-102, with GTQ-100 under `removed`.
 
 90 expectations in the record, all as expected.
