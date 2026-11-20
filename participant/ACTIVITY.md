@@ -162,3 +162,4 @@ Every change this application made to your files, newest last.
 - `2026-11-20T15:28:28Z` ba-extract-decisions: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
 - `2026-11-20T15:28:46Z` ba-extract-decisions: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-20T15:28:46Z` Submitted ba-extract-decisions for review as submission-20261120152846-10bca4.
+- `2026-11-20T15:38:31Z` Review of ba-extract-decisions: approved by Claude (automated reviewer).
