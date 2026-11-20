@@ -1,5 +1,5 @@
 ba-extract-decisions: the citation check
-Recorded 11-20-2026 09:56 AM with Node v22.23.3, by participant/tools/citation-check-demo.sh.
+Recorded 11-20-2026 10:07 AM with Node v22.23.3, by participant/tools/citation-check-demo.sh.
 Case 1 checks the real files. Every other case is a copy of the transcript and the decisions file
 in a temp folder with one mistake, checked against the original transcript; each must fail exactly
 the checks named, with the message named, and every check must report. Every check is the expected
@@ -692,8 +692,51 @@ Result: FAIL, 1 problem.
 exit code: 1
 As expected: exactly check(s) Safety failed, with "D8: its title names U027".
 
+== 32. The introduction naming an utterance that doesn't exist ==
+What was changed in this copy:
+  decisions, before: identifiers (U001 to U041) and quotes its key line word for word; a decision names who agreed and at
+  decisions, after:  identifiers (U001 to U099) and quotes its key line word for word; a decision names who agreed and at
+$ node citation-check.mjs --transcript intro-missing/sample-meeting.md --decisions intro-missing/sample-meeting.decisions.md --original original.md
+Citation check: intro-missing/sample-meeting.decisions.md against intro-missing/sample-meeting.md (19 items, 41 utterances)
+PASS  0. The transcript and the decisions file can be read
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+FAIL  6. A cited identifier that doesn't exist is reported
+      - decisions file line 5: the introduction names U099, which isn't in the transcript
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+PASS  Stretch: changes, doubts and counts
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) 6 failed, with "the introduction names U099, which isn't in the transcript".
+
+== 33. The introduction naming an item, in disguise ==
+"*D*9 was also decided" displays as D9: items are named only in the five lists.
+What was changed in this copy:
+  decisions, before: Code) for Tom Carter, 11-20-2026.
+  decisions, after:  Code) for Tom Carter, 11-20-2026. *D*9 was also decided.
+$ node citation-check.mjs --transcript intro-item/sample-meeting.md --decisions intro-item/sample-meeting.decisions.md --original original.md
+Citation check: intro-item/sample-meeting.decisions.md against intro-item/sample-meeting.md (19 items, 41 utterances)
+PASS  0. The transcript and the decisions file can be read
+PASS  1. Each decision cites at least one utterance from the source record
+PASS  2. A proposal nobody accepted is not listed as a decision
+PASS  3. A decision records who agreed, at which line
+PASS  4. Open discussion and undecided items are listed separately
+PASS  5. The decisions file is separate from the source record, which is not edited
+FAIL  6. A cited identifier that doesn't exist is reported
+      - decisions file line 7: the introduction names an item; items are named only in the five lists
+PASS  7. Every item can be checked against the source: its key line is quoted word for word
+PASS  Safety: an instruction-like line is never a decision, proposal, question or commitment
+PASS  Stretch: changes, doubts and counts
+Result: FAIL, 1 problem.
+exit code: 1
+As expected: exactly check(s) 6 failed, with "the introduction names an item; items are named only in the five lists".
+
 == The real files were only read ==
 SHA-256 of the transcript, the decisions file and the rules, before: a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e ef0667ca45eca35cc618e04c8530abebcf3df7ba2b664cac85f4c58d8a48359f 6ccb04c9094fb7335b2e04b58f7e595fbe8ecc9bb2f438d245aeb14ea234a730
 and after:                                                       a1c1b09d64a04669eeb217838cd46a390b030b2b31a75c030302070357db0d3e ef0667ca45eca35cc618e04c8530abebcf3df7ba2b664cac85f4c58d8a48359f 6ccb04c9094fb7335b2e04b58f7e595fbe8ecc9bb2f438d245aeb14ea234a730
 identical
-SHA-256 of participant/tools/citation-check.mjs: 0d6866086c3fc5a64a9c0ec85710cc17aab78345c6d3620a44101badde738229
+SHA-256 of participant/tools/citation-check.mjs: 913562f6e5f1b99706e4608906eee1e978e79a35d08f609b31a19de93bab8f28

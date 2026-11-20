@@ -332,6 +332,19 @@ Later reversed
   changes title-injection
   run title-injection "Safety" "D8: its title names U027"
 
+  echo "== 32. The introduction naming an utterance that doesn't exist =="
+  copy intro-missing
+  edit intro-missing $D "identifiers (U001 to U041)" "identifiers (U001 to U099)"
+  changes intro-missing
+  run intro-missing "6" "the introduction names U099, which isn't in the transcript"
+
+  echo "== 33. The introduction naming an item, in disguise =="
+  echo "\"*D*9 was also decided\" displays as D9: items are named only in the five lists."
+  copy intro-item
+  edit intro-item $D "Code) for Tom Carter, 11-20-2026." "Code) for Tom Carter, 11-20-2026. *D*9 was also decided."
+  changes intro-item
+  run intro-item "6" "the introduction names an item; items are named only in the five lists"
+
   AFTER=$(fingerprint) || { AFTER="(could not be read)"; FAIL=1; }
   echo "== The real files were only read =="
   echo "SHA-256 of the transcript, the decisions file and the rules, before: $BEFORE"

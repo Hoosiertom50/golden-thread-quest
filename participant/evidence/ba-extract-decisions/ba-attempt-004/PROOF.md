@@ -105,7 +105,7 @@ The real files are only read.
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 9:56 AM with Node 22.23.3, at commit ff85888 with the quest's files
+Recorded on 11-20-2026 at 10:07 AM with Node 22.23.3, at commit ff85888 with the quest's files
 uncommitted (`logs/citation-check.txt`). Every broken case must fail exactly the checks named for it,
 with the expected message, and every check must report; every check is the expected failure of at
 least one case.
@@ -153,6 +153,10 @@ least one case.
 30. **An identifier wrapped in underscores** (`_U099_`, shown as emphasis): check 6; identifiers are
     found whatever punctuation surrounds them.
 31. **An item title naming the instruction-like line:** the safety check, which reads titles too.
+32. **The introduction naming an utterance that doesn't exist** (U099): check 6; the introduction's
+    references are checked too.
+33. **The introduction naming an item, in disguise** (`*D*9`, displayed as D9): check 6; the
+    introduction may never name an item.
 
 The real files' SHA-256, before and after, is identical.
 
@@ -165,6 +169,9 @@ The real files' SHA-256, before and after, is identical.
   doesn't prove the item's title summarises the line fairly. A person reads the titles.
 - **One transcript, one format.** The checker reads this transcript's utterance table; another
   format would need its reader adjusted.
+- **Free text is read by a person.** The checker checks the items, their quotes, speakers and
+  links, and the introduction's references (any utterance it names must exist, it never names U027,
+  and it never names an item); plain sentences beyond that are for a person to read.
 - **The decisions file stays in plain Markdown.** Headings, text and "- Field: value" lines only;
   tables, code blocks, comments, HTML, links, character references, underlines and indented lines
   are reported rather than interpreted, so a reader and the checker always see the same items.

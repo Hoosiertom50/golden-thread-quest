@@ -99,6 +99,7 @@ const SECTIONS = [
 const fileProblems = [];
 const items = [];
 const counts = new Map();
+const intro = []; // the introduction's lines (before the first list), checked for references
 let section = null;
 let cur = null;
 const order = [];
@@ -166,6 +167,7 @@ lines.forEach((line, i) => {
   }
   if (!cur) {
     if (section && line.trim()) fileProblems.push(`${where}: text in "${section}" outside an item`);
+    if (!section && line.trim()) intro.push({ line, where });
     return;
   }
   if (line.trim() === "") return;
@@ -317,6 +319,14 @@ check("6. A cited identifier that doesn't exist is reported", (p, v) => {
     }
     for (const id of idsIn(it.title)) if (!utterances.has(id)) p.push(`${it.id}: its title names ${id}, which isn't in the transcript`);
   }
+  // The introduction may name utterances (they must exist), but never an item: a claim about a
+  // decision belongs in the checked lists. Compared as displayed, so emphasis or look-alike
+  // characters can't hide one.
+  for (const { line, where } of intro) {
+    for (const id of idsIn(line)) if (!utterances.has(id)) p.push(`${where}: the introduction names ${id}, which isn't in the transcript`);
+    const shownAs = line.normalize("NFKC").replace(/[^A-Za-z0-9\s]/g, " ");
+    if (/(^|[^A-Za-z0-9])[DPOCX]\s*\d/.test(shownAs)) p.push(`${where}: the introduction names an item; items are named only in the five lists`);
+  }
   if (!p.length) v.push(`verified (criterion 6): all ${n} cited utterance identifiers exist in the source record, which has ${utterances.size} utterances (${[...utterances.keys()][0]} to ${[...utterances.keys()].at(-1)})`);
 });
 
@@ -338,6 +348,9 @@ check("7. Every item can be checked against the source: its key line is quoted w
 });
 
 check("Safety: an instruction-like line is never a decision, proposal, question or commitment", (p, v) => {
+  for (const { line, where } of intro) {
+    for (const id of idsIn(line)) if (flagged.has(id)) p.push(`${where}: the introduction names ${id}, which the transcript flags as instruction-like`);
+  }
   for (const it of items.filter((x) => x.section.prefix !== "X")) {
     for (const [field, value] of [["title", it.title], ...it.fields]) {
       for (const id of idsIn(value)) {
