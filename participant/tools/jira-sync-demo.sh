@@ -353,6 +353,16 @@ PREVIOUS
   echo "=================== Part B: the real folder, checked by the app's own validator ==================="
   if [ "$FAIL" != 0 ]; then
     echo "  UNEXPECTED: Part A didn't all come out as expected, so the real folder is left alone."
+  elif ! LOCKTOKEN=$(node -e '
+      // Part B takes the synchronization lock first and holds it throughout, so no other run can
+      // write here between its checks and its last put-back.
+      const fs = require("fs"), c = require("crypto"), lock = process.argv[1];
+      const token = `jira-sync-demo ${c.randomBytes(12).toString("hex")}`;
+      fs.writeFileSync(lock, token, { flag: "wx" });
+      process.stdout.write(token);
+    ' "$REAL/.jira-sync.lock"); then
+    LOCKTOKEN=""
+    echo "  UNEXPECTED: another synchronization holds the real folder (.jira-sync.lock), so it is left alone."; FAIL=1
   elif ! node -e '
       const fs = require("fs"), [real, ...names] = process.argv.slice(1);
       for (const f of names) {
@@ -362,6 +372,7 @@ PREVIOUS
       }
     ' "$REAL" $GENERATED; then
     echo "  UNEXPECTED: a generated file in the real folder is a link or not a file, so the real folder is left alone."; FAIL=1
+    release_lock
   elif ! node -e '
       // The same rule as the synchronization: Part B replaces only files it wrote.
       const fs = require("fs"), [real] = process.argv.slice(1);
@@ -377,18 +388,10 @@ PREVIOUS
       process.exit(bad.length ? 1 : 0);
     ' "$REAL"; then
     echo "  UNEXPECTED: a file in the real folder wasn't written by the synchronization, so the real folder is left alone."; FAIL=1
+    release_lock
   elif ! notes_print "$REAL" > "$T/real-notes-before"; then
     echo "  UNEXPECTED: couldn't fingerprint the real notes, so the real folder is left alone."; FAIL=1
-  elif ! LOCKTOKEN=$(node -e '
-      // Part B holds the synchronization lock throughout, so no other run can write here while
-      // it replaces and (if need be) puts back the files.
-      const fs = require("fs"), c = require("crypto"), lock = process.argv[1];
-      const token = `jira-sync-demo ${c.randomBytes(12).toString("hex")}`;
-      fs.writeFileSync(lock, token, { flag: "wx" });
-      process.stdout.write(token);
-    ' "$REAL/.jira-sync.lock"); then
-    LOCKTOKEN=""
-    echo "  UNEXPECTED: another synchronization holds the real folder (.jira-sync.lock), so it is left alone."; FAIL=1
+    release_lock
   elif ! node -e '
       const fs = require("fs"), [real, saved, ...names] = process.argv.slice(1);
       fs.mkdirSync(saved);

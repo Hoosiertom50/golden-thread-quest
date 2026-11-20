@@ -73,7 +73,8 @@ lists, Jira keys, no key twice) or the run stops and leaves it alone; the same g
 existing `index.md` or `sync-summary.json` that this tool didn't write. One run at a time writes
 to a folder (a lock file, `.jira-sync.lock`, removed only while it still holds what that run
 wrote), and while holding it the run checks that
-`stories.json` is still exactly the one it merged against; otherwise it stops without writing
+`stories.json` is still exactly the one it merged against, and repeats its checks of the other
+two files; otherwise it stops without writing
 (tried with 20 pairs of simultaneous runs: each time one finished and the other refused, and
 the folder never mixed two runs). The folders written into
 must be ordinary folders, not links elsewhere: inside the repository, every folder from the
@@ -128,7 +129,7 @@ bash participant/tools/jira-sync-demo.sh <a new logs folder>
 
 ## What was tested or validated
 
-Recorded on 11-20-2026 at 1:49 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
+Recorded on 11-20-2026 at 1:59 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
 **Part A, in a temp folder: each practice set synchronized twice, with a person's note in place.**
@@ -170,8 +171,8 @@ duplicate records, no duplicate comments (duplicate-comment), the disappearance 
 (stale-item), and no raw responses committed. The notes files that existed before Part B are
 byte-identical after it. Every folder from the repository down to the real notes folder must be
 an ordinary folder, and the three generated files ordinary files written by the synchronization
-(the same ownership rule the synchronization uses). Part B holds the synchronization's lock
-throughout and passes its token to its own runs, so no other run can write there meanwhile
+(the same ownership rule the synchronization uses). Part B takes the synchronization's lock
+before any of its checks and holds it throughout and passes its token to its own runs, so no other run can write there meanwhile
 (tried in a copy: another synchronization started during Part B was refused every time); they are copied before Part B
 and put back on any unsuccessful end (an unexpected result, a log that can't be written, or an
 interruption), and any notes file Part B created that is still the empty one is removed; if
