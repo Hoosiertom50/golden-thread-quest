@@ -157,3 +157,8 @@ Every change this application made to your files, newest last.
 - `2026-11-19T23:31:51Z` context-decision-log: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-19T23:31:51Z` Submitted context-decision-log for review as submission-20261119233151-1d3cf0.
 - `2026-11-19T23:35:50Z` Review of context-decision-log: approved by Claude (automated reviewer).
+- `2026-11-20T13:41:55Z` Started ba-extract-decisions as attempt ba-attempt-004.
+- `2026-11-20T15:28:12Z` ba-extract-decisions: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-20T15:28:28Z` ba-extract-decisions: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-20T15:28:46Z` ba-extract-decisions: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-20T15:28:46Z` Submitted ba-extract-decisions for review as submission-20261120152846-10bca4.
