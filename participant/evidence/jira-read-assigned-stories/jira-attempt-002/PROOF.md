@@ -2,8 +2,8 @@
 
 Attempt: `jira-attempt-002`
 
-Written by Tom Carter with Claude (Claude Code), 11-20-2026. The choices below are Tom's, from his
-answers to one question at a time; Claude wrote the code and this page.
+Written by Tom Carter with Claude (Claude Code), 11-20-2026. The choices below are Tom's, from
+Tom's answers to one question at a time; Claude wrote the code and this page.
 
 ## What was built
 
@@ -135,6 +135,10 @@ node participant/tools/jira-sync-safety-demo.mjs <a new logs folder>
 
 ## What was tested or validated
 
+Criterion 10, verified: the practice-data demonstration synchronizes every practice set twice;
+the second run adds or changes no story (on stale-item it reports GTQ-100 removed, as it should)
+and leaves every notes file byte-identical.
+
 Recorded on 11-20-2026 at 5:38 PM with Node 22.23.3, at commit 69b2de0 with the quest's files
 uncommitted (`logs/sync-run.txt`).
 
@@ -167,7 +171,7 @@ uncommitted (`logs/sync-run.txt`).
 - **An `index.md` the person wrote, in the output folder:** the run stops with exit 2 and leaves
   it as it was.
 - **A named pipe where `stories.json` should be** (reading one could wait forever): refused at
-  once with exit 2, also with `--check-only`.
+  once with exit 2, shown with `--check-only` (an ordinary run makes the same check first).
 - **A folder where a story's notes file should be** (`notes/GTQ-101.md`): the run stops with
   exit 2 rather than report success with notes that can't be opened; nothing is written.
 - **A folder where `index.md` should be:** the run stops with exit 2; `stories.json`,
@@ -240,10 +244,10 @@ make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded
   renames, or a reader looking in that instant, could see files from two runs. A run killed
   outright also leaves its `.jira-sync.lock`; the next run then stops and says to remove it. If
   putting a previous file back ever fails, the run names where that file is kept and leaves the
-  lock on purpose, so no later run changes the folder before a person has looked (tried by
-  making the put-back fail: the next run refused). The run's time is
-  the same in `stories.json` (`synchronized_at`) and `sync-summary.json` (`retrieved_at`), so a
-  mix shows, and the next run rewrites all three.
+  lock on purpose, so no later run changes the folder before a person has looked (tried by making
+  the put-back fail: the next run refused). The run's time is the same in `stories.json`
+  (`synchronized_at`) and `sync-summary.json` (`retrieved_at`), so a mix shows, and the next run
+  rewrites all three.
 - **Folders are checked, not held.** Each folder is checked again while holding the lock, just
   before writing (tried by swapping `notes` for a link mid-run: refused, nothing written through
   it), but Node has no folder-bound file calls, so a folder swapped in the instant between that
@@ -260,6 +264,10 @@ make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded
   moved out of the hand-in (to the ignored `local-data` folder) to keep it readable.
 
 ## Sensitive values
+
+Criterion 9, verified: only normalized records are committed; no token, password or raw Jira
+response is in the hand-in, and the validator's raw-responses-not-committed check passed on all
+four practice sets.
 
 No secret, token, password, customer name or real ticket content is here. All data is the quest's
 practice data, the account is made up, every address is under the reserved `.invalid` domain, and
