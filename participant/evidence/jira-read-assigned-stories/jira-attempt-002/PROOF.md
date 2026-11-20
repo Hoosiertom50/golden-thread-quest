@@ -217,8 +217,7 @@ holding a key twice; and, for the synchronization itself, a forced rename failur
 put-back failure, a run killed outright, notes-list paths that alias a note, twenty pairs of
 simultaneous runs, changes made between the first checks and the lock, a notes file that fails
 partway or a read-only notes folder, and folders a failed run made (removed again) or couldn't
-make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded on 11-20-2026 at
-4:05 PM: 59 expectations, all as expected, and the real folder unchanged.
+make (nothing left). Every "tried" in this PROOF is one of those cases. Recorded on 11-20-2026 at 4:15 PM: 59 expectations, all as expected, and the real folder unchanged.
 
 97 expectations in the record, all as expected.
 

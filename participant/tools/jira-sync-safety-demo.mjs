@@ -64,6 +64,26 @@ if (existsSync(target) && (lstatSync(target).isSymbolicLink() || !lstatSync(targ
   process.exit(2);
 }
 
+// Everything copied into the throwaway repositories must be ordinary files and folders: a link
+// copied from the real assigned folder would still point at real data, and a case that changes
+// its copy could reach through it. Checked before anything is made.
+const onlyOrdinary = (dir) => {
+  for (const e of readdirSync(dir)) {
+    const p = join(dir, e), st = lstatSync(p);
+    if (st.isDirectory()) { if (!onlyOrdinary(p)) return false; }
+    else if (st.isSymbolicLink() || !st.isFile()) return false;
+  }
+  return true;
+};
+for (const d of [join(REPO, "participant", "context", "jira", "assigned"), join(REPO, "validators", "fixtures", "jira")]) {
+  if (lstatSync(d).isSymbolicLink() || !onlyOrdinary(d)) {
+    console.error(`${d.slice(REPO.length + 1)} holds a link or something other than ordinary files and folders; stopping.`);
+    process.exit(2);
+  }
+}
+// A path inside a stand-in validator (a bash script), quoted so spaces or quotes in it stay whole.
+const sh = (p) => `'${p.replace(/'/g, "'\\''")}'`;
+
 // The one temp folder: a fresh, validated name; removed at the end however the script ends.
 const T = realpathSync(mkdtempSync(join(tmpdir(), "jira-sync-safety.")));
 if (!/^jira-sync-safety\.[A-Za-z0-9]{6}$/.test(basename(T)) || readdirSync(T).length !== 0) {
@@ -216,7 +236,7 @@ add("terminal closed (HUP) during Part B: put back byte-identical", async () => 
 });
 add("another synchronization started during Part B is refused", () => {
   const exits = join(T, "other-exits.txt");
-  const { R, A } = repoCopy(`node participant/tools/jira-sync.mjs --fixture happy-path > /dev/null 2>&1; echo "$?" >> ${exits}\necho "{\\"result_path\\": \\"\\"}"`);
+  const { R, A } = repoCopy(`node participant/tools/jira-sync.mjs --fixture happy-path > /dev/null 2>&1; echo "$?" >> ${sh(exits)}\necho "{\\"result_path\\": \\"\\"}"`);
   const before = fingerprint(A);
   run("bash", ["participant/tools/jira-sync-demo.sh", join(T, "logs-6")], { cwd: R });
   expect("exit codes of the other runs", readFileSync(exits, "utf8").trim().split("\n").join(","), "2,2,2,2");
