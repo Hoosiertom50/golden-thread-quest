@@ -163,3 +163,8 @@ Every change this application made to your files, newest last.
 - `2026-11-20T15:28:46Z` ba-extract-decisions: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-20T15:28:46Z` Submitted ba-extract-decisions for review as submission-20261120152846-10bca4.
 - `2026-11-20T15:38:31Z` Review of ba-extract-decisions: approved by Claude (automated reviewer).
+- `2026-11-20T15:46:55Z` Started jira-read-assigned-stories as attempt jira-attempt-002.
+- `2026-11-21T00:06:04Z` jira-read-assigned-stories: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-21T00:06:18Z` jira-read-assigned-stories: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-21T00:06:35Z` jira-read-assigned-stories: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-21T00:06:35Z` Submitted jira-read-assigned-stories for review as submission-20261121000635-26b2c3.
