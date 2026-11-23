@@ -1,0 +1,150 @@
+The open-questions check, 11-23-2026 2:05 PM EST. Git commit 098dae2; Python 3.14.7.
+
+== The real file
+Transcript: 41 utterances (12 with a question mark); unchanged since it was committed.
+Open questions: 4
+  Q1 raised at U021; owner not stated; due not stated: Does dragging work by touch on tablets?
+  Q2 raised at U017; owner Priya Shah; due not stated: Does undo cover drops?
+  Q3 raised at U035; owner not stated; due not stated: Do first-time users need a drag hint?
+  Q4 raised at U036; owner not stated; due not stated: What do screen readers announce when a drop is refused?
+Closed in the meeting: 9
+  C1 raised at U003; answered at U004: Does the dropdown stay?
+  C2 raised at U006; answered at U007: Is it a hover preview of the table's guests?
+  C3 raised at U009; answered at U011: What happens on a drop onto a full table?
+  C4 raised at U012; answered at U014: What if a guest has a plus-one and only one seat is left?
+  C5 raised at U015; answered at U016: What about the head table?
+  C6 raised at U019; answered at U020: Can there be a build by Wednesday?
+  C7 raised at U030; answered at U031: Can venues print the chart after arranging it?
+  C8 raised at U031; answered at U033: Is anything new needed for printing?
+  C9 raised at U039; answered at U040: Can there be an estimate by tomorrow?
+Not counted: 1
+  N1 raised at U022: Who raised the iPad question?
+
+PASSED, structurally: every citation and quote checks out, no answer-like reply near an open
+question is unexplained, every owner and due point is stated (by its own line) or marked not
+stated, no closing answer is a promise or hedge, and every question-marked or declared question is
+sorted once. Whether each call is right in meaning is a person's judgment, reviewed by hand.
+as expected: passed (exit 0)
+
+== Broken copy: answered-listed-open (C1, answered at U004 "Yes, both.", moved into the open list)
+FAILED: 1 problem(s)
+  - Q5: U004 ("Yes, both. Drag is an extra, not a repla") reads like an answer; say in Why open why it doesn't close the question
+as expected: failed, naming it ("reads like an answer")
+
+== Broken copy: guessed-owner (Q3's owner guessed as Marcus Lee, citing a line he neither said nor is named in)
+FAILED: 1 problem(s)
+  - Q3: owner Marcus Lee is neither the speaker of U035 nor named in it (guessed?)
+as expected: failed, naming it ("neither the speaker of U035 nor named in it")
+
+== Broken copy: missing-id (Q4 cites U099, which doesn't exist)
+FAILED: 2 problem(s)
+  - the file cites U099, which isn't in the transcript
+  - Q4: Kept open by cites U099, which isn't in the transcript
+as expected: failed, naming it ("U099, which isn't in the transcript")
+
+== Broken copy: changed-quote (C5's quote changed by one word)
+FAILED: 2 problem(s)
+  - the file quotes "Locked tables accept drops." as U016, but it isn't word for word there
+  - C5: Answered: "Locked tables accept drops." isn't word for word in U016
+as expected: failed, naming it ("isn't word for word in U016")
+
+== Broken copy: question-left-out (C7 (U030, the printing question) deleted)
+FAILED: 1 problem(s)
+  - U030 asks a question ("One more from the venue: can they print the chart after arra") but isn't in any list
+as expected: failed, naming it ("U030 asks a question")
+
+== Broken copy: answer-before-question (C3 answered by U008, before the question at U009)
+FAILED: 1 problem(s)
+  - C3: the answer U008 doesn't come after the question U009
+as expected: failed, naming it ("doesn't come after the question U009")
+
+== Broken copy: decisions-mixed-in (a Decisions section added to the questions file)
+FAILED: 1 problem(s)
+  - section "Decisions" isn't allowed here (questions only: decisions and work live elsewhere)
+as expected: failed, naming it ("isn't allowed here")
+
+== Broken copy: wrong-count (the open count says 3)
+FAILED: 1 problem(s)
+  - count "Open questions" says 3, the list has 4
+as expected: failed, naming it ("says 3, the list has 4")
+
+== Broken copy: duplicate-id (Q4 renamed Q3, so two questions share one id)
+FAILED: 1 problem(s)
+  - Q3 is used twice
+as expected: failed, naming it ("Q3 is used twice")
+
+== Broken copy: promise-as-answer (C5 closed by Priya's promise to test, not an answer)
+FAILED: 1 problem(s)
+  - C5: the answer "I'll test it rather than assume it." is a promise or a hedge, which doesn't close a question
+as expected: failed, naming it ("is a promise or a hedge")
+
+== Broken copy: declared-question-left-out (Q3 (U035, declared as an open question, no question mark) deleted)
+FAILED: 1 problem(s)
+  - U035 declares an open question ("Yes. And the open questions: tablet touch support, and wheth") but no entry cites it
+as expected: failed, naming it ("U035 declares an open question")
+
+== Broken copy: owner-by-fragment (Q4's owner given as Sam Okafor, citing U016, where "Same" holds his first name only inside another word)
+FAILED: 1 problem(s)
+  - Q4: owner Sam Okafor is neither the speaker of U016 nor named in it (guessed?)
+as expected: failed, naming it ("neither the speaker of U016 nor named in it")
+
+== Broken copy: clipped-promise (C5 closed by "test it rather than assume it.", Priya's promise with its first words cut off)
+FAILED: 1 problem(s)
+  - C5: the answer "test it rather than assume it." isn't whole sentences of U019
+as expected: failed, naming it ("isn't whole sentences of U019")
+
+== Broken copy: wrapped-fake-quote (a made-up quote on the line after U026, in Q1's reason)
+FAILED: 1 problem(s)
+  - the file quotes "Tablet support is fully implemented" as U026, but it isn't word for word there
+as expected: failed, naming it ("isn't word for word there")
+
+== Broken copy: extra-heading-level (a level-four Work items heading with a bullet)
+FAILED: 2 problem(s)
+  - "#### Work items" is a heading level this file doesn't use
+  - "- Disable full-table validation" is a bullet in an entry that isn't a field
+as expected: failed, naming it ("a heading level this file doesn't use")
+
+== Broken copy: lowercase-field (a lowercase work item: field added to C1)
+FAILED: 1 problem(s)
+  - C1: "work item" isn't a field of closed in the meeting (allowed: Answered, Raised)
+as expected: failed, naming it ("isn't a field of closed in the meeting")
+
+== Broken copy: due-inside-word (Q2's due point given as noon, citing U020, where noon is only inside afternoon)
+FAILED: 1 problem(s)
+  - Q2: due "noon" isn't in its own quote "Wednesday afternoon, yes."
+as expected: failed, naming it ("isn't in its own quote")
+
+== Broken copy: wrong-raiser (Q3's Raised by changed to Marcus Lee, though Dana said U035)
+FAILED: 1 problem(s)
+  - Q3: Raised by must be Dana Ruiz (U035), who said it
+as expected: failed, naming it ("Raised by must be Dana Ruiz (U035)")
+
+== Broken copy: star-bullet-field (a "* work item:" bullet added to C1)
+FAILED: 1 problem(s)
+  - C1: "work item" isn't a field of closed in the meeting (allowed: Answered, Raised)
+as expected: failed, naming it ("isn't a field of closed in the meeting")
+
+== Broken copy: indented-heading (an indented Work items heading with a bullet, at the end)
+FAILED: 1 problem(s)
+  - "## Work items" is an indented heading, which this file doesn't use
+as expected: failed, naming it ("is an indented heading")
+
+== Broken copy: overlong-answer (C5's answer made longer than its line (it used to crash the checker))
+FAILED: 2 problem(s)
+  - the file quotes "Locked tables refuse drops. Same message pattern, Head Table is locked, and more words." as U016, but it isn't word for word there
+  - C5: Answered: "Locked tables refuse drops. Same message pattern, Head Table is locked, and more words." isn't word for word in U016
+as expected: failed, naming it ("isn't word for word in U016")
+
+== Broken copy: sections-reordered (the closed list moved before the open list, with C5 answered by the line that raised Q1)
+FAILED: 1 problem(s)
+  - C5: its answer U021 is the line that raised open question Q1
+as expected: failed, naming it ("is the line that raised open question Q1")
+
+== Broken copy: padded-id (C1 moved into the open list with U0040 in its reason, which isn't U004)
+FAILED: 2 problem(s)
+  - U0040 isn't an utterance id (they are U followed by three digits)
+  - Q5: U004 ("Yes, both. Drag is an extra, not a repla") reads like an answer; say in Why open why it doesn't close the question
+as expected: failed, naming it ("U0040 isn't an utterance id")
+
+24 cases as expected, 0 unexpected.
+End of record.
