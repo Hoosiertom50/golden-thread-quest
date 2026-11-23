@@ -181,3 +181,8 @@ Every change this application made to your files, newest last.
 - `2026-11-23T19:50:43Z` ba-open-questions: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-23T19:50:44Z` Submitted ba-open-questions for review as submission-20261123195043-334c6b.
 - `2026-11-23T20:04:33Z` Review of ba-open-questions: approved by Claude (automated reviewer).
+- `2026-11-23T21:10:13Z` github-read-assigned-issues: needs_changes → in_progress (Resume after a reviewer asked for changes.)
+- `2026-11-23T21:10:36Z` github-read-assigned-issues: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-23T21:10:52Z` github-read-assigned-issues: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-23T21:11:11Z` github-read-assigned-issues: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-23T21:11:11Z` Submitted github-read-assigned-issues for review as submission-20261123211111-9effcf.

@@ -1,19 +1,19 @@
 schema_version: 1
-submission_id: submission-20261123183009-9a0ff4
+submission_id: submission-20261123211111-9effcf
 quest_id: github-read-assigned-issues
 quest_version: 2
 attempt_id: github-attempt-002
 content_hash: sha256:68a888e3d237ce220c739aa1d60cf46c4e26bbc5ab0b71c03efdf2431c80c396
-evidence_hash: sha256:a8c2c0f96e89895126c4acaef4d130eea1e851c9cf44d62c86456068bb93e30f
-submitted_at: '2026-11-23T18:30:09Z'
+evidence_hash: sha256:1c9a1958242f65c33010adc79101c41c0f2dd44a04ffb8a206f80e838c670b9e
+submitted_at: '2026-11-23T21:11:11Z'
 submitted_by: thomascarter
 secret_scan_clean: true
 proof_files:
 - path: participant/context/github/assigned/delivery-links.md
-  digest: sha256:24986395464f35cc6b665d47b67f44e124075f109355e0f3163b96a2380f9535
+  digest: sha256:fb1ae4806a99b7716b45ed2ed40f389e610d977a24415f17b95d3dcc7f44b73a
 - path: participant/context/github/assigned/index.md
-  digest: sha256:39ae246e54e246d1a04d19ac1572ce3acb9c81b4cc2a35091ee4d6ce7cd45a45
+  digest: sha256:d5d14e3ef94694504b30d5bdabed792c47ec356097bd48e458f56fdc74b03be8
 - path: participant/context/github/assigned/issues/
-  digest: sha256:8b0da9ccfb69fdd0547accd1cffa76bef566f70cfa9ed1d66019bf118ec6ea2b
+  digest: sha256:81e6770397020c8695eeca3ac41e9d2558b63641395336a62679122816245cb5
 - path: participant/skills/github-read-assigned/SKILL.md
-  digest: sha256:ef2358e6b2bf14bfc2e2414ea642e742bc3eace358634333e2124d43a8fe01dc
+  digest: sha256:0b763a36c77ca7c48a681715bab8a6a9415b3dcc2884c6f8cf1b55bd9d8eed7d

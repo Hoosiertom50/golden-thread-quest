@@ -1,21 +1,24 @@
 <!-- github-sync: issue record. Everything above the notes line is rewritten on each run. -->
 # Hoosiertom50\/gtq-practice-kettlebook-web\#6: Rate limit the export endpoint
 
+> **No longer assigned:** closed\: closed 11-23-2026 4\:07 PM \(not\_planned\)\; noticed 11-23-2026 4\:08 PM\. Last known record below\.
+
 | Field | Value |
 |---|---|
 | Repository | Hoosiertom50\/gtq-practice-kettlebook-web |
 | Number | 6 |
 | Node ID | `I_kwDOV40wwM8AAAABh1fLXw` |
 | Link | <https://github.com/Hoosiertom50/gtq-practice-kettlebook-web/issues/6> |
-| State | open |
+| State | closed |
+| State reason | not\_planned |
 | Author | Hoosiertom50 |
 | Assignees | Hoosiertom50 |
 | Labels | enhancement, practice |
 | Milestone | Practice sprint 1 |
 | Created | 11-23-2026 9:26 AM (2026-11-23T14:26:22Z) |
-| Updated | 11-23-2026 1:03 PM (2026-11-23T18:03:34Z) |
-| Closed | — |
-| Last synchronized | 11-23-2026 1:03 PM (2026-11-23T18:03:59.670Z) |
+| Updated | 11-23-2026 4:07 PM (2026-11-23T21:07:56Z) |
+| Closed | 11-23-2026 4:07 PM (2026-11-23T21:07:56Z) |
+| Last synchronized | 11-23-2026 4:07 PM (2026-11-23T21:07:20.894Z) |
 | Delivery evidence | missing |
 | Moved from | Hoosiertom50\/gtq-practice-kettlebook-web\#5, Hoosiertom50\/gtq-practice-kettlebook-api\#4 |
 

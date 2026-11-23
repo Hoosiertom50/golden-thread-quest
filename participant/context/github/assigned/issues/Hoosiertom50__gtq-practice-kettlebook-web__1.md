@@ -9,14 +9,15 @@
 | Number | 1 |
 | Node ID | `I_kwDOV40wwM8AAAABhxgqlw` |
 | Link | <https://github.com/Hoosiertom50/gtq-practice-kettlebook-web/issues/1> |
-| State | open |
+| State | closed |
+| State reason | completed |
 | Author | Hoosiertom50 |
 | Assignees | Hoosiertom50 |
 | Labels | bug, practice |
 | Milestone | Practice sprint 1 |
 | Created | 11-23-2026 9:26 AM (2026-11-23T14:26:10Z) |
-| Updated | 11-23-2026 9:26 AM (2026-11-23T14:26:29Z) |
-| Closed | — |
+| Updated | 11-23-2026 1:03 PM (2026-11-23T18:03:29Z) |
+| Closed | 11-23-2026 1:03 PM (2026-11-23T18:03:29Z) |
 | Last synchronized | 11-23-2026 1:02 PM (2026-11-23T18:02:49.391Z) |
 | Delivery evidence | partial |
 

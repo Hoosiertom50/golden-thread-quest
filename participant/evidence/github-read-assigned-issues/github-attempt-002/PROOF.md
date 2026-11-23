@@ -2,7 +2,8 @@
 
 Attempt: `github-attempt-002`
 
-Written by Tom Carter with Claude (Claude Code), 11-23-2026. The choices below are Tom's, from
+Written by Tom Carter with Claude (Claude Code), 11-23-2026; revised the same day after the review
+(see "Revised after review" below). The choices below are Tom's, from
 Tom's answers to one question at a time; Claude wrote the code and this page. Every GitHub write
 (creating the practice repositories, and the changes between runs) was made by Tom, with Tom's own
 login; the synchronization only reads.
@@ -73,14 +74,17 @@ be the same on every page, `incomplete_results` must be false, no page before th
 empty, no item may arrive twice, and each `next` link must ask for exactly the following page of
 the same list. If any of that fails, the run stops and writes nothing (exit 1). The search index
 can also miss a new issue in its items and its total alike, which is why the issue list above is
-compared too. The real runs used pages of 2, so paging shows (real use: 100). Comments and timelines are
+compared too. The final real runs used pages of 1, so a repository with two issues comes over two
+pages (real use: 100). Comments and timelines are
 paged the same way, and an issue's comments must add up to GitHub's own comment count; a list
 page with no `next` link is the end only if no `last` link names a later page, and a full last page
 is checked by asking for the following one, which must be empty.
 
 **The records (criterion 5).** Each issue's record has its repository full name, number, node ID,
-title, state, state reason, author, assignees, labels, milestone, body, created, updated and closed
-times. The direct read of each issue decides (the search index can lag), and must answer for the
+title, state, state reason (its own row, "none given" while GitHub gives none), author, assignees,
+labels, milestone, body, created, updated and closed times. When an issue leaves because it was
+closed or unassigned, its last known record is brought up to what GitHub said at that moment:
+closed, with its state reason and closing time. The direct read of each issue decides (the search index can lag), and must answer for the
 same address; a malformed answer (a missing body or author field, an assignee without an id, a
 time that isn't GitHub's ISO form) stops the run rather than being filled in.
 
@@ -131,6 +135,32 @@ by someone while the run was writing is put back, or kept aside as `<file>.<pid>
 overwritten; files a person wrote are never replaced; no file is written if any would contain the
 token.
 
+## Revised after review
+
+The first review asked for three changes:
+
+1. **State reason, and closed issues still shown as open.** Every record now has a State reason row,
+   and the record of an issue that left because it was closed (or unassigned) shows GitHub's state
+   at that moment, its reason and its closing time, instead of the open state it last had while
+   assigned. Issues archived before the fix are brought up to date the same way: every run already
+   looks each archived issue up at its old address, and now refreshes its state from that answer.
+2. **One page per repository in the real runs.** The runs are recorded again with pages of 1, so a
+   repository with two issues comes over two pages, each followed by its next link and the end
+   confirmed.
+3. **The evidence folder's name.** The quest text names `attempt-001`; the quest app created this
+   attempt as `github-attempt-002` when the quest was started, and its evidence page resolves every
+   required proof path into this folder (each shown as detected). The files are where the app
+   looks for them.
+
+Recorded again after the fixes, at 4:07 to 4:08 PM (details under "What was tested or validated"):
+web's 2 open issues arrived over 2 pages of 1, each page followed by its next link and the end
+confirmed; Tom then closed web #6 as not planned, and its record shows "State: closed", "State
+reason: not\_planned" and "Closed: 11-23-2026 4:07 PM". The two issues closed earlier in the day
+(api #1, not planned; web #1, completed) were refreshed the same way on the first run after the fix,
+and their records now show closed, their reasons and closing times instead of "open". The fixes
+were checked by a deep self-review (the Copilot practice review allowance was used up until
+December), and the pretend GitHub checks gained six expectations for them.
+
 ## What tells me "assigned to me" is still true
 
 Tom: the last synchronization time, for each issue and for each repository. In this copy that is
@@ -174,9 +204,10 @@ With a read-only token loaded (`read -rs GTQ_GITHUB_TOKEN && export GTQ_GITHUB_T
 repository's top folder:
 
 ```sh
-node participant/tools/github-sync.mjs --per-page 2
+node participant/tools/github-sync.mjs --per-page 1
 bash participant/tools/github-sync-record.sh token-check
 bash participant/tools/github-sync-record.sh two-runs
+bash participant/tools/github-sync-record.sh disappearance
 ```
 
 Without a token (pretend GitHub, throwaway folder):
@@ -187,40 +218,43 @@ bash participant/tools/github-sync-checks.sh <a new logs folder>
 
 ## What was tested or validated
 
-The final records were made on 11-23-2026 with Node 22.23.3, at commit 90ed558 with this quest's
-files uncommitted, starting from an empty output folder (Tom's choice), after a rehearsal earlier
-that morning whose records were set aside. Criteria are referred to by number.
+The records were made on 11-23-2026 with Node 22.23.3, starting from an empty output folder (Tom's
+choice), after a rehearsal earlier that morning whose records were set aside. The token check is
+from commit 90ed558; the run records are from commit a39f9ab, with the review fixes uncommitted.
+Criteria are referred to by number.
 
 **Token check (`logs/token-check.txt`, 12:12 PM).** The token belongs to Hoosiertom50 and reads
 issue #1 (200). Creating a label, setting pull request #4's title to its own title, and creating a
 file were each answered 403, "Resource not accessible by personal access token" (criteria 1 and 12).
 
-The run records were made twice: first from the empty folder, at 12:12 to 12:15 PM, then again,
-continuing from that state, at 1:02 to 1:03 PM, after one phrase of the run report was reworded
-(it put a colon after the word for the credential, which the quest app's secret scan rightly reads
-as a credential being shown). The token check is from the first set; the other records are from
-the second. Between the two,
-Tom's changes at 12:14 PM unassigned web #2, closed api #1 as not planned and moved web #5 to
-api #4, which the 12:15 run recorded (web #5 → api #4, the note following) and the kept state
-still shows.
+The runs went in three sets, each continuing from the state the last one left: from the empty
+folder at 12:12 to 12:15 PM; again at 1:02 to 1:03 PM, after one phrase of the run report was
+reworded (it put a colon after the word for the credential, which the quest app's secret scan
+rightly reads as a credential being shown); and after the review's fixes, at 4:07 to 4:08 PM, with
+pages of 1. The token check is from the first set; the run records are from the third. The earlier
+sets' changes are what the kept state still shows: at 12:14 PM Tom unassigned web #2, closed api #1
+as not planned and moved web #5 to api #4 (the note following); at 1:03 PM Tom closed web #1 as
+completed, assigned web #2 to Tom again and moved api #4 to web #6 (the note following again).
 
-**Two consecutive runs (`logs/second-run.txt`, 1:02 PM).** Criterion 4, verified: GitHub declared
-2 open issues assigned to Hoosiertom50 (web 1, api 1) and 2 arrived, over 2 pages of 2, the issue
-list agreed, every list's end was confirmed by asking for the following page, and the list is
-complete (following several pages is shown in the pretend-GitHub checks, for example 3 issues
-over 2 pages). Pull request #4 was found by the separate search and left out (criterion 3), and
+**Two consecutive runs (`logs/second-run.txt`, 4:07 PM).** Criterion 4, verified: GitHub declared
+2 open issues assigned to Hoosiertom50, both in web (#2 and #6), and api none; with pages of 1, web's
+2 arrived over 2 pages, followed by the first page's next link, and with api's one empty page that
+is 3 pages in all. The issue list agreed, every list's end was confirmed by asking for the following
+page, and the list is complete. Pull request #4 was found by the separate search and left out (criterion 3), and
 `gtq-practice-kettlebook-missing` was reported unreadable, 404 (criterion 2). Criterion 9,
 verified: run 2 added, changed, moved and removed nothing, and every notes section, Tom's note
-included ("Ask the API team whether 10 exports an hour is enough.", then on api #4), has the same
+included ("Ask the API team whether 10 exports an hour is enough.", now on web #6), has the same
 SHA-256 of its exact bytes before and after, compared issue by issue. Criterion 7, verified: the
 second run added no comment, event or record a second time.
 
-**After changes on GitHub (`logs/disappearance.txt`, 1:03 PM).** Tom closed web #1 as completed,
-assigned web #2 to Tom again and transferred api #4 to the web repository, where it became #6.
-Criterion 10, verified: web #1 is listed as "closed (completed)" and api #1 still as "closed
-(not_planned)", each with its last known record and its file kept; web #2 is reported as returned;
-api #4 is recorded as moved to web #6, linked by GitHub's redirect though its node ID changed, its
-note in the new file, same SHA-256. GitHub declared 2 and sent 2, and every request was a GET (28).
+**After changes on GitHub (`logs/disappearance.txt`, 4:08 PM).** Tom closed web #6 as not planned
+at 4:07 PM. Criterion 10, verified: web #6 is listed under "No longer assigned" as "closed: closed
+11-23-2026 4:07 PM (not\_planned)", its record showing State closed, State reason not\_planned and
+its closing time, its file and Tom's note kept, same SHA-256; api #1 ("closed (not\_planned)",
+12:14 PM) and web #1 ("closed (completed)", 1:03 PM) stay listed with their last known records.
+GitHub declared 1 and sent 1, and every request was a GET (21). The moves are recorded in the earlier
+sets and kept in `sync-state.json`: web #5 → api #4 (12:15 PM) and api #4 → web #6 (1:03 PM), each
+linked by GitHub's redirect though the node ID changed, Tom's note following each time.
 
 **The records.** Criterion 5, verified: each issue file and `sync-state.json` hold the repository,
 number, node ID, title, state and reason, author, assignees, labels, milestone, body and the
@@ -231,7 +265,7 @@ its text (each with its node ID); `delivery-links.md` gives
 each issue exists, partial or missing. Criterion 11, verified: `last_successful_sync` per repository
 and `last_synced_at` per issue, in `sync-state.json` and the index.
 
-**The pretend GitHub (`logs/pretend-github-checks.txt`, 1:04 PM): 190 expectations, all as
+**The pretend GitHub (`logs/pretend-github-checks.txt`, 4:08 PM): 196 expectations, all as
 expected,** in a throwaway folder with no token or network. They cover what real GitHub can't be
 made to do on demand: two runs with notes (one without a final line break); moves with the node ID
 kept and changed, comment and event ids reissued, and both of GitHub's redirect forms (and a
@@ -245,12 +279,16 @@ shown as text, including a body holding the notes line itself; local refusals (a
 `index.md`, a lost notes line, another run's lock or leftovers, another account's folder, a notes
 section that isn't UTF-8, a linked folder, a real token sent to the pretend server); and a note
 saved while files were being swapped, kept (TEST ONLY copies of the tool make the save at that
-moment).
+moment); and the review's fixes (a State reason row on every record, a closed issue's record
+showing closed with its reason and closing time, and an issue archived before the fix brought up
+to date on the next run).
 
 **Reviews.** A deep self-review before every round, then Copilot review rounds on a practice pull
 request until a round reported no open issue (the eleventh); every finding was reproduced or
 reasoned through first, fixed, or answered with the reason it is a limitation below. A last round,
-on the final records, raised six more corner cases, listed under the limitations.
+on the final records, raised six more corner cases, listed under the limitations. The fixes after the first review were
+checked by a deep self-review instead, Copilot's practice allowance being used up; it found one
+more gap (an issue archived before the fix kept its old "open" record) and that was fixed too.
 
 ## Remaining limitations
 

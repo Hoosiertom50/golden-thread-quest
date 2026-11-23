@@ -872,11 +872,28 @@ const linkMove = (old, id, there) => {
   if (at >= 0) added.splice(at, 1);
   moved.push(`${old.repository}#${old.number} → ${label} (new node ID; linked by GitHub's forwarding)`);
 };
+// The last known record is the previous one brought up to what GitHub said when the issue was
+// looked up at its own address (its state, state reason, closing time, title, labels, milestone and
+// assignees), so a closed issue's record says closed, with its reason and time, not the open state
+// it had while assigned. Comments, events, links and notes stay as they were last read.
+const seenAt = (old, b) => ({
+  ...old,
+  title: b.title,
+  state: b.state,
+  state_reason: b.state_reason ?? null,
+  closed_at: b.closed_at ?? null,
+  updated_at: b.updated_at,
+  assignees: b.assignees.map(userOf).filter(Boolean),
+  labels: b.labels.map((l) => (isStr(l) ? l : l?.name)).filter(isStr),
+  milestone: b.milestone?.title ?? null,
+  state_seen_at: now,
+});
 // Issues assigned last time and not now: looked up directly to learn why.
 const noLonger = {};
 const newlyGone = [];
 for (const [id, old] of Object.entries(prev.issues)) {
   if (merged[id]) continue;
+  let seenNow = null; // GitHub's answer for the issue at its own address, when it was looked up
   let reason;
   let detail = null;
   const scopeEntry = byLowerName.get(old.repository.toLowerCase());
@@ -914,7 +931,9 @@ for (const [id, old] of Object.entries(prev.issues)) {
       } else if (b.state === "closed") {
         reason = "closed";
         detail = `closed ${shown(b.closed_at)}${b.state_reason ? ` (${b.state_reason})` : ""}`;
+        seenNow = b;
       } else if (!b.assignees.some((a) => a.id === me.id)) {
+        seenNow = b;
         reason = "unassigned";
         detail = b.assignees.length ? `now assigned to ${b.assignees.map(userOf).join(", ")}` : "now assigned to no one";
       } else {
@@ -927,7 +946,8 @@ for (const [id, old] of Object.entries(prev.issues)) {
       incomplete(`looking up ${old.repository}#${old.number}: GitHub answered ${r.status}${said(r)}`);
     }
   }
-  noLonger[id] = { node_id: id, repository: old.repository, number: old.number, title: old.title, reason, detail, detected_at: now, last_known_record: old };
+  const lastKnown = seenNow ? seenAt(old, seenNow) : old;
+  noLonger[id] = { node_id: id, repository: old.repository, number: old.number, title: lastKnown.title, reason, detail, detected_at: now, last_known_record: lastKnown };
   newlyGone.push(`${old.repository}#${old.number} (${reason})`);
 }
 // An issue listed as no longer assigned may since have moved and been assigned again (or been
@@ -935,7 +955,7 @@ for (const [id, old] of Object.entries(prev.issues)) {
 // is looked up at its old address, and one that forwards to an issue recorded now is linked to it
 // (its notes go with it) instead of staying archived.
 const returnedMoved = [];
-for (const [id, r] of Object.entries(prev.no_longer_assigned)) {
+for (let [id, r] of Object.entries(prev.no_longer_assigned)) {
   if (merged[id] || noLonger[id]) continue;
   const old = r.last_known_record;
   if (byLowerName.has(old.repository.toLowerCase())) {
@@ -953,6 +973,9 @@ for (const [id, r] of Object.entries(prev.no_longer_assigned)) {
         returnedMoved.push(`${there.repository}#${there.number}`);
         continue;
       }
+      // Still at its own address: its record is brought up to what GitHub says now (an issue
+      // archived by an earlier run, or by an earlier version of this tool, then shows its real state).
+      if (sameAddress && b.node_id === id) r = { ...r, title: b.title, last_known_record: seenAt(old, b) };
       // Open and assigned again, in scope, yet not found by the search: the search is behind.
       if (!there && byLowerName.has(nowRepo.toLowerCase()) && b.state === "open" && b.assignees.some((a) => a.id === me.id)) {
         incomplete(`${old.repository}#${old.number} is open and assigned again, but the search didn't return it (GitHub's search index is behind); run again in a minute`);
@@ -1055,7 +1078,8 @@ const recordSource = (rec, banner) => [
   `| Number | ${rec.number} |`,
   `| Node ID | ${code(rec.node_id)} |`,
   `| Link | ${rec.url ? `<${encodeURI(rec.url)}>` : "—"} |`,
-  `| State | ${text(rec.state)}${rec.state_reason ? ` (${text(rec.state_reason)})` : ""} |`,
+  `| State | ${text(rec.state)} |`,
+  `| State reason | ${rec.state_reason ? text(rec.state_reason) : "none given"} |`,
   `| Author | ${text(rec.author ?? "—")} |`,
   `| Assignees | ${rec.assignees.map(text).join(", ") || "—"} |`,
   `| Labels | ${rec.labels.map(text).join(", ") || "—"} |`,

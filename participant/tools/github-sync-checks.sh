@@ -163,6 +163,10 @@ expect "the moved note, now in web #5's file" "$(notes_of "$W/b/issues/practice-
 expect "api #2's old file" "$( [ -e "$W/b/issues/practice-owner__kettlebook-api__2.md" ] && echo present || echo gone)" gone
 expect "api #3's file (kept)" "$( [ -e "$W/b/issues/practice-owner__kettlebook-api__3.md" ] && echo present || echo gone)" present
 expect "api #3's banner" "$(grep -c '^> \*\*No longer assigned:\*\* closed' "$W/b/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "api #3's record: state as GitHub gave it when it left" "$(grep -c '^| State | closed |$' "$W/b/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "api #3's record: its state reason" "$(grep -c '^| State reason | completed |$' "$W/b/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "api #3's record: its closing time" "$(grep -c '^| Closed | 11-23-2026 .* (2026-11-23T15:00:00Z) |$' "$W/b/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "an open issue's record has a state reason row too" "$(grep -c '^| State reason | none given |$' "$W/b/issues/practice-owner__kettlebook-web__1.md")" 1
 
 say ""
 say "3. The same changes, but the moved issue gets a new node ID (as GitHub does)."
@@ -182,6 +186,12 @@ expect "web #2's cross-reference from the moved issue, recorded once" "$(grep -c
 sync_to "$W/c"
 expect "the next run, nothing changed" "$(line '^This run' | grep -c 'new none; changed none; moved none; no longer assigned none')" 1
 expect "earlier node ID still kept" "$(node -e 'const s=require(process.argv[1]);process.stdout.write(Object.values(s.issues).find(i=>i.number===5).previous_node_ids.join())' "$W/c/sync-state.json")" "I_pretend_api_2"
+# An issue archived with an old record that still says open (as an earlier version wrote it) is
+# brought up to date by the next run's look-up.
+node -e 'const f=process.argv[1],fs=require("fs"),s=JSON.parse(fs.readFileSync(f,"utf8"));for(const g of Object.values(s.no_longer_assigned)){if(g.number===3){Object.assign(g.last_known_record,{state:"open",state_reason:null,closed_at:null});}}fs.writeFileSync(f,JSON.stringify(s,null,2)+"\n")' "$W/c/sync-state.json"
+sync_to "$W/c"
+expect "an archived record that still said open, brought up to closed by the next run" "$(grep -c '^| State | closed |$' "$W/c/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "...with its state reason" "$(grep -c '^| State reason | completed |$' "$W/c/issues/practice-owner__kettlebook-api__3.md")" 1
 
 say "   ...and GitHub's other redirect form, /repositories/<id>/: the right id links the move, another repository's id stops the run."
 cp -R "$W/a" "$W/t1"; cp -R "$W/a" "$W/t2"

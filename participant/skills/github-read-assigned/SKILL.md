@@ -72,7 +72,8 @@ It writes into `participant/context/github/assigned/`:
    difference stops the run.
 6. **Read each issue directly** for fresh fields; the direct read wins over the search index.
    Record: repository full name, number, node ID, title, state, state reason, author, assignees,
-   labels, milestone, body, created, updated and closed times. **Identity is the node ID**; the
+   labels, milestone, body, created, updated and closed times (state reason in its own row,
+   "none given" while GitHub gives none). **Identity is the node ID**; the
    repository full name and number name the file, so `web#1` and `api#1` never collide.
 7. **Read its comments and timeline**, every page. Every comment needs an id, author, time and
    text, and the comments must add up to the issue's own comment count with no id twice. Material
@@ -97,7 +98,9 @@ It writes into `participant/context/github/assigned/`:
    the same way on each run.
 10. **Never delete what disappeared.** An issue assigned last time and not now is looked up at its
     old address to learn why (closed, unassigned, transferred out of scope, or inaccessible), and
-    listed under "No longer assigned" with the reason and its whole last known record. Its file
+    listed under "No longer assigned" with the reason and its whole last known record, brought
+    up to what GitHub said when it was looked up (a closed issue's record says closed, with its state
+    reason and closing time). Its file
     stays, notes and all.
 11. **Write everything together, or stop and say what is left.** One run at a time (`.github-sync.lock`); while
     holding it, every file read at the start must be unchanged, and every target must be an

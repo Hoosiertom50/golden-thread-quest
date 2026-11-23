@@ -1,5 +1,5 @@
-Checks of the GitHub synchronization against the pretend GitHub, 11-23-2026 1:04 PM EST.
-Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up data.
+Checks of the GitHub synchronization against the pretend GitHub, 11-23-2026 4:08 PM EST.
+Git commit a39f9ab; Node v22.23.3. Pages of 2. No token, no network: made-up data.
 
 1. Two runs on the practice world, a note written between them.
   as expected: run 1 exit = 0
@@ -31,6 +31,10 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected: api #2's old file = gone
   as expected: api #3's file (kept) = present
   as expected: api #3's banner = 1
+  as expected: api #3's record: state as GitHub gave it when it left = 1
+  as expected: api #3's record: its state reason = 1
+  as expected: api #3's record: its closing time = 1
+  as expected: an open issue's record has a state reason row too = 1
 
 3. The same changes, but the moved issue gets a new node ID (as GitHub does).
   as expected: exit = 0
@@ -45,12 +49,14 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected: web #2's cross-reference from the moved issue, recorded once = 1
   as expected: the next run, nothing changed = 1
   as expected: earlier node ID still kept = I_pretend_api_2
+  as expected: an archived record that still said open, brought up to closed by the next run = 1
+  as expected: ...with its state reason = 1
    ...and GitHub's other redirect form, /repositories/<id>/: the right id links the move, another repository's id stops the run.
   as expected: exit (right id) = 0
   as expected: the run (right id) says "(new node ID; linked by GitHub's forwarding)"
   as expected: exit (another repository's id) = 1
   as expected: message (another repository's id) says "without forwarding there"
-  as expected: the folder (another repository's id) = 1b93eced3e04bf5f
+  as expected: the folder (another repository's id) = 623d2bd79a14362b
 
 4. The pretend GitHub misbehaving: each run must stop, write nothing and say why.
 - wrong-total
@@ -187,31 +193,31 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
 - an index.md a person wrote
   as expected:   exit = 2
   as expected:   message says "index.md wasn't written by this tool"
-  as expected:   the folder = 768711baeeff5813
+  as expected:   the folder = e79471467c5ac2c9
 - an issue file that lost its notes line
   as expected:   exit = 2
   as expected:   message says "has lost its notes line"
-  as expected:   the folder = b62cafe113851c52
+  as expected:   the folder = dfc1e83aa464f9bc
 - another run's lock
   as expected:   exit = 2
   as expected:   message says "Another synchronization is writing to this folder"
-  as expected:   the folder = 190df43302ff8112
+  as expected:   the folder = 53a1ff8754fb5853
 - a sync-state.json this tool didn't write
   as expected:   exit = 2
   as expected:   message says "isn't one this tool wrote"
-  as expected:   the folder = bc1395bd3f96d6e9
+  as expected:   the folder = 29024abb98eed702
 - a sync-state.json record with its number removed
   as expected:   exit = 2
   as expected:   message says "isn't one this tool wrote"
-  as expected:   the folder = 5551d38d0036af88
+  as expected:   the folder = a14f4ecaa01b6175
 - a file left by a run that stopped while writing
   as expected:   exit = 2
   as expected:   message says "A previous run stopped while writing"
-  as expected:   the folder = 96fb853ca0a8711c
+  as expected:   the folder = 2db3740ff412c182
 - a notes section that isn't valid UTF-8
   as expected:   exit = 2
   as expected:   message says "isn't an ordinary UTF-8 text file"
-  as expected:   the folder = 03edbc750bf08a67
+  as expected:   the folder = 75f5ab653d1c8b82
 - an issues folder that is a link
   as expected:   exit = 2
   as expected:   message says "isn't an ordinary folder"
@@ -220,7 +226,7 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
 - a folder holding another account's copy
   as expected:   exit = 2
   as expected:   message says "holds the copy of another GitHub account"
-  as expected:   the folder = 23bd72062607d823
+  as expected:   the folder = b001f7e008c43afa
 - a real-looking token sent to the pretend server
   as expected:   exit = 2
   as expected:   message says "must be a pretend one"
@@ -236,14 +242,14 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected: exit = 2
   as expected: message says "was saved by someone while this run was writing"
   as expected: the note saved during the run, kept = 1
-  as expected: sync-state.json, as before = 05db59da3c7acc1efb7e72f8f5adf74cf10df2b5d30887d516291c01b1c5b568  -
+  as expected: sync-state.json, as before = 0ab94352c16246a14b430f4794257e06f5840cc316d4f63b936c4757b944329f  -
   as expected: files left behind (.new, .old, lock) = 0
    ...and a note saved just after the file was swapped in (a second TEST ONLY copy).
   as expected: the TEST ONLY line, placed once = 1
   as expected: exit = 2
   as expected: message says "A save made after a file was written is kept as"
   as expected: the save, kept aside = 1
-  as expected: web #1's file, put back as it was = 401d0d652dc7b1ad5827c155b7b61d3bd0ef06fd75438dc93d6845f8d7ef293e  -
+  as expected: web #1's file, put back as it was = f58b694b6cd5f1647f6e0876447af2e2d5e2aedd19c5ba52b95294e033618e41  -
   as expected: the lock, kept for a person to look = kept
   as expected: the next run refuses until a person has looked = 2
   as expected: its message says "A previous run stopped while writing"
@@ -252,5 +258,5 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected: places that call fetch = 1
   as expected: request methods named = method: "GET" 
 
-190 expectations as expected, 0 unexpected.
+196 expectations as expected, 0 unexpected.
 End of record.
