@@ -18,8 +18,8 @@ meeting raised and what became of it:
   counted**, every entry citing utterance identifiers and quoting them word for word. It also
   says how it compares with the decisions file from the earlier quest.
 - **The checker** (`participant/tools/check-open-questions.py`) and **its demonstration**
-  (`participant/tools/open-question-check-demo.sh`), which runs it on the real list and on twelve
-  copies, each with one planted mistake.
+  (`participant/tools/open-question-check-demo.sh`), which runs it on the real list and on
+  seventeen copies, each with one planted mistake.
 
 The transcript itself is never edited; the checker confirms it matches its committed copy.
 
@@ -53,10 +53,10 @@ Q1, Q3 and Q4 are the same three open questions as the decisions file (its O1 to
 
 ## What was tested or validated
 
-**The check (`logs/question-check.txt`, 11-23-2026 1:49 PM): 13 cases, all as expected.** The real list
+**The check (`logs/question-check.txt`, 11-23-2026 1:57 PM): 18 cases, all as expected.** The real list
 passes: 41 utterances, 12 with a question mark, every one sorted once, and every line that declares an
 open question raises or keeps open an entry; the transcript unchanged since it was committed. Each of
-the twelve broken copies fails, naming its planted mistake. The checker's pass is structural: it
+the seventeen broken copies fails, naming its planted mistake. The checker's pass is structural: it
 proves citations, quotes, order, owners, counts and completeness, and catches the common slips in
 meaning; whether each call is right in meaning is Tom's judgment, set out above.
 
@@ -68,7 +68,8 @@ meaning; whether each call is right in meaning is Tom's judgment, set out above.
    looks at the five lines after each open question: a reply by someone else that reads like an
    answer must be explained in "Why open" unless it is already the answer to another question.
    Every closed question's answer comes after it (a copy answering U009 with U008 fails), and is not
-   a promise or a hedge (a copy closing C5 with Priya's "I'll test it rather than assume it." fails).
+   a promise or a hedge (a copy closing C5 with Priya's "I'll test it rather than assume it." fails,
+   and so does one quoting it with "I'll" cut off: an answer must be whole sentences of its line).
 3. **Criterion 3, verified:** an owner or due point is recorded only with the line that states it; the
    one owner, Priya Shah on Q2, cites U019, her own "I'll test it rather than assume it."
 4. **Criterion 4, verified:** the owner of Q1, Q3 and Q4 and every due point is written "not stated",
@@ -86,8 +87,11 @@ meaning; whether each call is right in meaning is Tom's judgment, set out above.
    and so does one that drops Q3, declared as an open question at U035 without a question mark.
 
 Also checked: the counts match the lists (a copy saying 3 open fails), no id is used twice (a copy
-with two Q3s fails), each entry holds only its own kind's fields, and every utterance id and quote
-anywhere in the file, the reasons included, exists and matches.
+with two Q3s fails), each entry holds only its own kind's fields however they are spelled (a
+lowercase "work item:" fails), the file uses only its three heading levels (a level-four "Work
+items" heading fails), a due point must be its quote's own words (noon is not "afternoon"), and every
+utterance id and quote anywhere in the file, the reasons included and quotes wrapped onto the next
+line, exists and matches.
 
 ## Choices (Tom's)
 

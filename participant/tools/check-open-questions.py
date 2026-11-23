@@ -84,13 +84,27 @@ ALLOWED = {"Counts", "Open questions", "Closed in the meeting", "Not counted", "
 section = None
 entries = []  # dicts: list, id, title, fields{name: value}
 counts = {}
+titles = 0
 for line in q_text.splitlines():
+    # Only three heading levels exist here: the title (once, first), the sections, and the entries.
+    h = re.match(r"^(#{1,6})\s", line)
+    if h and len(h.group(1)) not in (1, 2, 3):
+        problem(f'"{line}" is a heading level this file doesn\'t use')
+        continue
+    if h and len(h.group(1)) == 1:
+        titles += 1
+        if titles > 1 or section is not None:
+            problem(f'"{line}" is a second title, or a title after the sections began')
+        continue
     if line.startswith("## "):
         section = line[3:].strip()
         if section not in ALLOWED:
             problem(f'section "{section}" isn\'t allowed here (questions only: decisions and work live elsewhere)')
         continue
     if line.startswith("### "):
+        if section not in ("Open questions", "Closed in the meeting", "Not counted"):
+            problem(f'"{line}" is an entry heading outside the three lists')
+            continue
         m = re.match(r"^### ([QCN])(\d+) · (.+)$", line)
         want = {"Open questions": "Q", "Closed in the meeting": "C", "Not counted": "N"}.get(section)
         if not m or m.group(1) != want:
@@ -101,7 +115,9 @@ for line in q_text.splitlines():
             problem(f"{eid} is used twice")
         entries.append({"list": section, "id": eid, "title": m.group(3), "fields": {}})
         continue
-    m = re.match(r"^- ([A-Z][A-Za-z ]+): (.*)$", line)
+    # Any bullet shaped like a field ("- name: value", whatever its spelling) is read as one, so a
+    # field the allowlist doesn't know can't slip past as plain text.
+    m = re.match(r"^- ([^:]{1,40}): (.*)$", line)
     if m and section == "Counts":
         if not m.group(2).isdigit():
             problem(f'count "{m.group(1)}" isn\'t a number')
@@ -115,6 +131,8 @@ for line in q_text.splitlines():
     elif line.startswith("  ") and entries and entries[-1]["fields"]:
         last = list(entries[-1]["fields"])[-1]
         entries[-1]["fields"][last] += " " + line.strip()
+    elif line.startswith("- ") and section in ("Open questions", "Closed in the meeting", "Not counted"):
+        problem(f'"{line}" is a bullet in an entry that isn\'t a field')
 
 CITE = re.compile(r"^(U\d{3}) \"(.+)\"$")
 FIELDS = {
@@ -129,11 +147,13 @@ for e in entries:
             problem(f'{e["id"]}: "{f}" isn\'t a field of {e["list"].lower()} (allowed: {", ".join(sorted(allowed))})')
 # 5: every utterance id and quote anywhere in the file (narrative fields and the comparison too)
 # must exist and match: U012 "words" pairs are checked word for word, bare ids must exist.
-for m in re.finditer(r"\b(U\d{3})\b(?: \"([^\"]+)\")?", q_text):
+for m in re.finditer(r"\b(U\d{3})\b(?:\s+\"([^\"]+)\")?", q_text):
     if m.group(1) not in utter:
         problem(f"the file cites {m.group(1)}, which isn't in the transcript")
-    elif m.group(2) and m.group(2) not in utter[m.group(1)][1]:
-        problem(f'the file quotes "{m.group(2)}" as {m.group(1)}, but it isn\'t word for word there')
+        continue
+    quote = re.sub(r"\s+", " ", m.group(2) or "").strip()  # a quote wrapped across lines
+    if quote and quote not in re.sub(r"\s+", " ", utter[m.group(1)][1]):
+        problem(f'the file quotes "{quote}" as {m.group(1)}, but it isn\'t word for word there')
 
 
 def cited(entry, field, required=True):
@@ -185,7 +205,7 @@ def stated(entry, field):
     if field == "Due":
         # The due value must be the quoted words themselves (so it can't say Friday while citing
         # Wednesday); whether that line sets the answer's deadline is for the reviewer.
-        if who.lower() not in quote.lower():
+        if not re.search(r"(?<![A-Za-z0-9])%s(?![A-Za-z0-9])" % re.escape(who), quote, re.I):
             problem(f"{entry['id']}: due \"{who}\" isn't in its own quote \"{quote}\"")
 
 
@@ -208,6 +228,15 @@ for e in entries:
     elif e["list"] == "Closed in the meeting":
         a = cited(e, "Answered")
         quote = CITE.match(e["fields"].get("Answered", "")).group(2) if CITE.match(e["fields"].get("Answered", "")) else ""
+        # The answer must be whole sentences of its line (starting where a sentence starts, ending
+        # where one ends), so a promise or hedge can't be cut off its front or back.
+        if a and quote:
+            said = utter[a][1]
+            at = said.find(quote)
+            starts = at == 0 or (at > 1 and said[at - 2] in ".?!" and said[at - 1] == " ")
+            ends = quote.rstrip()[-1:] in ".?!\"" and (at + len(quote) == len(said) or said[at + len(quote)] == " ")
+            if at >= 0 and not (starts and ends):
+                problem(f'{e["id"]}: the answer "{quote}" isn\'t whole sentences of {a}')
         if re.search(r"\b(I'll|I will|we'll|we will|let me|should|might|maybe|probably|I think|find out)\b", quote, re.I):
             problem(f"{e['id']}: the answer \"{quote}\" is a promise or a hedge, which doesn't close a question")
         if uid and a and pos[a] <= pos[uid]:

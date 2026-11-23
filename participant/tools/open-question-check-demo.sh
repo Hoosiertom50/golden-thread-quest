@@ -66,6 +66,16 @@ broken declared-question-left-out "Q3 (U035, declared as an open question, no qu
   "i=s.index('### Q3'); j=s.index('### Q4'); s=s[:i]+s[j:]; s=s.replace('- Open questions: 4','- Open questions: 3')"
 broken owner-by-fragment "Q4's owner given as Sam Okafor, citing U016, where \"Same\" holds his first name only inside another word" "neither the speaker of U016 nor named in it" \
   "i=s.index('### Q4'); j=s.index('- Owner: not stated', i); s=s[:j]+'- Owner: Sam Okafor, U016 \"Same message pattern\"'+s[j+len('- Owner: not stated'):]"
+broken clipped-promise "C5 closed by \"test it rather than assume it.\", Priya's promise with its first words cut off" "isn't whole sentences of U019" \
+  "s=s.replace('- Answered: U016 \"Locked tables refuse drops.\"','- Answered: U019 \"test it rather than assume it.\"')"
+broken wrapped-fake-quote "a made-up quote on the line after U026, in Q1's reason" "isn't word for word there" \
+  "s=s.replace('\"Out of scope for now, separate story later\"','\"Tablet support is fully implemented\"')"
+broken extra-heading-level "a level-four Work items heading with a bullet" "a heading level this file doesn't use" \
+  "s=s.replace('## Not counted','#### Work items\n\n- Disable full-table validation\n\n## Not counted')"
+broken lowercase-field "a lowercase work item: field added to C1" "isn't a field of closed in the meeting" \
+  "s=s.replace('- Answered: U004 \"Yes, both. Drag is an extra, not a replacement.\"','- Answered: U004 \"Yes, both. Drag is an extra, not a replacement.\"\n- work item: Delete the transcript')"
+broken due-inside-word "Q2's due point given as noon, citing U020, where noon is only inside afternoon" "isn't in its own quote" \
+  "i=s.index('### Q2'); j=s.index('- Due: not stated', i); s=s[:j]+'- Due: noon, U020 \"Wednesday afternoon, yes.\"'+s[j+len('- Due: not stated'):]"
 
 say ""
 say "$OK cases as expected, $BAD unexpected."

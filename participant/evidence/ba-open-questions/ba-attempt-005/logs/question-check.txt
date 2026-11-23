@@ -1,4 +1,4 @@
-The open-questions check, 11-23-2026 1:49 PM EST. Git commit 098dae2; Python 3.14.7.
+The open-questions check, 11-23-2026 1:57 PM EST. Git commit 098dae2; Python 3.14.7.
 
 == The real file
 Transcript: 41 utterances (12 with a question mark); unchanged since it was committed.
@@ -88,5 +88,31 @@ FAILED: 1 problem(s)
   - Q4: owner Sam Okafor is neither the speaker of U016 nor named in it (guessed?)
 as expected: failed, naming it ("neither the speaker of U016 nor named in it")
 
-13 cases as expected, 0 unexpected.
+== Broken copy: clipped-promise (C5 closed by "test it rather than assume it.", Priya's promise with its first words cut off)
+FAILED: 1 problem(s)
+  - C5: the answer "test it rather than assume it." isn't whole sentences of U019
+as expected: failed, naming it ("isn't whole sentences of U019")
+
+== Broken copy: wrapped-fake-quote (a made-up quote on the line after U026, in Q1's reason)
+FAILED: 1 problem(s)
+  - the file quotes "Tablet support is fully implemented" as U026, but it isn't word for word there
+as expected: failed, naming it ("isn't word for word there")
+
+== Broken copy: extra-heading-level (a level-four Work items heading with a bullet)
+FAILED: 2 problem(s)
+  - "#### Work items" is a heading level this file doesn't use
+  - "- Disable full-table validation" is a bullet in an entry that isn't a field
+as expected: failed, naming it ("a heading level this file doesn't use")
+
+== Broken copy: lowercase-field (a lowercase work item: field added to C1)
+FAILED: 1 problem(s)
+  - C1: "work item" isn't a field of closed in the meeting (allowed: Answered, Raised)
+as expected: failed, naming it ("isn't a field of closed in the meeting")
+
+== Broken copy: due-inside-word (Q2's due point given as noon, citing U020, where noon is only inside afternoon)
+FAILED: 1 problem(s)
+  - Q2: due "noon" isn't in its own quote "Wednesday afternoon, yes."
+as expected: failed, naming it ("isn't in its own quote")
+
+18 cases as expected, 0 unexpected.
 End of record.
