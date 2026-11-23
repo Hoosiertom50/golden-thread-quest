@@ -1,0 +1,68 @@
+The open-questions check, 11-23-2026 1:35 PM EST. Git commit 098dae2; Python 3.14.7.
+
+== The real file
+Transcript: 41 utterances (12 with a question mark); unchanged since it was committed.
+Open questions: 4
+  Q1 raised at U021; owner not stated; due not stated: Does dragging work by touch on tablets?
+  Q2 raised at U017; owner Priya Shah; due not stated: Does undo cover drops?
+  Q3 raised at U035; owner not stated; due not stated: Do first-time users need a drag hint?
+  Q4 raised at U036; owner not stated; due not stated: What do screen readers announce when a drop is refused?
+Closed in the meeting: 9
+  C1 raised at U003; answered at U004: Does the dropdown stay?
+  C2 raised at U006; answered at U007: Is it a hover preview of the table's guests?
+  C3 raised at U009; answered at U011: What happens on a drop onto a full table?
+  C4 raised at U012; answered at U014: What if a guest has a plus-one and only one seat is left?
+  C5 raised at U015; answered at U016: What about the head table?
+  C6 raised at U019; answered at U020: Can there be a build by Wednesday?
+  C7 raised at U030; answered at U031: Can venues print the chart after arranging it?
+  C8 raised at U031; answered at U033: Is anything new needed for printing?
+  C9 raised at U039; answered at U040: Can there be an estimate by tomorrow?
+Not counted: 1
+  N1 raised at U022: Who raised the iPad question?
+
+PASSED: every citation and quote checks out, nothing answered is listed as open, every owner
+and due point is stated or marked not stated, and every question in the transcript is sorted once.
+as expected: passed (exit 0)
+
+== Broken copy: answered-listed-open (C1, answered at U004 "Yes, both.", moved into the open list)
+FAILED: 1 problem(s)
+  - Q5: U004 ("Yes, both. Drag is an extra, not a repla") reads like an answer; say in Why open why it doesn't close the question
+as expected: failed, naming it ("reads like an answer")
+
+== Broken copy: guessed-owner (Q3's owner guessed as Marcus Lee, citing a line he neither said nor is named in)
+FAILED: 1 problem(s)
+  - Q3: owner Marcus Lee is neither the speaker of U035 nor named in it (guessed?)
+as expected: failed, naming it ("neither the speaker of U035 nor named in it")
+
+== Broken copy: missing-id (Q4 cites U099, which doesn't exist)
+FAILED: 1 problem(s)
+  - Q4: Kept open by cites U099, which isn't in the transcript
+as expected: failed, naming it ("U099, which isn't in the transcript")
+
+== Broken copy: changed-quote (C5's quote changed by one word)
+FAILED: 1 problem(s)
+  - C5: Answered: "Locked tables accept drops." isn't word for word in U016
+as expected: failed, naming it ("isn't word for word in U016")
+
+== Broken copy: question-left-out (C7 (U030, the printing question) deleted)
+FAILED: 1 problem(s)
+  - U030 asks a question ("One more from the venue: can they print the chart after arra") but isn't in any list
+as expected: failed, naming it ("U030 asks a question")
+
+== Broken copy: answer-before-question (C3 answered by U008, before the question at U009)
+FAILED: 1 problem(s)
+  - C3: the answer U008 doesn't come after the question U009
+as expected: failed, naming it ("doesn't come after the question U009")
+
+== Broken copy: decisions-mixed-in (a Decisions section added to the questions file)
+FAILED: 1 problem(s)
+  - section "Decisions" isn't allowed here (questions only: decisions and work live elsewhere)
+as expected: failed, naming it ("isn't allowed here")
+
+== Broken copy: wrong-count (the open count says 3)
+FAILED: 1 problem(s)
+  - count "Open questions" says 3, the list has 4
+as expected: failed, naming it ("says 3, the list has 4")
+
+9 cases as expected, 0 unexpected.
+End of record.
