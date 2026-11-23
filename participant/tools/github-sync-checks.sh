@@ -12,8 +12,20 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 TOOLS="$ROOT/participant/tools"
 LOGDIR=${1:?usage: github-sync-checks.sh <logs folder>}
+# The logs folder and every folder above it that exists must be real folders (no link on the
+# way), checked before anything is made and again after.
+check_logdir() {
+  local d
+  d="$LOGDIR"
+  case "$d" in /*) ;; *) d="$PWD/$d" ;; esac
+  while [ "$d" != "/" ] && [ -n "$d" ]; do
+    if [ -L "$d" ] || { [ -e "$d" ] && [ ! -d "$d" ]; }; then echo "$d is a link or not a folder; give a real folder (for example under /private/tmp, not /tmp)."; exit 1; fi
+    d=$(dirname "$d")
+  done
+}
+check_logdir
 mkdir -p "$LOGDIR" || exit 1
-if [ -L "$LOGDIR" ]; then echo "$LOGDIR is a link; give a real folder."; exit 1; fi
+check_logdir
 LOG="$LOGDIR/pretend-github-checks.txt"
 W=$(mktemp -d "${TMPDIR:-/tmp}/github-sync-checks.XXXXXX") || { echo "Could not make a temporary folder; nothing was run."; exit 1; }
 SPID=""
@@ -191,6 +203,8 @@ fault commit-gap 1 "GitHub counted 2 commits but sent 1"
 fault assignee-no-id 1 "missing fields or has odd ones"
 fault offsite-redirect 1 "redirected to another server"
 fault search-misses-one 1 "only in the list: #2"
+fault last-beyond 1 "has no next link, but GitHub says the last page is 2"
+fault full-page-no-next 1 "was full and had no next link"
 fault pr-other-repo 1 "practice-owner/kettlebook-web#4: GitHub answered 200 with odd fields"
 fault skip-page 1 "doesn't ask for page 2 of the same list"
 fault next-other-list 1 "doesn't ask for page 2 of the same list"

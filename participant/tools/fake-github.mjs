@@ -35,6 +35,8 @@
 //   search-misses-one  the search index lacks web #2 (in its items and its total alike)
 //   pr-other-repo    reading pull request #4 answers with a pull request of another repository
 //   scopes-echo      /user lists "repo" and echoes the bearer token as a scope
+//   last-beyond      web #1's comments: page 1 has no next link but a last link naming page 2
+//   full-page-no-next  web #1's timeline: a full page of 100 events with no next link, and more after
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -179,6 +181,16 @@ const server = createServer((req, res) => {
       : m[6] === "timeline" ? (it.timeline ?? []) : (it.pull_request?.commits ?? []).map((c) => ({ sha: c.sha, commit: { message: c.message } }));
     if (it.node_id === "I_pretend_web_1" && FAULT === "comment-repeat" && m[6] === "comments") list = [list[0], list[0]];
     if (it.node_id === "I_pretend_web_1" && FAULT === "event-no-id" && m[6] === "timeline") list = list.map((e) => (e.event === "labeled" ? { ...e, id: undefined } : e));
+    if (it.node_id === "I_pretend_web_1" && m[6] === "comments" && FAULT === "last-beyond") {
+      const lastU = new URL(original);
+      lastU.searchParams.set("page", "2");
+      return json(res, 200, list, { link: `<${lastU.href}>; rel="last"` });
+    }
+    if (it.node_id === "I_pretend_web_1" && m[6] === "timeline" && FAULT === "full-page-no-next") {
+      const p = Number(url.searchParams.get("page") ?? 1);
+      const many = Array.from({ length: 101 }, (_, i) => ({ id: 80000 + i, event: "labeled", actor: { login: "practice-user" }, created_at: "2026-11-23T14:26:11Z", label: { name: `l${i}` } }));
+      return json(res, 200, p === 1 ? many.slice(0, 100) : many.slice(100));
+    }
     if (it.node_id === "I_pretend_web_1" && m[6] === "comments" && FAULT === "list-redirect") {
       res.writeHead(302, { location: original.href });
       return res.end();

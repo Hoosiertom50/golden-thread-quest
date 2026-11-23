@@ -284,12 +284,12 @@ const get = async (url, { list = false } = {}) => {
   let body = null;
   const text = await res.text();
   try { body = text ? JSON.parse(text) : null; } catch { body = undefined; }
-  return { status: res.status, headers: res.headers, body, url: at.href };
+  return { status: res.status, headers: res.headers, body, url: at.href, redirected: at.href !== u.href, finalPath: at.pathname };
 };
 // The "next" page, from GitHub's Link header; null when there is none. Each entry is <address>
 // and parameters in any order; rel may be quoted or not and hold several relations. An entry that
 // can't be read stops the run rather than look like the end of the list.
-const nextLink = (headers) => {
+const linkRel = (headers, want) => {
   const link = (headers.get("link") ?? "").trim();
   if (link === "") return null;
   let found = null;
@@ -298,13 +298,23 @@ const nextLink = (headers) => {
     if (!m) incomplete(`GitHub sent a Link header that can't be read`);
     const rel = [...m[2].matchAll(/;\s*rel\s*=\s*(?:"([^"]*)"|([^;,\s]+))/gi)].map((x) => (x[1] ?? x[2]).toLowerCase().split(/\s+/)).flat().filter(Boolean);
     if (rel.length === 0) incomplete("GitHub sent a Link entry without a relation");
-    if (rel.includes("next")) {
-      if (found) incomplete("GitHub's Link header names two next pages");
+    if (rel.includes(want)) {
+      if (found) incomplete(`GitHub's Link header names two ${want} pages`);
       found = m[1];
     }
   }
   if (link.replace(/<[^>]*>[^,]*/g, "").replace(/[\s,]/g, "") !== "" || !/<[^>]*>/.test(link)) incomplete(`GitHub sent a Link header that can't be read`);
   return found;
+};
+const nextLink = (headers) => linkRel(headers, "next");
+// The page number a "last" link names, or null.
+const lastPage = (headers) => {
+  const l = linkRel(headers, "last");
+  if (!l) return null;
+  let n = null;
+  try { n = Number(new URL(l, opts.api).searchParams.get("page")); } catch { /* checked below */ }
+  if (!posInt(n)) incomplete("GitHub's last page link has no page number");
+  return n;
 };
 const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
 // GitHub's own reason for a refusal, shortened and made printable (it never holds the token).
@@ -315,7 +325,8 @@ const said = (r) => {
   return all ? ` (GitHub said: "${all}")` : "";
 };
 const isStr = (x) => typeof x === "string";
-const isTime = (x) => isStr(x) && !Number.isNaN(Date.parse(x));
+// GitHub's times are ISO 8601 in UTC ("2026-11-23T14:26:10Z"); nothing else is accepted.
+const isTime = (x) => isStr(x) && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(x) && !Number.isNaN(Date.parse(x));
 const posInt = (x) => Number.isInteger(x) && x > 0;
 // A "next" link must ask for the same list (same path, or GitHub's /repositories/<id>/... form of
 // it, and the same query) and for exactly the following page; anything else would let another
@@ -335,17 +346,29 @@ const sameList = (first, next, page) => {
   }
 };
 // A list endpoint (comments, timeline, commits): every page until no "next", at most 100 pages.
+// A page without a "next" link is the end only if no "last" link names a later page, and a last
+// page that is full is checked by asking for the page after it, which must be empty: a dropped
+// "next" link can't cut a list (a timeline has no count to compare with) short unnoticed.
 const allPages = async (path, what) => {
   const items = [];
+  const per = Number(new URL(path, opts.api).searchParams.get("per_page") ?? 30);
   let url = path;
   for (let page = 1; url; page++) {
     if (page > 100) incomplete(`${what} has more than 100 pages`);
     const r = await get(url, { list: true });
     if (r.status !== 200 || !Array.isArray(r.body)) incomplete(`${what}: GitHub answered ${r.status}${said(r)}`);
     const next = nextLink(r.headers);
+    const last = lastPage(r.headers);
     if (next && r.body.length === 0) incomplete(`${what}: an empty page that isn't the last`);
     if (next) sameList(path, next, page + 1);
+    if (!next && last !== null && last > page) incomplete(`${what}: page ${page} has no next link, but GitHub says the last page is ${last}`);
     items.push(...r.body);
+    if (!next && r.body.length >= per) {
+      const probe = new URL(path, opts.api);
+      probe.searchParams.set("page", String(page + 1));
+      const r2 = await get(`${probe.pathname}${probe.search}`, { list: true });
+      if (r2.status !== 200 || !Array.isArray(r2.body) || r2.body.length !== 0) incomplete(`${what}: page ${page} was full and had no next link, but page ${page + 1} isn't empty`);
+    }
     url = next;
   }
   return items;
@@ -441,9 +464,15 @@ for (const full of readable) {
   // The search index can miss a newly assigned issue in both its items and its total, so the
   // search is checked against GitHub's own list of the repository's open issues assigned to the
   // same login (which also holds pull requests, told apart by their pull_request key).
-  const listed = (await allPages(`/repos/${name}/issues?assignee=${encodeURIComponent(me.login)}&state=open&per_page=100`, `${name}'s issue list`))
-    .filter((i) => isObj(i) && i.pull_request === undefined);
-  if (!listed.every((i) => posInt(i.number) && isStr(i.node_id) && NODE.test(i.node_id))) incomplete(`${name}'s issue list has an item without a number or node ID`);
+  const rows = await allPages(`/repos/${name}/issues?assignee=${encodeURIComponent(me.login)}&state=open&per_page=100`, `${name}'s issue list`);
+  if (!rows.every((i) => isObj(i) && posInt(i.number) && isStr(i.node_id) && NODE.test(i.node_id))) incomplete(`${name}'s issue list has an item without a number or node ID`);
+  if (new Set(rows.map((i) => i.node_id)).size !== rows.length) incomplete(`${name}'s issue list has an item twice`);
+  const listed = rows.filter((i) => i.pull_request === undefined);
+  const listedPrs = new Set(rows.filter((i) => i.pull_request !== undefined).map((i) => i.node_id));
+  const searchedPrs = new Set(prs.items.map((i) => i.node_id));
+  if (listedPrs.size !== searchedPrs.size || [...listedPrs].some((x) => !searchedPrs.has(x))) {
+    incomplete(`the pull request search and GitHub's issue list for ${name} disagree; GitHub's search may be catching up, run again in a minute`);
+  }
   const inSearch = new Set(iss.items.filter((i) => i.pull_request === undefined).map((i) => i.node_id));
   const inList = new Set(listed.map((i) => i.node_id));
   const onlyList = listed.filter((i) => !inSearch.has(i.node_id)).map((i) => `#${i.number}`);
@@ -487,10 +516,10 @@ const readIssue = async (full, number) => {
 const checkIssueBody = (b, what) => {
   const ok = isObj(b) && posInt(b.number) && isStr(b.node_id) && NODE.test(b.node_id) && isStr(b.title)
     && (b.state === "open" || b.state === "closed") && (b.state_reason == null || isStr(b.state_reason))
-    && (b.body == null || isStr(b.body)) && isTime(b.created_at) && isTime(b.updated_at) && (b.closed_at == null || isTime(b.closed_at))
+    && "body" in b && (b.body === null || isStr(b.body)) && isTime(b.created_at) && isTime(b.updated_at) && (b.closed_at == null || isTime(b.closed_at))
     && Array.isArray(b.assignees) && b.assignees.every((a) => isObj(a) && posInt(a.id) && isStr(a.login))
     && Array.isArray(b.labels) && b.labels.every((l) => isStr(l) || (isObj(l) && isStr(l.name)))
-    && (b.milestone == null || (isObj(b.milestone) && isStr(b.milestone.title))) && (b.user == null || isObj(b.user))
+    && (b.milestone == null || (isObj(b.milestone) && isStr(b.milestone.title))) && "user" in b && (b.user === null || userOf(b.user) !== null)
     && Number.isInteger(b.comments) && b.comments >= 0 && repoFromApiUrl(b.repository_url) !== null;
   if (!ok) incomplete(`${what}: GitHub's answer is missing fields or has odd ones`);
 };
@@ -522,14 +551,14 @@ const closesIssue = (prBody, prRepo, repo, number) => {
 };
 const prCache = new Map();
 const readPull = async (repo, number, nodeId) => {
-  const key = `${repo}#${number}`.toLowerCase();
+  const key = `${repo}#${number}#${nodeId ?? ""}`.toLowerCase();
   if (prCache.has(key)) return prCache.get(key);
   let info;
   const r = await get(`/repos/${repo}/pulls/${number}`);
   const okPull = (b) => isObj(b) && b.number === number && (nodeId == null || b.node_id === nodeId)
     && isStr(b.base?.repo?.full_name) && b.base.repo.full_name.toLowerCase() === canonName(repo).toLowerCase()
     && (b.state === "open" || b.state === "closed") && Number.isInteger(b.commits) && b.commits >= 0
-    && typeof b.merged === "boolean" && typeof b.draft === "boolean" && (b.body == null || isStr(b.body)) && (b.merged_at == null || isTime(b.merged_at))
+    && typeof b.merged === "boolean" && typeof b.draft === "boolean" && "body" in b && (b.body === null || isStr(b.body)) && (b.merged_at == null || isTime(b.merged_at))
     && b.merged === (b.merged_at != null);
   if (r.status === 200 && okPull(r.body)) {
     const commits = await allPages(`/repos/${repo}/pulls/${number}/commits?per_page=100`, `${repo}#${number} commits`);
@@ -760,6 +789,15 @@ for (const [id, rec] of current) {
   }
   merged[id] = rec;
 }
+// A different address answering at the old one counts as a move only if GitHub forwarded the
+// request there: the redirect must end at that issue's own address.
+const forwardedTo = (r, repo, number) => {
+  if (!r.redirected) return false;
+  const m = r.finalPath.match(/^\/(?:repos\/([^/]+\/[^/]+)|repositories\/(\d+))\/issues\/(\d+)$/);
+  if (!m || Number(m[3]) !== number) return false;
+  if (m[1]) return canonName(m[1]).toLowerCase() === canonName(repo).toLowerCase();
+  return true; // the /repositories/<id>/ form: the repository is then the answer's own
+};
 const alias = new Map(); // earlier node ID -> current one, for moved issues
 const canon = (nid) => alias.get(nid) ?? nid;
 // GitHub gives a transferred issue a new node ID (seen with the practice repositories), but its old
@@ -797,7 +835,8 @@ const linkMove = (old, id, there) => {
   const usedE = new Set();
   for (const e of old.events ?? []) {
     const same = there.events.find((x) => !usedE.has(x) && (x.key === e.key || eventSig(x) === eventSig(e)));
-    if (same) usedE.add(same); else there.events.push(e);
+    if (same) usedE.add(same);
+    else { there.events.push(e); usedE.add(e); }
   }
   if (old.file !== there.file) (there.predecessors ??= []).push({ file: old.file, repository: old.repository, number: old.number });
   const label = `${there.repository}#${there.number}`;
@@ -814,7 +853,7 @@ for (const [id, old] of Object.entries(prev.issues)) {
   let detail = null;
   const scopeEntry = byLowerName.get(old.repository.toLowerCase());
   if (!scopeEntry) {
-    const listed = repos.some((f) => f.toLowerCase() === old.repository.toLowerCase() || repoInfo[f].full_name?.toLowerCase() === old.repository.toLowerCase());
+    const listed = repos.some((f) => [f, repoInfo[f].full_name, prev.repositories[f]?.full_name].some((x) => isStr(x) && x.toLowerCase() === old.repository.toLowerCase()));
     reason = listed ? "inaccessible" : "out of scope";
     detail = listed ? `the repository ${old.repository} couldn't be read this run` : `the repository ${old.repository} is no longer in the scope list`;
   } else {
@@ -830,6 +869,8 @@ for (const [id, old] of Object.entries(prev.issues)) {
       if (sameAddress && b.node_id !== id) {
         reason = "inaccessible";
         detail = "the number now belongs to a different issue";
+      } else if (!sameAddress && !forwardedTo(r, nowRepo, b.number)) {
+        incomplete(`looking up ${old.repository}#${old.number}: GitHub answered for ${nowRepo}#${b.number} without forwarding there`);
       } else if (!sameAddress) {
         reason = "transferred";
         detail = `moved to ${nowRepo}#${b.number}${byLowerName.has(nowRepo.toLowerCase()) ? "" : " (outside the scope list)"}`;
@@ -876,6 +917,7 @@ for (const [id, r] of Object.entries(prev.no_longer_assigned)) {
       const nowRepo = canonName(repoFromApiUrl(b.repository_url));
       const sameAddress = nowRepo.toLowerCase() === oldName.toLowerCase() && b.number === old.number;
       const there = Object.values(merged).find((m) => m.repository.toLowerCase() === nowRepo.toLowerCase() && m.number === b.number);
+      if (!sameAddress && !forwardedTo(look, nowRepo, b.number)) incomplete(`looking up ${old.repository}#${old.number}: GitHub answered for ${nowRepo}#${b.number} without forwarding there`);
       if (!sameAddress && there && there.node_id === b.node_id && there.node_id !== id) {
         linkMove(old, id, there);
         returnedMoved.push(`${there.repository}#${there.number}`);
@@ -939,7 +981,7 @@ for (const full of repos) {
   const info = repoInfo[full];
   repoState[full] = info.readable
     ? { readable: true, full_name: info.full_name, last_successful_sync: now, ...(info.note ? { note: info.note } : {}), search: searchReport[full] }
-    : { readable: false, reason: info.reason, last_successful_sync: prev.repositories[full]?.last_successful_sync ?? null };
+    : { readable: false, reason: info.reason, last_successful_sync: prev.repositories[full]?.last_successful_sync ?? null, ...(isStr(prev.repositories[full]?.full_name) ? { full_name: prev.repositories[full].full_name } : {}) };
 }
 
 // ---- writing the files --------------------------------------------------------------------------

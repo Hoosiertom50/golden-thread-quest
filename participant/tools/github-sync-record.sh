@@ -82,7 +82,13 @@ notes_hashes() {
     let names = [];
     try { names = fs.readdirSync(dir).filter((n) => n.endsWith(".md")).sort(); } catch {}
     for (const n of names) {
-      const t = fs.readFileSync(path.join(dir, n));
+      // Opened once without following a link or waiting on a pipe, and checked as an ordinary file.
+      let fd;
+      try { fd = fs.openSync(path.join(dir, n), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK); }
+      catch (err) { console.error(`issues/${n} cannot be opened safely (${err.code}); stopped.`); process.exit(1); }
+      if (!fs.fstatSync(fd).isFile()) { console.error(`issues/${n} is not an ordinary file; stopped.`); process.exit(1); }
+      const t = fs.readFileSync(fd);
+      fs.closeSync(fd);
       const at = t.indexOf(mark);
       const h = at < 0 ? "no-notes-line" : crypto.createHash("sha256").update(t.subarray(at + mark.length)).digest("hex");
       console.log(`${h}  ${n}`);
@@ -125,9 +131,10 @@ case "$MODE" in
     probe() { # what, method, url, body, undo-hint
       [ "$BAD" = 0 ] || { echo "$1: not tried (an earlier check failed)."; return; }
       local out code msg
-      out=$(curl -s -w '\n%{http_code}' -X "$2" -H @<(auth) "$3" -d "$4")
+      out=$(printf '%s' "$4" | curl -s -w '\n%{http_code}' -X "$2" -H @<(auth) "$3" --data-binary @-)
       code=${out##*$'\n'}
       msg=$(printf '%s' "${out%$'\n'*}" | field message)
+      msg=${msg//"$GTQ_GITHUB_TOKEN"/[token]}
       if [ "$code" = "403" ] && [ "$msg" = "Resource not accessible by personal access token" ]; then
         echo "$1: GitHub answered 403, \"$msg\": refused for lack of permission."
       else
@@ -194,7 +201,7 @@ case "$MODE" in
     echo "Now write a note: open one issue's file in participant/context/github/assigned/issues/,"
     echo "type something under \"## My notes\", save it, then press Return here."
     read -r _
-    B=$(notes_hashes)
+    B=$(notes_hashes) || exit 1
     {
       cat "$REC"
       echo
@@ -229,7 +236,7 @@ case "$MODE" in
     ;;
   disappearance)
     REC="$LOGS/disappearance.txt"
-    B=$(notes_hashes)
+    B=$(notes_hashes) || exit 1
     {
       echo "A run after changes on GitHub, $(stamp). Git commit $(git -C "$ROOT" rev-parse --short HEAD). Node $(node --version)."
       echo
