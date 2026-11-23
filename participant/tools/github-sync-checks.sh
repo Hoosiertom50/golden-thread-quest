@@ -35,6 +35,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Made-up values only: a pretend token for the pretend GitHub, and one that isn't pretend (it
+# must be refused). Neither is, or looks like, a real GitHub token.
+PRETEND=pretend-token
+NOT_PRETEND=not-a-pretend-token-0123
 OK=0
 BAD=0
 REC="$W/record.txt"
@@ -60,7 +64,7 @@ start() { # world file, fault
 OUTPUT=""
 CODE=0
 sync_to() { # folder
-  OUTPUT=$(GTQ_GITHUB_TOKEN=pretend-token node "$TOOLS/github-sync.mjs" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$1" --per-page 2 2>&1)
+  OUTPUT=$(GTQ_GITHUB_TOKEN="$PRETEND" node "$TOOLS/github-sync.mjs" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$1" --per-page 2 2>&1)
   CODE=$?
 }
 line() { printf '%s\n' "$OUTPUT" | grep -- "$1" | head -1; }
@@ -293,7 +297,7 @@ refusal "an issues folder that is a link" "$W/r5" "isn't an ordinary folder"
 expect "  files written where the link points" "$(find "$W/elsewhere" -type f | wc -l | tr -d ' ')" 0
 cp -R "$W/a" "$W/r11"; node -e 'const f=process.argv[1],fs=require("fs"),s=JSON.parse(fs.readFileSync(f,"utf8"));s.identity.id=4242;fs.writeFileSync(f,JSON.stringify(s,null,2)+"\n")' "$W/r11/sync-state.json"
 refusal "a folder holding another account's copy" "$W/r11" "holds the copy of another GitHub account"
-OUTPUT=$(GTQ_GITHUB_TOKEN=not-a-pretend-token-0123 node "$TOOLS/github-sync.mjs" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/r12" 2>&1); CODE=$?
+OUTPUT=$(GTQ_GITHUB_TOKEN="$NOT_PRETEND" node "$TOOLS/github-sync.mjs" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/r12" 2>&1); CODE=$?
 say "- a real-looking token sent to the pretend server"
 expect "  exit" "$CODE" 2
 expect_has "  message" "$OUTPUT" "must be a pretend one"
@@ -301,7 +305,7 @@ OUTPUT=$(env -u GTQ_GITHUB_TOKEN node "$TOOLS/github-sync.mjs" --scope "$W/scope
 say "- no token"
 expect "  exit" "$CODE" 2
 expect_has "  message" "$OUTPUT" "GTQ_GITHUB_TOKEN isn't set"
-OUTPUT=$(GTQ_GITHUB_TOKEN=pretend-token node "$TOOLS/github-sync.mjs" --api "https://example.invalid" --scope "$W/scope.json" --out "$W/r7" 2>&1); CODE=$?
+OUTPUT=$(GTQ_GITHUB_TOKEN="$PRETEND" node "$TOOLS/github-sync.mjs" --api "https://example.invalid" --scope "$W/scope.json" --out "$W/r7" 2>&1); CODE=$?
 say "- a server other than GitHub or this computer"
 expect "  exit" "$CODE" 2
 expect_has "  message" "$OUTPUT" "--api must be https://api.github.com"
@@ -320,7 +324,7 @@ fs.writeFileSync(process.argv[2], src.replace(at, at + "    if (path.endsWith(\"
 expect "the TEST ONLY line, placed once" "$(grep -c 'TEST ONLY' "$TESTCOPY")" 1
 cp -R "$W/a" "$W/k"
 STATE_BEFORE=$(shasum -a 256 < "$W/k/sync-state.json")
-OUTPUT=$(GTQ_GITHUB_TOKEN=pretend-token node "$TESTCOPY" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/k" --per-page 2 2>&1); CODE=$?
+OUTPUT=$(GTQ_GITHUB_TOKEN="$PRETEND" node "$TESTCOPY" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/k" --per-page 2 2>&1); CODE=$?
 expect "exit" "$CODE" 2
 expect_has "message" "$OUTPUT" "was saved by someone while this run was writing"
 expect "the note saved during the run, kept" "$(grep -c '^Typed during the run.$' "$W/k/issues/practice-owner__kettlebook-web__1.md")" 1
@@ -339,7 +343,7 @@ fs.writeFileSync(process.argv[2], src.replace(at, "  (await import(\"node:fs\"))
 expect "the TEST ONLY line, placed once" "$(grep -c 'TEST ONLY' "$TESTCOPY2")" 1
 cp -R "$W/a" "$W/k2"
 W1_BEFORE=$(shasum -a 256 < "$W/k2/issues/practice-owner__kettlebook-web__1.md")
-OUTPUT=$(GTQ_GITHUB_TOKEN=pretend-token node "$TESTCOPY2" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/k2" --per-page 2 2>&1); CODE=$?
+OUTPUT=$(GTQ_GITHUB_TOKEN="$PRETEND" node "$TESTCOPY2" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/k2" --per-page 2 2>&1); CODE=$?
 expect "exit" "$CODE" 2
 expect_has "message" "$OUTPUT" "A save made after a file was written is kept as"
 expect "the save, kept aside" "$(cat "$W"/k2/issues/practice-owner__kettlebook-web__1.md.*.saved 2>/dev/null | grep -c '^Saved after the swap.$')" 1

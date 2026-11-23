@@ -395,7 +395,8 @@ const me = { login: who.body.login, id: who.body.id };
 if (stateText !== null && prev.identity?.id !== me.id) {
   refuse(`This folder holds the copy of another GitHub account (id ${prev.identity?.id ?? "unknown"}), not ${me.login}'s; nothing was written. Use a separate output folder.`);
 }
-const tokenKind = who.headers.get("x-oauth-scopes") === null ? "fine-grained (no scopes listed)" : `classic, scopes: ${scopes.join(", ") || "none"}`;
+// Described without a "token: value" shape, which secret scanners rightly read as a credential.
+const tokenKind = who.headers.get("x-oauth-scopes") === null ? "a fine-grained token, no scopes listed" : `a classic token with the scopes ${scopes.join(", ") || "none"}`;
 
 // 2. Each repository in scope: readable or not, and why.
 const repoInfo = {};
@@ -1121,7 +1122,7 @@ const prsLeaked = Object.entries(searchReport).flatMap(([f, s]) => s.pull_reques
 const unreadable = repos.filter((f) => !repoInfo[f].readable);
 const summary = {
   synchronized_at: now,
-  identity: { login: me.login, id: me.id, token: tokenKind },
+  identity: { login: me.login, id: me.id, access: tokenKind },
   repositories_in_scope: repos.length,
   repositories_unreadable: unreadable.map((f) => `${f} (${repoInfo[f].reason})`),
   pages_read: Object.values(searchReport).reduce((n, s) => n + s.pages, 0),
@@ -1371,7 +1372,7 @@ releaseLock();
 
 // ---- the run report (no token, no raw response) -------------------------------------------------
 const list = (l) => (l.length ? l.join(", ") : "none");
-console.log(`Synchronized ${shown(now)} as ${me.login} (token: ${tokenKind}).`);
+console.log(`Synchronized ${shown(now)} as ${me.login} (${tokenKind}).`);
 console.log(`Scope: ${repos.length} repositories; unreadable: ${list(summary.repositories_unreadable)}.`);
 for (const f of readable) {
   const s = searchReport[f];
