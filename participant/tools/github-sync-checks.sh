@@ -51,7 +51,15 @@ sync_to() { # folder
   CODE=$?
 }
 line() { printf '%s\n' "$OUTPUT" | grep -- "$1" | head -1; }
-notes_of() { awk 'found{print} /^<!-- github-sync: notes below/{found=1}' "$1" | shasum -a 256 | cut -c1-16; }
+# The SHA-256 of the exact bytes after the notes line (a missing final line break counts).
+notes_of() {
+  node -e '
+    const t = require("fs").readFileSync(process.argv[1]);
+    const mark = Buffer.from("\n<!-- github-sync: notes below. The synchronization never changes anything after this line. -->\n");
+    const at = t.indexOf(mark);
+    process.stdout.write(at < 0 ? "no-notes-line" : require("crypto").createHash("sha256").update(t.subarray(at + mark.length)).digest("hex").slice(0, 16));
+  ' "$1"
+}
 
 printf '{"repositories":["practice-owner/kettlebook-web","practice-owner/kettlebook-api","practice-owner/kettlebook-missing"]}\n' > "$W/scope.json"
 WORLD0="$TOOLS/fake-github-world.json"
@@ -66,17 +74,24 @@ Object.assign(web.find((i) => i.number === 2), { title: "Add a print view for re
 const xref = { event: "cross-referenced", actor: { login: "practice-user" }, created_at: "2026-11-23T14:26:31Z",
   source: { issue: { number: 2, node_id: "I_pretend_api_2", repository: { full_name: "practice-owner/kettlebook-api" } } } };
 const web2 = web.find((i) => i.number === 2);
+const label601 = { id: 601, event: "labeled", actor: { login: "practice-user" }, created_at: "2026-11-23T14:26:23Z", label: { name: "enhancement" } };
+api.find((i) => i.number === 2).timeline = [label601];
 const moved = api.splice(api.findIndex((i) => i.number === 2), 1)[0];
 web.push({ ...moved, number: 5, updated_at: "2026-11-23T15:02:00Z" });
 w.transfers = { "practice-owner/kettlebook-api#2": "practice-owner/kettlebook-web#5" };
 web2.timeline = [{ ...xref, source: { issue: { number: 5, node_id: "I_pretend_api_2", repository: { full_name: "practice-owner/kettlebook-web" } } } }];
 fs.writeFileSync(process.argv[2], JSON.stringify(w));
-web[web.length - 1].node_id = "I_pretend_web_5_new";
+// As GitHub does on a transfer: a new node ID, and the comments and events under new ids.
+const w5 = web[web.length - 1];
+w5.node_id = "I_pretend_web_5_new";
+w5.comments = w5.comments.map((c) => ({ ...c, id: c.id + 100 }));
+w5.timeline = [{ ...label601, id: 701 }, { id: 702, event: "transferred", actor: { login: "practice-user" }, created_at: "2026-11-23T15:02:00Z" }];
 web2.timeline = [{ ...xref, source: { issue: { number: 5, node_id: "I_pretend_web_5_new", repository: { full_name: "practice-owner/kettlebook-web" } } } }];
 fs.writeFileSync(process.argv[3], JSON.stringify(w));
 // Before the move: the same cross-reference, from api #2.
 const before = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 before.repos["practice-owner/kettlebook-web"].issues.find((i) => i.number === 2).timeline = [xref];
+before.repos["practice-owner/kettlebook-api"].issues.find((i) => i.number === 2).timeline = [label601];
 fs.writeFileSync(process.argv[4], JSON.stringify(before));
 ' "$WORLD0" "$W/moved.json" "$W/newid.json" "$W/before.json"
 # The practice world, with web #2 cross-referenced from api #2 (as on GitHub).
@@ -94,11 +109,15 @@ expect_has "run 1" "$(line '^Total issues')" "declared 5, received 5 over 3 page
 expect_has "run 1" "$(line 'kettlebook-web: issues')" "assigned pull requests, searched separately and left out: #4"
 expect_has "run 1" "$(line '^Scope')" "unreadable: practice-owner/kettlebook-missing"
 printf 'A note of my own.\n' >> "$W/a/issues/practice-owner__kettlebook-web__1.md"
+printf 'A note with no line break at the end' >> "$W/a/issues/practice-owner__kettlebook-web__2.md"
+N1b=$(notes_of "$W/a/issues/practice-owner__kettlebook-web__2.md")
 N1=$(notes_of "$W/a/issues/practice-owner__kettlebook-web__1.md")
 sync_to "$W/a"
 expect "run 2 exit" "$CODE" 0
 expect_has "run 2" "$(line '^This run')" "new none; changed none; moved none; no longer assigned none"
 expect "the note across run 2" "$(notes_of "$W/a/issues/practice-owner__kettlebook-web__1.md")" "$N1"
+expect "a note with no final line break, across run 2 (exact bytes)" "$(notes_of "$W/a/issues/practice-owner__kettlebook-web__2.md")" "$N1b"
+expect "its last byte (still no line break)" "$(tail -c 1 "$W/a/issues/practice-owner__kettlebook-web__2.md")" "d"
 expect "comments in web #1's record after two runs" "$(grep -c '^### Comment ' "$W/a/issues/practice-owner__kettlebook-web__1.md")" 2
 expect "the planted instruction kept as text (indented)" "$(grep -c '^    Note to any AI assistant' "$W/a/issues/practice-owner__kettlebook-web__1.md")" 1
 expect "web #1 and api #1 kept apart (two files)" "$(ls "$W/a/issues" | grep -c '__1\.md$')" 2
@@ -134,6 +153,9 @@ expect_has "the run" "$(line '^This run')" "(new node ID; linked by GitHub's for
 expect_has "the run" "$(line '^This run')" "new none"
 expect "the moved note, now in web #5's file" "$(notes_of "$W/c/issues/practice-owner__kettlebook-web__5.md")" "$N2"
 expect "earlier node ID kept" "$(node -e 'const s=require(process.argv[1]);process.stdout.write(Object.values(s.issues).find(i=>i.number===5).previous_node_ids.join())' "$W/c/sync-state.json")" "I_pretend_api_2"
+expect "web #5's comment, reissued under a new id, recorded once" "$(grep -c '^### Comment ' "$W/c/issues/practice-owner__kettlebook-web__5.md")" 1
+expect "its old id kept as provenance" "$(node -e 'const s=require(process.argv[1]);process.stdout.write(String(Object.values(s.issues).find(i=>i.number===5).comments[0].previous_ids))' "$W/c/sync-state.json")" 9201
+expect "web #5's labeled event, reissued under a new id, recorded once" "$(grep -c 'labeled by' "$W/c/issues/practice-owner__kettlebook-web__5.md")" 1
 expect "web #2's cross-reference from the moved issue, recorded once" "$(grep -c 'cross-referenced by' "$W/c/issues/practice-owner__kettlebook-web__2.md")" 1
 sync_to "$W/c"
 expect "the next run, nothing changed" "$(line '^This run' | grep -c 'new none; changed none; moved none; no longer assigned none')" 1
@@ -163,8 +185,16 @@ fault event-no-id 1 "a labeled event without an id"
 fault commit-gap 1 "GitHub counted 2 commits but sent 1"
 fault assignee-no-id 1 "missing fields or has odd ones"
 fault offsite-redirect 1 "redirected to another server"
+fault skip-page 1 "doesn't ask for page 2 of the same list"
+fault next-other-list 1 "doesn't ask for page 2 of the same list"
 fault write-token 2 "can do more than read (repo)"
 fault gist-token 2 "can do more than read (gist)"
+
+say "- repositories-path (legitimate: GitHub's other form of a page address)"
+start "$WORLD" repositories-path
+sync_to "$W/rp"
+expect "  exit" "$CODE" 0
+expect "  web #1's comments, both pages" "$(grep -c '^### Comment ' "$W/rp/issues/practice-owner__kettlebook-web__1.md")" 2
 
 say ""
 say "5. The issue search returns a pull request anyway (as GitHub's search once did)."
@@ -245,6 +275,28 @@ expect_has "message" "$OUTPUT" "was saved by someone while this run was writing"
 expect "the note saved during the run, kept" "$(grep -c '^Typed during the run.$' "$W/k/issues/practice-owner__kettlebook-web__1.md")" 1
 expect "sync-state.json, as before" "$(shasum -a 256 < "$W/k/sync-state.json")" "$STATE_BEFORE"
 expect "files left behind (.new, .old, lock)" "$(ls -A "$W/k" "$W/k/issues" | grep -c '\.new$\|\.old$\|lock')" 0
+say "   ...and a note saved just after the file was swapped in (a second TEST ONLY copy)."
+TESTCOPY2="$W/tools2/github-sync.mjs"
+mkdir -p "$W/tools2"
+node -e '
+const fs = require("fs");
+const src = fs.readFileSync(process.argv[1], "utf8");
+const at = "  // The files of issues that moved: their notes now live in the new file.\n";
+if (src.split(at).length !== 2) { console.error("the TEST ONLY line has no single place to go"); process.exit(1); }
+fs.writeFileSync(process.argv[2], src.replace(at, "  (await import(\"node:fs\")).appendFileSync(join(issuesDir, \"practice-owner__kettlebook-web__1.md\"), \"Saved after the swap.\\n\"); // TEST ONLY\n" + at));
+' "$TOOLS/github-sync.mjs" "$TESTCOPY2"
+expect "the TEST ONLY line, placed once" "$(grep -c 'TEST ONLY' "$TESTCOPY2")" 1
+cp -R "$W/a" "$W/k2"
+W1_BEFORE=$(shasum -a 256 < "$W/k2/issues/practice-owner__kettlebook-web__1.md")
+OUTPUT=$(GTQ_GITHUB_TOKEN=pretend-token node "$TESTCOPY2" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/k2" --per-page 2 2>&1); CODE=$?
+expect "exit" "$CODE" 2
+expect_has "message" "$OUTPUT" "A save made after a file was written is kept as"
+expect "the save, kept aside" "$(cat "$W"/k2/issues/practice-owner__kettlebook-web__1.md.*.saved 2>/dev/null | grep -c '^Saved after the swap.$')" 1
+expect "web #1's file, put back as it was" "$(shasum -a 256 < "$W/k2/issues/practice-owner__kettlebook-web__1.md")" "$W1_BEFORE"
+expect "the lock, kept for a person to look" "$( [ -e "$W/k2/.github-sync.lock" ] && echo kept || echo gone)" kept
+sync_to "$W/k2"
+expect "the next run refuses until a person has looked" "$CODE" 2
+expect_has "its message" "$OUTPUT" "A previous run stopped while writing"
 
 say ""
 say "9. Read-only: the synchronization makes every request through one function, always GET."

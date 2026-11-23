@@ -24,6 +24,10 @@
 //   assignee-no-id   web #1's direct read has an assignee without an id
 //   gist-token       /user lists the classic scope "gist" (a token that can write gists)
 //   offsite-redirect reading web #1 redirects to another server
+//   skip-page        the search's next link skips a page
+//   next-other-list  web #1's comments come in two pages, the second link pointing at web #2's comments
+//   repositories-path  web #1's comments come in two pages, the second link in GitHub's
+//                    /repositories/<id>/... form (legitimate: must be accepted)
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -43,6 +47,7 @@ const json = (res, status, body, headers = {}) => {
   res.end(JSON.stringify(body));
 };
 const repoKey = (o, r) => Object.keys(world.repos).find((k) => k.toLowerCase() === `${o}/${r}`.toLowerCase());
+const repoId = (key) => 5001 + Object.keys(world.repos).indexOf(key);
 const user = (login) => ({ login, id: world.users?.[login] ?? 999 });
 let base = "";
 const issueJson = (full, it) => ({
@@ -80,9 +85,16 @@ const linkTo = (url, p) => {
 
 const server = createServer((req, res) => {
   const url = new URL(req.url, base);
+  // GitHub's other form of a repository address: /repositories/<id>/...
+  const byId = url.pathname.match(/^\/repositories\/(\d+)(\/.*)$/);
+  if (byId) {
+    const key = Object.keys(world.repos).find((k) => repoId(k) === Number(byId[1]));
+    if (key) url.pathname = `/repos/${key}${byId[2]}`;
+  }
   if (req.method !== "GET") return json(res, 405, { message: "pretend GitHub: read-only" });
   if (!/^Bearer \S+$/.test(req.headers.authorization ?? "")) return json(res, 401, { message: "Requires authentication" });
   const path = url.pathname;
+  const original = new URL(req.url, base);
   let m;
   if (path === "/user") {
     const scopes = FAULT === "write-token" ? "repo, read:org" : FAULT === "gist-token" ? "gist, read:user" : null;
@@ -105,12 +117,12 @@ const server = createServer((req, res) => {
     // empty-page: every page, the last real one included, points to a next page; the page after
     // the last real one is empty (and points on again).
     const next = more || FAULT === "empty-page";
-    return json(res, 200, { total_count: declared, incomplete_results: FAULT === "incomplete", items: out }, next ? { link: linkTo(url, p + 1) } : {});
+    return json(res, 200, { total_count: declared, incomplete_results: FAULT === "incomplete", items: out }, next ? { link: linkTo(url, p + (FAULT === "skip-page" ? 2 : 1)) } : {});
   }
   if ((m = path.match(/^\/repos\/([^/]+)\/([^/]+)$/))) {
     const key = repoKey(m[1], m[2]);
     if (!key) return json(res, 404, { message: "Not Found" });
-    return json(res, 200, { full_name: key, node_id: world.repos[key].node_id, private: false });
+    return json(res, 200, { id: repoId(key), full_name: key, node_id: world.repos[key].node_id, private: false });
   }
   if ((m = path.match(/^\/repos\/([^/]+)\/([^/]+)\/(issues|pulls)\/(\d+)(\/(comments|timeline|commits))?$/))) {
     const key = repoKey(m[1], m[2]);
@@ -144,6 +156,16 @@ const server = createServer((req, res) => {
       : m[6] === "timeline" ? (it.timeline ?? []) : (it.pull_request?.commits ?? []).map((c) => ({ sha: c.sha, commit: { message: c.message } }));
     if (it.node_id === "I_pretend_web_1" && FAULT === "comment-repeat" && m[6] === "comments") list = [list[0], list[0]];
     if (it.node_id === "I_pretend_web_1" && FAULT === "event-no-id" && m[6] === "timeline") list = list.map((e) => (e.event === "labeled" ? { ...e, id: undefined } : e));
+    if (it.node_id === "I_pretend_web_1" && m[6] === "comments" && (FAULT === "next-other-list" || FAULT === "repositories-path")) {
+      const p = Number(url.searchParams.get("page") ?? 1);
+      if (p === 1) {
+        const nx = new URL(original);
+        nx.searchParams.set("page", "2");
+        nx.pathname = FAULT === "next-other-list" ? nx.pathname.replace(/\/issues\/1\//, "/issues/2/") : `/repositories/${repoId(key)}/issues/1/comments`;
+        return json(res, 200, list.slice(0, 1), { link: `<${nx.href}>; rel="next"` });
+      }
+      return json(res, 200, list.slice(1));
+    }
     const { p, items, more } = page(url, list);
     return json(res, 200, items, more ? { link: linkTo(url, p + 1) } : {});
   }

@@ -62,8 +62,9 @@ It writes into `participant/context/github/assigned/`:
    `is:pull-request` search lists the assigned pull requests that were left out.
 5. **Read every page** (at most as many as 1,000 results need) until GitHub sends no `rel="next"` link, and check that the items received
    equal the `total_count` GitHub declared, that the total didn't change between pages, that
-   `incomplete_results` is false, that no page before the last is empty, and that no item arrives
-   twice. If any check fails, stop and write nothing: an incomplete list must never look complete.
+   `incomplete_results` is false, that no page before the last is empty, that no item arrives
+   twice, and that each `next` link asks for exactly the following page of the same list (same
+   path, or GitHub's `/repositories/<id>/…` form of it, and the same query). If any check fails, stop and write nothing: an incomplete list must never look complete.
    (Right after a change, GitHub's search can briefly not add up; run again a minute later.)
 6. **Read each issue directly** for fresh fields; the direct read wins over the search index.
    Record: repository full name, number, node ID, title, state, state reason, author, assignees,
@@ -75,7 +76,8 @@ It writes into `participant/context/github/assigned/`:
    the like) need a time and an id (a cross-reference, which GitHub gives no id, is known by its
    time and source), and are kept once each, with who and when. Anything malformed stops the run.
 8. **Follow the links:** pull requests and issues that cross-reference it, commits that reference
-   it, and `owner/repo#N` written in the text (GitHub records only references to issues that
+   it, and `#N`, `owner/repo#N` or a full GitHub address (issue, pull request or commit) written in
+   the text (GitHub records only references to issues that
    already existed; a reference written in text is looked up, so a pull request mentioned only
    there is followed too). For a pull request in scope: its state, whether it was merged, whether
    it says it closes this issue (`Fixes #12`, `owner/repo#12` or the issue's full address), and
@@ -83,10 +85,12 @@ It writes into `participant/context/github/assigned/`:
    permission for them).
 9. **Merge with the last run, by node ID.** Comments and events are never added twice; one no longer
    on GitHub stays, marked. An issue **moved** to another repository gets a **new node ID** on
-   GitHub, but its old address forwards to the new one: the synchronization follows that
-   forwarding, records it as moved (keeping its earlier IDs), and moves its notes to the new
-   file. Earlier node IDs are kept, so a cross-reference recorded from the old address is the
-   same event, not a second one.
+   GitHub, and its comments and events come back under new ids, but its old address forwards to
+   the new one: the synchronization follows that forwarding, records it as moved (keeping its
+   earlier node IDs and comment ids), matches its comments and events by how they read so nothing
+   is recorded twice, and moves its notes to the new file. A cross-reference recorded from the old
+   address is the same event, not a second one. An issue listed as no longer assigned is checked
+   the same way on each run.
 10. **Never delete what disappeared.** An issue assigned last time and not now is looked up at its
     old address to learn why (closed, unassigned, transferred out of scope, or inaccessible), and
     listed under "No longer assigned" with the reason and its whole last known record. Its file
@@ -97,8 +101,9 @@ It writes into `participant/context/github/assigned/`:
     (one notes line, notes exactly as planned), then renamed into place, keeping the previous one.
     If a file turns out to have been saved by someone in the moment it was replaced, or any step
     fails, every previous file is put back (with that save) and the run stops. Notes are read back
-    byte for byte before the previous versions are let go. A run killed outright leaves its lock
-    and kept files; the next run refuses until a person has looked.
+    byte for byte before the previous versions are let go; a save made after a file was written is
+    kept aside (`<file>.<pid>.saved`), never overwritten, and the lock is kept. A run killed outright
+    leaves its lock and kept files; the next run refuses until a person has looked.
 
 ## Safety rules
 
