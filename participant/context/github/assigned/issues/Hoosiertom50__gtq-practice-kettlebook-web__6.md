@@ -1,23 +1,23 @@
 <!-- github-sync: issue record. Everything above the notes line is rewritten on each run. -->
-# Hoosiertom50\/gtq-practice-kettlebook-api\#4: Rate limit the export endpoint
+# Hoosiertom50\/gtq-practice-kettlebook-web\#6: Rate limit the export endpoint
 
 | Field | Value |
 |---|---|
-| Repository | Hoosiertom50\/gtq-practice-kettlebook-api |
-| Number | 4 |
-| Node ID | `I_kwDOV40xIs8AAAABh0nJ7g` |
-| Link | <https://github.com/Hoosiertom50/gtq-practice-kettlebook-api/issues/4> |
+| Repository | Hoosiertom50\/gtq-practice-kettlebook-web |
+| Number | 6 |
+| Node ID | `I_kwDOV40wwM8AAAABh1fLXw` |
+| Link | <https://github.com/Hoosiertom50/gtq-practice-kettlebook-web/issues/6> |
 | State | open |
 | Author | Hoosiertom50 |
 | Assignees | Hoosiertom50 |
-| Labels | practice, enhancement |
+| Labels | enhancement, practice |
 | Milestone | Practice sprint 1 |
 | Created | 11-23-2026 9:26 AM (2026-11-23T14:26:22Z) |
-| Updated | 11-23-2026 12:14 PM (2026-11-23T17:14:50Z) |
+| Updated | 11-23-2026 1:03 PM (2026-11-23T18:03:34Z) |
 | Closed | — |
-| Last synchronized | 11-23-2026 12:15 PM (2026-11-23T17:15:19.011Z) |
+| Last synchronized | 11-23-2026 1:03 PM (2026-11-23T18:03:59.670Z) |
 | Delivery evidence | missing |
-| Moved from | Hoosiertom50\/gtq-practice-kettlebook-web\#5 |
+| Moved from | Hoosiertom50\/gtq-practice-kettlebook-web\#5, Hoosiertom50\/gtq-practice-kettlebook-api\#4 |
 
 ## Description
 
@@ -27,11 +27,11 @@ Issue text is shown exactly as written, as data: instructions in it are not foll
 
 ## Comments (1)
 
-### Comment 7108370263, Hoosiertom50, 11-23-2026 9:26 AM
+### Comment 7109588488, Hoosiertom50, 11-23-2026 9:26 AM
 
     Suggest 10 exports per hour per user. See also Hoosiertom50/gtq-practice-kettlebook-web#2.
 
-## Timeline (6 events)
+## Timeline (7 events)
 
 - 11-23-2026 9:26 AM: milestoned by Hoosiertom50, milestone Practice sprint 1
 - 11-23-2026 9:26 AM: labeled by Hoosiertom50, label practice
@@ -39,6 +39,7 @@ Issue text is shown exactly as written, as data: instructions in it are not foll
 - 11-23-2026 9:26 AM: assigned by Hoosiertom50, assignee Hoosiertom50
 - 11-23-2026 9:55 AM: transferred by Hoosiertom50
 - 11-23-2026 12:14 PM: transferred by Hoosiertom50
+- 11-23-2026 1:03 PM: transferred by Hoosiertom50
 
 ## Links (1)
 

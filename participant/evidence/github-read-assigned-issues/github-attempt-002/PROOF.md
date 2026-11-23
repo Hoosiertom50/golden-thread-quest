@@ -92,9 +92,9 @@ are two records and two files.
 material timeline events (assigned, labeled, renamed, closed, cross-referenced, commit references
 and the like) once each, with who and when; a comment or event that arrives twice in one answer
 stops the run. A comment no longer on GitHub stays, marked. **A transfer also reissues comment ids**
-(seen for real twice: this morning 7104002453 came back as 7104734147, and at 12:14 PM as
-7108370263); the comments of a moved issue are matched one to one by author, time and text, the old
-ids kept as `previous_ids`, so api #4's record shows its one comment once.
+(seen for real on every move: 7104002453, then 7104734147, 7108370263 and 7109588488); the comments
+of a moved issue are matched one to one by author, time and text, the old ids kept as
+`previous_ids`, so web #6's record shows its one comment once.
 
 **Links (criterion 8).** Pull requests and issues that cross-reference an issue, commits that
 reference it, and `owner/repo#N` written in the text (GitHub records a link only to an issue that
@@ -118,7 +118,8 @@ Tom had predicted it would keep the same one), but its old address redirects (30
 The synchronization counts a move only when GitHub really redirected there, records the issue as
 moved with its earlier IDs, and moves Tom's notes into the new file. The final run moved it again,
 web #5 → api #4, with Tom's note ("Ask the API team whether 10 exports an hour is enough.")
-following it byte for byte (Tom predicted this one right).
+following it byte for byte (Tom predicted this one right), and then once more, api #4 → web #6,
+the note following again.
 
 **Times (criterion 11).** Per repository, `last_successful_sync` (kept from before for one that
 couldn't be read); per issue, `last_synced_at`. Both are in `sync-state.json`, and shown in the
@@ -194,37 +195,49 @@ that morning whose records were set aside. Criteria are referred to by number.
 issue #1 (200). Creating a label, setting pull request #4's title to its own title, and creating a
 file were each answered 403, "Resource not accessible by personal access token" (criteria 1 and 12).
 
-**Two consecutive runs (`logs/second-run.txt`, 12:12 to 12:13 PM).** Criterion 4, verified: run 1
-read 3 pages of 2, GitHub declared 4 open issues assigned to Hoosiertom50 (web 3, api 1) and 4
-arrived, the issue list agreed, and the list is complete. Pull request #4 was found by the separate
-search and left out (criterion 3), and `gtq-practice-kettlebook-missing` was reported unreadable,
-404 (criterion 2). Between the runs Tom wrote a note in web #5's file. Criterion 9, verified: run 2
-added, changed, moved and removed nothing, and every notes section, Tom's note included, has the
-same SHA-256 of its exact bytes before and after, compared issue by issue. Criterion 7, verified:
-the second run added no comment, event or record a second time.
+The run records were made twice: first from the empty folder, at 12:12 to 12:15 PM, then again,
+continuing from that state, at 1:02 to 1:03 PM, after one phrase of the run report was reworded
+(it put a colon after the word for the credential, which the quest app's secret scan rightly reads
+as a credential being shown). The token check is from the first set; the other records are from
+the second. Between the two,
+Tom's changes at 12:14 PM unassigned web #2, closed api #1 as not planned and moved web #5 to
+api #4, which the 12:15 run recorded (web #5 → api #4, the note following) and the kept state
+still shows.
 
-**After changes on GitHub (`logs/disappearance.txt`, 12:15 PM).** Tom unassigned web #2, closed
-api #1 as not planned, and transferred web #5 back to the api repository, where it became #4.
-Criterion 10, verified: web #2 is listed as "unassigned: now assigned to no one" and api #1 as
-"closed (not_planned)", each with its last known record and its file kept; web #5 is recorded as
-moved to api #4, linked by GitHub's redirect though its node ID changed, its note in the new file,
-same SHA-256. GitHub declared 2 and sent 2, and every request was a GET (23).
+**Two consecutive runs (`logs/second-run.txt`, 1:02 PM).** Criterion 4, verified: GitHub declared
+2 open issues assigned to Hoosiertom50 (web 1, api 1) and 2 arrived, over 2 pages of 2, the issue
+list agreed, every list's end was confirmed by asking for the following page, and the list is
+complete (following several pages is shown in the pretend-GitHub checks, for example 3 issues
+over 2 pages). Pull request #4 was found by the separate search and left out (criterion 3), and
+`gtq-practice-kettlebook-missing` was reported unreadable, 404 (criterion 2). Criterion 9,
+verified: run 2 added, changed, moved and removed nothing, and every notes section, Tom's note
+included ("Ask the API team whether 10 exports an hour is enough.", then on api #4), has the same
+SHA-256 of its exact bytes before and after, compared issue by issue. Criterion 7, verified: the
+second run added no comment, event or record a second time.
+
+**After changes on GitHub (`logs/disappearance.txt`, 1:03 PM).** Tom closed web #1 as completed,
+assigned web #2 to Tom again and transferred api #4 to the web repository, where it became #6.
+Criterion 10, verified: web #1 is listed as "closed (completed)" and api #1 still as "closed
+(not_planned)", each with its last known record and its file kept; web #2 is reported as returned;
+api #4 is recorded as moved to web #6, linked by GitHub's redirect though its node ID changed, its
+note in the new file, same SHA-256. GitHub declared 2 and sent 2, and every request was a GET (28).
 
 **The records.** Criterion 5, verified: each issue file and `sync-state.json` hold the repository,
 number, node ID, title, state and reason, author, assignees, labels, milestone, body and the
 created, updated and closed times. Criterion 6, verified: web #1 and api #1 are two records and two
-files, keyed by node ID. Criterion 8, verified: web #1 links pull request #4 (open, "says it closes
+files, keyed by node ID. Criterion 8, verified: web #1's record links pull request #4 (open, "says it closes
 this issue") with its commit and api #1 by cross-reference, while api #1 links web #1 written in
 its text (each with its node ID); `delivery-links.md` gives
 each issue exists, partial or missing. Criterion 11, verified: `last_successful_sync` per repository
 and `last_synced_at` per issue, in `sync-state.json` and the index.
 
-**The pretend GitHub (`logs/pretend-github-checks.txt`, 12:17 PM): 180 expectations, all as
+**The pretend GitHub (`logs/pretend-github-checks.txt`, 1:04 PM): 190 expectations, all as
 expected,** in a throwaway folder with no token or network. They cover what real GitHub can't be
 made to do on demand: two runs with notes (one without a final line break); moves with the node ID
 kept and changed, comment and event ids reissued, and both of GitHub's redirect forms (and a
-redirect naming another repository's id, refused); 24 ways for GitHub to misbehave (wrong totals,
-skipped or foreign pages, unreadable or contradictory Link headers, redirects on list requests,
+redirect naming another repository's id, refused); 27 ways for GitHub to misbehave (wrong totals,
+skipped or foreign pages, a list that goes on after its apparent end, unreadable or contradictory
+Link headers, redirects on list requests, a "slow down" answer, text that isn't valid UTF-8,
 missing fields, a repeated comment, a pull request from another repository, the search missing an
 issue, a token with more than read scopes, the token echoed back or pasted into an issue), each
 stopping the run with nothing written and the token never printed; untrusted Markdown and HTML
@@ -244,8 +257,8 @@ first, fixed, or answered with the reason it is a limitation below.
   1,000 results per repository query, and the run stops rather than go past it) and would need rate
   limits respected over many requests (each archived issue is looked up on every run).
 - **Search can lag.** Right after a change GitHub's search briefly didn't add up (declared 2, sent
-  1, in the rehearsal; declared 2, sent 1, again after the final changes, checked before the final
-  run); the run stops and writes nothing, and a run a minute later succeeds.
+  1, in the rehearsal, and again after a later change, checked before the next run); the run stops
+  and writes nothing, and a run a minute later succeeds.
 - **Checks aren't read.** The token has no permission for them; delivery evidence comes from pull
   requests and commits only.
 - **A moved issue is linked only through GitHub's forwarding** from the old address the last run

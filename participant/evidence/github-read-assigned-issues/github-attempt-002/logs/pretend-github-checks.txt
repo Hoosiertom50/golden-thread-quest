@@ -1,4 +1,4 @@
-Checks of the GitHub synchronization against the pretend GitHub, 11-23-2026 12:17 PM EST.
+Checks of the GitHub synchronization against the pretend GitHub, 11-23-2026 1:04 PM EST.
 Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up data.
 
 1. Two runs on the practice world, a note written between them.
@@ -38,6 +38,7 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected: the run says "new none"
   as expected: the moved note, now in web #5's file = 6d6cd30eabd56cfc
   as expected: earlier node ID kept = I_pretend_api_2
+  as expected: a text reference to the moved issue's old address (api #1 mentions api #2), followed to web #5 = 1
   as expected: web #5's comment, reissued under a new id, recorded once = 1
   as expected: its old id kept as provenance = 9201
   as expected: web #5's labeled event, reissued under a new id, recorded once = 1
@@ -49,7 +50,7 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected: the run (right id) says "(new node ID; linked by GitHub's forwarding)"
   as expected: exit (another repository's id) = 1
   as expected: message (another repository's id) says "without forwarding there"
-  as expected: the folder (another repository's id) = 8b21725442d2a0c6
+  as expected: the folder (another repository's id) = 1b93eced3e04bf5f
 
 4. The pretend GitHub misbehaving: each run must stop, write nothing and say why.
 - wrong-total
@@ -110,7 +111,19 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected:   the output folder = absent
 - full-page-no-next
   as expected:   exit = 1
-  as expected:   message says "was full and had no next link"
+  as expected:   message says "page 1 had no next link, but page 2 isn't an empty end"
+  as expected:   the output folder = absent
+- short-page-more
+  as expected:   exit = 1
+  as expected:   message says "page 1 had no next link, but page 2 isn't an empty end"
+  as expected:   the output folder = absent
+- secondary-limit
+  as expected:   exit = 1
+  as expected:   message says "rate limit was reached"
+  as expected:   the output folder = absent
+- bad-utf8
+  as expected:   exit = 1
+  as expected:   message says "isn't valid UTF-8"
   as expected:   the output folder = absent
 - pr-other-repo
   as expected:   exit = 1
@@ -174,31 +187,31 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
 - an index.md a person wrote
   as expected:   exit = 2
   as expected:   message says "index.md wasn't written by this tool"
-  as expected:   the folder = b87a09014527d40d
+  as expected:   the folder = 768711baeeff5813
 - an issue file that lost its notes line
   as expected:   exit = 2
   as expected:   message says "has lost its notes line"
-  as expected:   the folder = fc8bb745f74873d9
+  as expected:   the folder = b62cafe113851c52
 - another run's lock
   as expected:   exit = 2
   as expected:   message says "Another synchronization is writing to this folder"
-  as expected:   the folder = f99602f1425778ef
+  as expected:   the folder = 190df43302ff8112
 - a sync-state.json this tool didn't write
   as expected:   exit = 2
   as expected:   message says "isn't one this tool wrote"
-  as expected:   the folder = 684d7a1cf078941a
+  as expected:   the folder = bc1395bd3f96d6e9
 - a sync-state.json record with its number removed
   as expected:   exit = 2
   as expected:   message says "isn't one this tool wrote"
-  as expected:   the folder = 84a99a4532d32595
+  as expected:   the folder = 5551d38d0036af88
 - a file left by a run that stopped while writing
   as expected:   exit = 2
   as expected:   message says "A previous run stopped while writing"
-  as expected:   the folder = fca1ec879739204f
+  as expected:   the folder = 96fb853ca0a8711c
 - a notes section that isn't valid UTF-8
   as expected:   exit = 2
   as expected:   message says "isn't an ordinary UTF-8 text file"
-  as expected:   the folder = 9dfb4707754c9566
+  as expected:   the folder = 03edbc750bf08a67
 - an issues folder that is a link
   as expected:   exit = 2
   as expected:   message says "isn't an ordinary folder"
@@ -207,7 +220,7 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
 - a folder holding another account's copy
   as expected:   exit = 2
   as expected:   message says "holds the copy of another GitHub account"
-  as expected:   the folder = c29a4c8ee706351c
+  as expected:   the folder = 23bd72062607d823
 - a real-looking token sent to the pretend server
   as expected:   exit = 2
   as expected:   message says "must be a pretend one"
@@ -223,14 +236,14 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected: exit = 2
   as expected: message says "was saved by someone while this run was writing"
   as expected: the note saved during the run, kept = 1
-  as expected: sync-state.json, as before = 00decf6cddfcf8aaa6e0692ca65d5327163f874a7f46639ac22c79f8b62a7833  -
+  as expected: sync-state.json, as before = 05db59da3c7acc1efb7e72f8f5adf74cf10df2b5d30887d516291c01b1c5b568  -
   as expected: files left behind (.new, .old, lock) = 0
    ...and a note saved just after the file was swapped in (a second TEST ONLY copy).
   as expected: the TEST ONLY line, placed once = 1
   as expected: exit = 2
   as expected: message says "A save made after a file was written is kept as"
   as expected: the save, kept aside = 1
-  as expected: web #1's file, put back as it was = b592943933e991f0b5f8d6a24813141a856f14dcd375ff8e94005d1d75eb222b  -
+  as expected: web #1's file, put back as it was = 401d0d652dc7b1ad5827c155b7b61d3bd0ef06fd75438dc93d6845f8d7ef293e  -
   as expected: the lock, kept for a person to look = kept
   as expected: the next run refuses until a person has looked = 2
   as expected: its message says "A previous run stopped while writing"
@@ -239,5 +252,5 @@ Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up dat
   as expected: places that call fetch = 1
   as expected: request methods named = method: "GET" 
 
-180 expectations as expected, 0 unexpected.
+190 expectations as expected, 0 unexpected.
 End of record.
