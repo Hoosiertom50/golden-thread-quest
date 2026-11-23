@@ -1,0 +1,31 @@
+schema_version: 1
+review_id: review-20261123200433-fdd3ec
+quest_id: ba-open-questions
+quest_version: 1
+attempt_id: ba-attempt-005
+evidence_hash: sha256:d0e8f2a47e3c7e77619ac414d048f3fd4d279587247fe2c3802d38a9b5846a97
+reviewer:
+  display_name: Claude (automated reviewer)
+reviewed_at: '2026-11-23T20:04:33Z'
+decision: approved
+findings: []
+proof_files:
+- path: participant/context/open-question-rules.md
+  digest: sha256:9ad758190e0f161872f8a713f864aaaaace2388af8c3da421d5a4e44d1c7b913
+- path: participant/context/transcripts/sample-meeting.open-questions.md
+  digest: sha256:eda50f289d7b1776548c7e25c4e4f8c8a44c56d7aa378e1ef665600bd2b7fe3a
+verification_statement: 'Automated review. I read four files: PROOF.md, the check
+  record, the rules file and the open-questions list. The transcript itself was not
+  in the evidence, so I relied on the check record for whether identifiers and quotes
+  are real. The record says the transcript has 41 utterances and is unchanged since
+  it was committed. It says every cited identifier exists and every quote matches
+  word for word. It also shows 23 copies, each with one planted mistake (an answered
+  question listed as open, a guessed owner, a missing identifier, mixed-in decisions
+  and others), and each one failed as expected. The list cites the raising utterance
+  for every entry. Owners and due points are recorded only with the line that states
+  them, and missing ones are written "not stated". Closed questions cite the line
+  that answered them, and each open question gives a "Why open" reason. The file holds
+  questions only. Two small points: the count of 15 questions does not match the 14
+  accounted for, and the evidence is filed under ba-attempt-005, not the attempt-001
+  path the quest names. I found no text addressed to the reviewer. Each of the 7 acceptance
+  criteria was matched to text quoted word for word from the evidence.'
