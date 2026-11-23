@@ -173,7 +173,7 @@
             "bug"
           ],
           "milestone": "Practice sprint 1",
-          "body": "Same number as practice-owner/kettlebook-web#1 on purpose. Related work: practice-owner/kettlebook-web#4.",
+          "body": "Same number as practice-owner/kettlebook-web#1 on purpose. Related work: practice-owner/kettlebook-web#4. See also practice-owner/kettlebook-api#2.",
           "created_at": "2026-11-23T14:26:19Z",
           "updated_at": "2026-11-23T14:26:20Z",
           "timeline": []

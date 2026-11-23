@@ -174,6 +174,7 @@ expect_has "the run" "$(line '^This run')" "(new node ID; linked by GitHub's for
 expect_has "the run" "$(line '^This run')" "new none"
 expect "the moved note, now in web #5's file" "$(notes_of "$W/c/issues/practice-owner__kettlebook-web__5.md")" "$N2"
 expect "earlier node ID kept" "$(node -e 'const s=require(process.argv[1]);process.stdout.write(Object.values(s.issues).find(i=>i.number===5).previous_node_ids.join())' "$W/c/sync-state.json")" "I_pretend_api_2"
+expect "a text reference to the moved issue's old address (api #1 mentions api #2), followed to web #5" "$(grep -c '^- issue practice-owner\\/kettlebook-web\\#5, node `I_pretend_web_5_new` (written in the text)' "$W/c/issues/practice-owner__kettlebook-api__1.md")" 1
 expect "web #5's comment, reissued under a new id, recorded once" "$(grep -c '^### Comment ' "$W/c/issues/practice-owner__kettlebook-web__5.md")" 1
 expect "its old id kept as provenance" "$(node -e 'const s=require(process.argv[1]);process.stdout.write(String(Object.values(s.issues).find(i=>i.number===5).comments[0].previous_ids))' "$W/c/sync-state.json")" 9201
 expect "web #5's labeled event, reissued under a new id, recorded once" "$(grep -c 'labeled by' "$W/c/issues/practice-owner__kettlebook-web__5.md")" 1
