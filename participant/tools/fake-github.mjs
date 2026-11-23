@@ -37,6 +37,8 @@
 //   scopes-echo      /user lists "repo" and echoes the bearer token as a scope
 //   last-beyond      web #1's comments: page 1 has no next link but a last link naming page 2
 //   full-page-no-next  web #1's timeline: a full page of 100 events with no next link, and more after
+//   transfer-by-id   a moved issue's old address redirects in the /repositories/<id>/ form
+//   transfer-wrong-id  the same, but with the numeric id of another repository
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -97,7 +99,9 @@ const server = createServer((req, res) => {
   // GitHub's other form of a repository address: /repositories/<id>/...
   const byId = url.pathname.match(/^\/repositories\/(\d+)(\/.*)$/);
   if (byId) {
-    const key = Object.keys(world.repos).find((k) => repoId(k) === Number(byId[1]));
+    let key = Object.keys(world.repos).find((k) => repoId(k) === Number(byId[1]));
+    // transfer-wrong-id: the redirect names one repository's id, the answer comes from another.
+    if (FAULT === "transfer-wrong-id" && byId[2] === "/issues/5") key = "practice-owner/kettlebook-web";
     if (key) url.pathname = `/repos/${key}${byId[2]}`;
   }
   if (req.method !== "GET") return json(res, 405, { message: "pretend GitHub: read-only" });
@@ -157,7 +161,9 @@ const server = createServer((req, res) => {
       const moved = world.transfers?.[`${key}#${n}`];
       if (moved && !m[5]) {
         const [to, num] = moved.split("#");
-        res.writeHead(301, { location: `${base}/repos/${to}/issues/${num}` });
+        const toId = FAULT === "transfer-wrong-id" ? repoId("practice-owner/kettlebook-api") : repoId(to);
+        const where = FAULT === "transfer-by-id" || FAULT === "transfer-wrong-id" ? `/repositories/${toId}/issues/${num}` : `/repos/${to}/issues/${num}`;
+        res.writeHead(301, { location: `${base}${where}` });
         return res.end();
       }
       return json(res, 404, { message: "Not Found" });

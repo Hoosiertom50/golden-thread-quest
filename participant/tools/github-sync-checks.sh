@@ -178,6 +178,19 @@ sync_to "$W/c"
 expect "the next run, nothing changed" "$(line '^This run' | grep -c 'new none; changed none; moved none; no longer assigned none')" 1
 expect "earlier node ID still kept" "$(node -e 'const s=require(process.argv[1]);process.stdout.write(Object.values(s.issues).find(i=>i.number===5).previous_node_ids.join())' "$W/c/sync-state.json")" "I_pretend_api_2"
 
+say "   ...and GitHub's other redirect form, /repositories/<id>/: the right id links the move, another repository's id stops the run."
+cp -R "$W/a" "$W/t1"; cp -R "$W/a" "$W/t2"
+start "$W/newid.json" transfer-by-id
+sync_to "$W/t1"
+expect "exit (right id)" "$CODE" 0
+expect_has "the run (right id)" "$(line '^This run')" "(new node ID; linked by GitHub's forwarding)"
+start "$W/newid.json" transfer-wrong-id
+T2_BEFORE=$(print_of "$W/t2")
+sync_to "$W/t2"
+expect "exit (another repository's id)" "$CODE" 1
+expect_has "message (another repository's id)" "$OUTPUT" "without forwarding there"
+expect "the folder (another repository's id)" "$(print_of "$W/t2")" "$T2_BEFORE"
+
 say ""
 say "4. The pretend GitHub misbehaving: each run must stop, write nothing and say why."
 fault() { # name, exit wanted, message piece

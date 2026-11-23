@@ -790,13 +790,20 @@ for (const [id, rec] of current) {
   merged[id] = rec;
 }
 // A different address answering at the old one counts as a move only if GitHub forwarded the
-// request there: the redirect must end at that issue's own address.
-const forwardedTo = (r, repo, number) => {
+// request there: the redirect must end at that issue's own address, by name or by the
+// repository's numeric id (looked up from GitHub when the repository is outside the scope).
+const forwardedTo = async (r, repo, number) => {
   if (!r.redirected) return false;
   const m = r.finalPath.match(/^\/(?:repos\/([^/]+\/[^/]+)|repositories\/(\d+))\/issues\/(\d+)$/);
   if (!m || Number(m[3]) !== number) return false;
   if (m[1]) return canonName(m[1]).toLowerCase() === canonName(repo).toLowerCase();
-  return true; // the /repositories/<id>/ form: the repository is then the answer's own
+  let id = repoIds.get(canonName(repo).toLowerCase());
+  if (id === undefined) {
+    const info = await get(`/repos/${canonName(repo)}`);
+    if (info.status !== 200 || !isObj(info.body) || !posInt(info.body.id) || !FULL(info.body.full_name) || info.body.full_name.toLowerCase() !== canonName(repo).toLowerCase()) return false;
+    id = info.body.id;
+  }
+  return id === Number(m[2]);
 };
 const alias = new Map(); // earlier node ID -> current one, for moved issues
 const canon = (nid) => alias.get(nid) ?? nid;
@@ -869,7 +876,7 @@ for (const [id, old] of Object.entries(prev.issues)) {
       if (sameAddress && b.node_id !== id) {
         reason = "inaccessible";
         detail = "the number now belongs to a different issue";
-      } else if (!sameAddress && !forwardedTo(r, nowRepo, b.number)) {
+      } else if (!sameAddress && !(await forwardedTo(r, nowRepo, b.number))) {
         incomplete(`looking up ${old.repository}#${old.number}: GitHub answered for ${nowRepo}#${b.number} without forwarding there`);
       } else if (!sameAddress) {
         reason = "transferred";
@@ -917,7 +924,7 @@ for (const [id, r] of Object.entries(prev.no_longer_assigned)) {
       const nowRepo = canonName(repoFromApiUrl(b.repository_url));
       const sameAddress = nowRepo.toLowerCase() === oldName.toLowerCase() && b.number === old.number;
       const there = Object.values(merged).find((m) => m.repository.toLowerCase() === nowRepo.toLowerCase() && m.number === b.number);
-      if (!sameAddress && !forwardedTo(look, nowRepo, b.number)) incomplete(`looking up ${old.repository}#${old.number}: GitHub answered for ${nowRepo}#${b.number} without forwarding there`);
+      if (!sameAddress && !(await forwardedTo(look, nowRepo, b.number))) incomplete(`looking up ${old.repository}#${old.number}: GitHub answered for ${nowRepo}#${b.number} without forwarding there`);
       if (!sameAddress && there && there.node_id === b.node_id && there.node_id !== id) {
         linkMove(old, id, there);
         returnedMoved.push(`${there.repository}#${there.number}`);
