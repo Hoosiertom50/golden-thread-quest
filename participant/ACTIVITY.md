@@ -169,3 +169,8 @@ Every change this application made to your files, newest last.
 - `2026-11-21T00:06:35Z` jira-read-assigned-stories: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-21T00:06:35Z` Submitted jira-read-assigned-stories for review as submission-20261121000635-26b2c3.
 - `2026-11-21T00:16:20Z` Review of jira-read-assigned-stories: approved by Claude (automated reviewer).
+- `2026-11-23T14:23:12Z` Started github-read-assigned-issues as attempt github-attempt-002.
+- `2026-11-23T18:29:33Z` github-read-assigned-issues: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-23T18:29:49Z` github-read-assigned-issues: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-23T18:30:09Z` github-read-assigned-issues: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-23T18:30:09Z` Submitted github-read-assigned-issues for review as submission-20261123183009-9a0ff4.

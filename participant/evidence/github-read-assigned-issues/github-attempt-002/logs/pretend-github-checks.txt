@@ -1,0 +1,256 @@
+Checks of the GitHub synchronization against the pretend GitHub, 11-23-2026 1:04 PM EST.
+Git commit 90ed558; Node v22.23.3. Pages of 2. No token, no network: made-up data.
+
+1. Two runs on the practice world, a note written between them.
+  as expected: run 1 exit = 0
+  as expected: run 1 says "declared 5, received 5 over 3 pages (complete)"
+  as expected: run 1 says "assigned pull requests, searched separately and left out: #4"
+  as expected: run 1 says "unreadable: practice-owner/kettlebook-missing"
+  as expected: run 2 exit = 0
+  as expected: run 2 says "new none; changed none; moved none; no longer assigned none"
+  as expected: the note across run 2 = a70edda4bd4fbac3
+  as expected: a note with no final line break, across run 2 (exact bytes) = 038c382db48a3123
+  as expected: its last byte (still no line break) = d
+  as expected: comments in web #1's record after two runs = 2
+  as expected: the planted instruction kept as text (indented) = 1
+  as expected: web #1 and api #1 kept apart (two files) = 2
+  as expected: delivery evidence for web #1 = partial
+  as expected: a pull request mentioned only in text (api #1 -> web #4), followed = 1
+  as expected: run 2 says "Notes sections kept exactly (read back): 5 of 5"
+  as expected: a commit address in web #2's text, confirmed by GitHub = 1
+  as expected: so web #2's delivery evidence = partial
+  as expected: a made-up commit address in api #3's text, shown as not found = 1
+  as expected: a commit address in api #3's text that doesn't exist, not counted = missing
+
+2. After changes: api #3 closed, web #2 renamed, api #2 moved to web #5 (node ID kept).
+  as expected: exit = 0
+  as expected: the run says "moved practice-owner/kettlebook-api#2 → practice-owner/kettlebook-web#5"
+  as expected: the run says "no longer assigned practice-owner/kettlebook-api#3 (closed)"
+  as expected: the run says "changed practice-owner/kettlebook-web#2"
+  as expected: the moved note, now in web #5's file = 6d6cd30eabd56cfc
+  as expected: api #2's old file = gone
+  as expected: api #3's file (kept) = present
+  as expected: api #3's banner = 1
+
+3. The same changes, but the moved issue gets a new node ID (as GitHub does).
+  as expected: exit = 0
+  as expected: the run says "(new node ID; linked by GitHub's forwarding)"
+  as expected: the run says "new none"
+  as expected: the moved note, now in web #5's file = 6d6cd30eabd56cfc
+  as expected: earlier node ID kept = I_pretend_api_2
+  as expected: a text reference to the moved issue's old address (api #1 mentions api #2), followed to web #5 = 1
+  as expected: web #5's comment, reissued under a new id, recorded once = 1
+  as expected: its old id kept as provenance = 9201
+  as expected: web #5's labeled event, reissued under a new id, recorded once = 1
+  as expected: web #2's cross-reference from the moved issue, recorded once = 1
+  as expected: the next run, nothing changed = 1
+  as expected: earlier node ID still kept = I_pretend_api_2
+   ...and GitHub's other redirect form, /repositories/<id>/: the right id links the move, another repository's id stops the run.
+  as expected: exit (right id) = 0
+  as expected: the run (right id) says "(new node ID; linked by GitHub's forwarding)"
+  as expected: exit (another repository's id) = 1
+  as expected: message (another repository's id) says "without forwarding there"
+  as expected: the folder (another repository's id) = 1b93eced3e04bf5f
+
+4. The pretend GitHub misbehaving: each run must stop, write nothing and say why.
+- wrong-total
+  as expected:   exit = 1
+  as expected:   message says "declared 3 but sent 2"
+  as expected:   the output folder = absent
+- incomplete
+  as expected:   exit = 1
+  as expected:   message says "was incomplete"
+  as expected:   the output folder = absent
+- empty-page
+  as expected:   exit = 1
+  as expected:   message says "an empty page that isn't the last"
+  as expected:   the output folder = absent
+- total-changes
+  as expected:   exit = 1
+  as expected:   message says "changed its total"
+  as expected:   the output folder = absent
+- comment-gap
+  as expected:   exit = 1
+  as expected:   message says "GitHub counted 3 comments but sent 2"
+  as expected:   the output folder = absent
+- no-node-id
+  as expected:   exit = 1
+  as expected:   message says "without a number or node ID"
+  as expected:   the output folder = absent
+- offsite-next
+  as expected:   exit = 1
+  as expected:   message says "GitHub pointed outside"
+  as expected:   the output folder = absent
+- comment-repeat
+  as expected:   exit = 1
+  as expected:   message says "GitHub sent comment 9101 twice"
+  as expected:   the output folder = absent
+- event-no-id
+  as expected:   exit = 1
+  as expected:   message says "a labeled event without an id"
+  as expected:   the output folder = absent
+- commit-gap
+  as expected:   exit = 1
+  as expected:   message says "GitHub counted 2 commits but sent 1"
+  as expected:   the output folder = absent
+- assignee-no-id
+  as expected:   exit = 1
+  as expected:   message says "missing fields or has odd ones"
+  as expected:   the output folder = absent
+- offsite-redirect
+  as expected:   exit = 1
+  as expected:   message says "redirected to another server"
+  as expected:   the output folder = absent
+- search-misses-one
+  as expected:   exit = 1
+  as expected:   message says "only in the list: #2"
+  as expected:   the output folder = absent
+- last-beyond
+  as expected:   exit = 1
+  as expected:   message says "has no next link, but GitHub says the last page is 2"
+  as expected:   the output folder = absent
+- full-page-no-next
+  as expected:   exit = 1
+  as expected:   message says "page 1 had no next link, but page 2 isn't an empty end"
+  as expected:   the output folder = absent
+- short-page-more
+  as expected:   exit = 1
+  as expected:   message says "page 1 had no next link, but page 2 isn't an empty end"
+  as expected:   the output folder = absent
+- secondary-limit
+  as expected:   exit = 1
+  as expected:   message says "rate limit was reached"
+  as expected:   the output folder = absent
+- bad-utf8
+  as expected:   exit = 1
+  as expected:   message says "isn't valid UTF-8"
+  as expected:   the output folder = absent
+- pr-other-repo
+  as expected:   exit = 1
+  as expected:   message says "practice-owner/kettlebook-web#4: GitHub answered 200 with odd fields"
+  as expected:   the output folder = absent
+- skip-page
+  as expected:   exit = 1
+  as expected:   message says "doesn't ask for page 2 of the same list"
+  as expected:   the output folder = absent
+- next-other-list
+  as expected:   exit = 1
+  as expected:   message says "doesn't ask for page 2 of the same list"
+  as expected:   the output folder = absent
+- list-redirect
+  as expected:   exit = 1
+  as expected:   message says "redirected a list request"
+  as expected:   the output folder = absent
+- link-garbled
+  as expected:   exit = 1
+  as expected:   message says "Link header that can't be read"
+  as expected:   the output folder = absent
+- token-in-body
+  as expected:   exit = 2
+  as expected:   message says "would contain the token itself"
+  as expected:   the output folder = absent
+  as expected:   the token's value in the message = 0
+- scopes-echo
+  as expected:   exit = 2
+  as expected:   message says "can do more than read (repo, [token])"
+  as expected:   the output folder = absent
+  as expected:   the token's value in the message = 0
+- write-token
+  as expected:   exit = 2
+  as expected:   message says "can do more than read (repo)"
+  as expected:   the output folder = absent
+- gist-token
+  as expected:   exit = 2
+  as expected:   message says "can do more than read (gist)"
+  as expected:   the output folder = absent
+- link-unquoted (legitimate: rel=next without quotes)
+  as expected:   exit = 0
+  as expected:   web #1's comments, both pages = 2
+- repositories-path (legitimate: GitHub's other form of a page address)
+  as expected:   exit = 0
+  as expected:   web #1's comments, both pages = 2
+
+5. The issue search returns a pull request anyway (as GitHub's search once did).
+  as expected: exit = 0
+  as expected: the run says "pull requests the issue search returned: #4"
+  as expected: issue files (the pull request has none) = 0
+
+6. Markdown and HTML in a title and body, and a body holding the notes line itself.
+  as expected: exit = 0
+  as expected: raw link or image in the record = 0
+  as expected: the title escaped = 1
+  as expected: unescaped HTML outside code blocks = 0
+  as expected: lines equal to the notes line (only the real one) = 1
+  as expected: a second run's exit (it found its own notes line) = 0
+
+7. Local refusals: each must stop with exit 2 and change nothing.
+- an index.md a person wrote
+  as expected:   exit = 2
+  as expected:   message says "index.md wasn't written by this tool"
+  as expected:   the folder = 768711baeeff5813
+- an issue file that lost its notes line
+  as expected:   exit = 2
+  as expected:   message says "has lost its notes line"
+  as expected:   the folder = b62cafe113851c52
+- another run's lock
+  as expected:   exit = 2
+  as expected:   message says "Another synchronization is writing to this folder"
+  as expected:   the folder = 190df43302ff8112
+- a sync-state.json this tool didn't write
+  as expected:   exit = 2
+  as expected:   message says "isn't one this tool wrote"
+  as expected:   the folder = bc1395bd3f96d6e9
+- a sync-state.json record with its number removed
+  as expected:   exit = 2
+  as expected:   message says "isn't one this tool wrote"
+  as expected:   the folder = 5551d38d0036af88
+- a file left by a run that stopped while writing
+  as expected:   exit = 2
+  as expected:   message says "A previous run stopped while writing"
+  as expected:   the folder = 96fb853ca0a8711c
+- a notes section that isn't valid UTF-8
+  as expected:   exit = 2
+  as expected:   message says "isn't an ordinary UTF-8 text file"
+  as expected:   the folder = 03edbc750bf08a67
+- an issues folder that is a link
+  as expected:   exit = 2
+  as expected:   message says "isn't an ordinary folder"
+  as expected:   the folder = e3b0c44298fc1c14
+  as expected:   files written where the link points = 0
+- a folder holding another account's copy
+  as expected:   exit = 2
+  as expected:   message says "holds the copy of another GitHub account"
+  as expected:   the folder = 23bd72062607d823
+- a real-looking token sent to the pretend server
+  as expected:   exit = 2
+  as expected:   message says "must be a pretend one"
+- no token
+  as expected:   exit = 2
+  as expected:   message says "GTQ_GITHUB_TOKEN isn't set"
+- a server other than GitHub or this computer
+  as expected:   exit = 2
+  as expected:   message says "--api must be https://api.github.com"
+
+8. A note saved while the run is swapping files in (a TEST ONLY copy of the tool saves one at that moment).
+  as expected: the TEST ONLY line, placed once = 1
+  as expected: exit = 2
+  as expected: message says "was saved by someone while this run was writing"
+  as expected: the note saved during the run, kept = 1
+  as expected: sync-state.json, as before = 05db59da3c7acc1efb7e72f8f5adf74cf10df2b5d30887d516291c01b1c5b568  -
+  as expected: files left behind (.new, .old, lock) = 0
+   ...and a note saved just after the file was swapped in (a second TEST ONLY copy).
+  as expected: the TEST ONLY line, placed once = 1
+  as expected: exit = 2
+  as expected: message says "A save made after a file was written is kept as"
+  as expected: the save, kept aside = 1
+  as expected: web #1's file, put back as it was = 401d0d652dc7b1ad5827c155b7b61d3bd0ef06fd75438dc93d6845f8d7ef293e  -
+  as expected: the lock, kept for a person to look = kept
+  as expected: the next run refuses until a person has looked = 2
+  as expected: its message says "A previous run stopped while writing"
+
+9. Read-only: the synchronization makes every request through one function, always GET.
+  as expected: places that call fetch = 1
+  as expected: request methods named = method: "GET" 
+
+190 expectations as expected, 0 unexpected.
+End of record.
