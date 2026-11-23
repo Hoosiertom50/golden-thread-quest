@@ -17,6 +17,7 @@
 # can be looked at. Records go to participant/evidence/github-read-assigned-issues/github-attempt-002/logs/.
 
 set -uo pipefail
+set +x   # never trace: a trace would print the token
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 LOGS="$ROOT/participant/evidence/github-read-assigned-issues/github-attempt-002/logs"
@@ -28,13 +29,18 @@ if [ -z "${GTQ_GITHUB_TOKEN:-}" ]; then
   echo "GTQ_GITHUB_TOKEN isn't loaded in this terminal. Run: read -rs GTQ_GITHUB_TOKEN && export GTQ_GITHUB_TOKEN"
   exit 2
 fi
+# The logs folder must be a real folder inside the repository, with no link anywhere on the way:
+# the folders that already exist are checked before any is made, and all of them again after.
+check_logs_path() {
+  local d="$LOGS"
+  while [ "$d" != "$ROOT" ]; do
+    if [ -L "$d" ] || { [ -e "$d" ] && [ ! -d "$d" ]; }; then echo "${d#$ROOT/} isn't an ordinary folder (a link?); nothing was recorded."; exit 2; fi
+    d=$(dirname "$d")
+  done
+}
+check_logs_path
 mkdir -p "$LOGS" || exit 2
-# The logs folder must be a real folder inside the repository (no link anywhere on the way).
-D="$LOGS"
-while [ "$D" != "$ROOT" ]; do
-  if [ -L "$D" ] || [ ! -d "$D" ]; then echo "$D isn't an ordinary folder (a link?); nothing was recorded."; exit 2; fi
-  D=$(dirname "$D")
-done
+check_logs_path
 # Each record is first built in a private temporary file (made new, owner-only), removed on exit.
 RAW=$(mktemp "${TMPDIR:-/tmp}/gtq-record.XXXXXX") || { echo "Could not make a temporary file; nothing was recorded."; exit 2; }
 trap 'rm -f -- "$RAW"' EXIT
@@ -54,12 +60,18 @@ finish() { # raw file, record
     if (process.env.GTQ_GITHUB_TOKEN && t.includes(process.env.GTQ_GITHUB_TOKEN)) { console.log("The token appeared in the record, so it was not kept."); process.exit(3); }
     t = t.split(process.env.ROOT).join("<repo>").split(process.env.HOME).join("~");
     const tmp = path.join(path.dirname(rec), `.${path.basename(rec)}.${process.pid}.new`);
-    fs.writeFileSync(tmp, t, { flag: "wx", mode: 0o644 });
-    fs.renameSync(tmp, rec);
+    try {
+      fs.writeFileSync(tmp, t, { flag: "wx", mode: 0o644 });
+      fs.renameSync(tmp, rec);
+    } catch (err) {
+      try { fs.unlinkSync(tmp); } catch {}
+      console.log(`The record could not be saved (${err.code ?? "error"}); here is what it held:`);
+      process.stdout.write(t);
+      process.exit(4);
+    }
   ' "$1" "$2"
   local rc=$?
-  [ "$rc" = 3 ] && exit 3   # the token was in it: nothing is shown or kept
-  if [ "$rc" != 0 ]; then echo "The record wasn't published (see above); here is the run's output:"; cat -- "$1"; exit 3; fi
+  [ "$rc" = 0 ] || exit 3   # 3: the token was in it (nothing shown or kept); 4: shown above, not saved
 }
 # One line per issue file: the SHA-256 of the exact bytes after its notes line.
 notes_hashes() {
@@ -107,11 +119,29 @@ case "$MODE" in
     REC="$LOGS/token-check.txt"
     BAD=0
     field() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const v=JSON.parse(s)[process.argv[1]];process.stdout.write(typeof v==="string"?v:"")}catch{}})' "$1"; }
+    # A refusal counts only with GitHub's own reason for a token without that permission; another
+    # 403 (a rate limit, a protected branch) proves nothing. After the first write that isn't
+    # refused that way, no further write is tried.
     probe() { # what, method, url, body, undo-hint
-      local code
-      code=$(curl -s -o /dev/null -w '%{http_code}' -X "$2" -H @<(auth) "$3" -d "$4")
-      if [ "$code" = "403" ]; then echo "$1: GitHub answered 403, refused."; else BAD=1; echo "$1: GitHub answered $code, NOT refused. $5"; fi
+      [ "$BAD" = 0 ] || { echo "$1: not tried (an earlier check failed)."; return; }
+      local out code msg
+      out=$(curl -s -w '\n%{http_code}' -X "$2" -H @<(auth) "$3" -d "$4")
+      code=${out##*$'\n'}
+      msg=$(printf '%s' "${out%$'\n'*}" | field message)
+      if [ "$code" = "403" ] && [ "$msg" = "Resource not accessible by personal access token" ]; then
+        echo "$1: GitHub answered 403, \"$msg\": refused for lack of permission."
+      else
+        BAD=1
+        echo "$1: GitHub answered $code${msg:+, \"$msg\"}: NOT a permission refusal. $5"
+      fi
     }
+    echo "This check sends three write requests with the token, to the web practice repository only:"
+    echo "  create a label \"token-write-test\"; set pull request #4's title to the title it already has;"
+    echo "  create a file token-write-test.md. A read-only token makes GitHub refuse all three. If the"
+    echo "  token can write, the first may go through (the record then says what to undo)."
+    printf 'Type yes to send them: '
+    read -r ANSWER
+    [ "$ANSWER" = "yes" ] || { echo "Nothing was sent."; exit 1; }
     {
       echo "Token check, $(stamp). Git commit $(git -C "$ROOT" rev-parse --short HEAD)."
       echo "The token was given Contents, Issues and Pull requests, read-only (Metadata is read-only"

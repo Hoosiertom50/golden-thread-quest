@@ -32,6 +32,9 @@
 //   link-garbled     the same two pages, the Link header unreadable
 //   list-redirect    web #1's comments answer with a redirect
 //   token-in-body    web #1's body holds the bearer token the request was made with
+//   search-misses-one  the search index lacks web #2 (in its items and its total alike)
+//   pr-other-repo    reading pull request #4 answers with a pull request of another repository
+//   scopes-echo      /user lists "repo" and echoes the bearer token as a scope
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -101,7 +104,8 @@ const server = createServer((req, res) => {
   const original = new URL(req.url, base);
   let m;
   if (path === "/user") {
-    const scopes = FAULT === "write-token" ? "repo, read:org" : FAULT === "gist-token" ? "gist, read:user" : null;
+    const scopes = FAULT === "write-token" ? "repo, read:org" : FAULT === "gist-token" ? "gist, read:user"
+      : FAULT === "scopes-echo" ? `repo, ${req.headers.authorization.slice(7)}` : null;
     return json(res, 200, { login: world.me, id: world.users[world.me], node_id: "U_pretend" }, scopes ? { "x-oauth-scopes": scopes } : {});
   }
   if (path === "/search/issues") {
@@ -112,7 +116,7 @@ const server = createServer((req, res) => {
     // Like GitHub today: a search must say whether it wants issues or pull requests.
     const kind = /(^|\s)is:issue(\s|$)/.test(q) ? "issue" : /(^|\s)is:pull-request(\s|$)/.test(q) ? "pr" : null;
     if (!kind) return json(res, 422, { message: "Validation Failed", errors: [{ message: "Query must include 'is:issue' or 'is:pull-request'" }] });
-    const wanted = (it) => (kind === "pr") === Boolean(it.pull_request) || (FAULT === "pr-in-issue-search" && kind === "issue");
+    const wanted = (it) => ((kind === "pr") === Boolean(it.pull_request) || (FAULT === "pr-in-issue-search" && kind === "issue")) && !(FAULT === "search-misses-one" && it.node_id === "I_pretend_web_2");
     const all = key ? world.repos[key].issues.filter((it) => wanted(it) && (it.state ?? "open") === "open" && (it.assignees ?? []).includes(who)) : [];
     const { p, items, more } = page(url, all);
     const declared = all.length + (FAULT === "wrong-total" ? 1 : 0) + (FAULT === "total-changes" && p === 2 ? 1 : 0);
@@ -127,6 +131,15 @@ const server = createServer((req, res) => {
     const key = repoKey(m[1], m[2]);
     const known = key && world.repos[key].issues.some((i) => (i.pull_request?.commits ?? []).some((c) => c.sha === m[3]));
     return known ? json(res, 200, { sha: m[3] }) : json(res, 422, { message: "No commit found for SHA" });
+  }
+  // A repository's issue list (open, assigned to one login; pull requests included, as on GitHub).
+  if ((m = path.match(/^\/repos\/([^/]+)\/([^/]+)\/issues$/))) {
+    const key = repoKey(m[1], m[2]);
+    if (!key) return json(res, 404, { message: "Not Found" });
+    const who = url.searchParams.get("assignee");
+    const all = world.repos[key].issues.filter((it) => (it.state ?? "open") === "open" && (it.assignees ?? []).includes(who));
+    const { p, items, more } = page(url, all);
+    return json(res, 200, items.map((it) => issueJson(key, it)), more ? { link: linkTo(url, p + 1) } : {});
   }
   if ((m = path.match(/^\/repos\/([^/]+)\/([^/]+)$/))) {
     const key = repoKey(m[1], m[2]);
@@ -154,7 +167,7 @@ const server = createServer((req, res) => {
     if (!m[5]) {
       if (m[3] === "pulls") {
         if (!it.pull_request) return json(res, 404, { message: "Not Found" });
-        return json(res, 200, { number: n, state: it.state ?? "open", merged: it.pull_request.merged === true, merged_at: it.pull_request.merged_at ?? null, draft: false, body: it.body ?? "", commits: (it.pull_request.commits ?? []).length + (FAULT === "commit-gap" ? 1 : 0) });
+        return json(res, 200, { number: n, node_id: it.node_id, base: { repo: { full_name: FAULT === "pr-other-repo" ? "practice-owner/kettlebook-api" : key } }, state: it.state ?? "open", merged: it.pull_request.merged === true, merged_at: it.pull_request.merged_at ?? null, draft: false, body: it.body ?? "", commits: (it.pull_request.commits ?? []).length + (FAULT === "commit-gap" ? 1 : 0) });
       }
       const one = issueJson(key, it);
       if (FAULT === "token-in-body" && it.node_id === "I_pretend_web_1") one.body = `pasted by mistake: ${req.headers.authorization.slice(7)}`;

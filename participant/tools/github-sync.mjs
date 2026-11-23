@@ -33,18 +33,25 @@ import {
   rmdirSync, unlinkSync, writeSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
+import { constants as FS, fstatSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..");
 
+// Every message has the token's exact value removed, whatever it quotes (a header, an address,
+// an error): the token is never printed.
+const clean = (m) => {
+  const t = process.env.GTQ_GITHUB_TOKEN ?? "";
+  return t ? String(m).split(t).join("[token]") : String(m);
+};
 const refuse = (message) => {
-  console.error(message);
+  console.error(clean(message));
   process.exit(2);
 };
 const incomplete = (message) => {
-  console.error(`Incomplete: ${message}; nothing was written.`);
+  console.error(clean(`Incomplete: ${message}; nothing was written.`));
   process.exit(1);
 };
 
@@ -68,6 +75,10 @@ if (opts.api !== "https://api.github.com" && !/^http:\/\/127\.0\.0\.1:[1-9][0-9]
 const TOKEN = process.env.GTQ_GITHUB_TOKEN ?? "";
 if (TOKEN === "" || /\s/.test(TOKEN)) {
   refuse("GTQ_GITHUB_TOKEN isn't set (or holds spaces). Load the read-only token into this terminal first; nothing was read.");
+}
+// A practice server on this computer is never sent a real token: only one starting "pretend-".
+if (opts.api !== "https://api.github.com" && !/^pretend-[A-Za-z0-9-]{1,80}$/.test(TOKEN)) {
+  refuse("With --api on this computer, GTQ_GITHUB_TOKEN must be a pretend one (pretend-...), never a real token; nothing was read.");
 }
 
 const nowDate = new Date();
@@ -108,11 +119,23 @@ const NOT_ORDINARY = Symbol("not an ordinary file");
 // pipe is never opened), and only if it is valid UTF-8: decoding never replaces bytes, so a notes
 // section is kept exactly or the run stops. Gives the text, null if absent, or NOT_ORDINARY.
 const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+// The file is opened once, without following a link and without waiting on a pipe, and checked
+// through that same opening, so it can't be swapped between the check and the read.
 const readOrdinary = (path) => {
-  let st;
-  try { st = lstatSync(path); } catch (err) { if (err.code === "ENOENT") return null; throw err; }
-  if (st.isSymbolicLink() || !st.isFile()) return NOT_ORDINARY;
-  try { return UTF8.decode(readFileSync(path)); } catch { return NOT_ORDINARY; }
+  let fd;
+  try {
+    fd = openSync(path, FS.O_RDONLY | FS.O_NOFOLLOW | FS.O_NONBLOCK);
+  } catch (err) {
+    if (err.code === "ENOENT") return null;
+    if (err.code === "ELOOP" || err.code === "EMLINK" || err.code === "ENXIO" || err.code === "EISDIR") return NOT_ORDINARY;
+    throw err;
+  }
+  try {
+    if (!fstatSync(fd).isFile()) return NOT_ORDINARY;
+    try { return UTF8.decode(readFileSync(fd)); } catch { return NOT_ORDINARY; }
+  } finally {
+    closeSync(fd);
+  }
 };
 const rel = relative(REPO, out);
 const inRepo = rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
@@ -223,7 +246,8 @@ for (const f of knownFiles) {
 // server. Raw bodies stay in memory.
 let requests = 0;
 const get = async (url, { list = false } = {}) => {
-  const u = new URL(url, opts.api);
+  let u;
+  try { u = new URL(url, opts.api); } catch { incomplete("GitHub sent an address that can't be read"); }
   if (u.origin !== new URL(opts.api).origin) incomplete(`GitHub pointed outside ${opts.api} (${u.origin})`);
   // Redirects are followed by hand, at most 3, and each address is checked before it is asked:
   // the token is only ever sent to the one server.
@@ -251,7 +275,7 @@ const get = async (url, { list = false } = {}) => {
     const loc = res.headers.get("location");
     await res.body?.cancel();
     if (!loc || hop >= 3) incomplete(`GitHub redirected ${loc ? "too many times" : "without an address"} (${at.pathname})`);
-    at = new URL(loc, at);
+    try { at = new URL(loc, at); } catch { incomplete(`GitHub redirected to an address that can't be read (${at.pathname})`); }
     if (at.origin !== u.origin) incomplete(`GitHub redirected to another server (${at.origin})`);
   }
   if ((res.status === 403 || res.status === 429) && res.headers.get("x-ratelimit-remaining") === "0") {
@@ -272,13 +296,14 @@ const nextLink = (headers) => {
   for (const entry of link.match(/<[^>]*>[^,]*/g) ?? []) {
     const m = entry.match(/^<([^>]+)>((?:\s*;\s*[A-Za-z*-]+\s*=\s*(?:"[^"]*"|[^;,\s]+))*)\s*$/);
     if (!m) incomplete(`GitHub sent a Link header that can't be read`);
-    const rel = [...m[2].matchAll(/;\s*rel\s*=\s*(?:"([^"]*)"|([^;,\s]+))/gi)].map((x) => (x[1] ?? x[2]).toLowerCase().split(/\s+/)).flat();
+    const rel = [...m[2].matchAll(/;\s*rel\s*=\s*(?:"([^"]*)"|([^;,\s]+))/gi)].map((x) => (x[1] ?? x[2]).toLowerCase().split(/\s+/)).flat().filter(Boolean);
+    if (rel.length === 0) incomplete("GitHub sent a Link entry without a relation");
     if (rel.includes("next")) {
       if (found) incomplete("GitHub's Link header names two next pages");
       found = m[1];
     }
   }
-  if (link.replace(/<[^>]*>[^,]*/g, "").replace(/[\s,]/g, "") !== "") incomplete(`GitHub sent a Link header that can't be read`);
+  if (link.replace(/<[^>]*>[^,]*/g, "").replace(/[\s,]/g, "") !== "" || !/<[^>]*>/.test(link)) incomplete(`GitHub sent a Link header that can't be read`);
   return found;
 };
 const isObj = (x) => x && typeof x === "object" && !Array.isArray(x);
@@ -298,7 +323,8 @@ const posInt = (x) => Number.isInteger(x) && x > 0;
 const repoIds = new Map(); // "owner/name" lower-cased -> GitHub's numeric repository id
 const sameList = (first, next, page) => {
   const a = new URL(first, opts.api);
-  const b = new URL(next, opts.api);
+  let b;
+  try { b = new URL(next, opts.api); } catch { incomplete(`GitHub's next page for ${a.pathname} has an address that can't be read`); }
   if (b.origin !== a.origin) incomplete(`GitHub pointed outside ${opts.api} (${b.origin})`);
   const m = a.pathname.match(/^\/repos\/([^/]+\/[^/]+)(\/.*)$/);
   const alt = m && repoIds.has(m[1].toLowerCase()) ? `/repositories/${repoIds.get(m[1].toLowerCase())}${m[2]}` : null;
@@ -341,6 +367,11 @@ if (notRead.length) {
   refuse(`This token can do more than read (${notRead.join(", ")}). Use a read-only token; nothing was read.`);
 }
 const me = { login: who.body.login, id: who.body.id };
+// A folder holds one account's copy: another account's token is refused (a login rename is fine,
+// the numeric id is what counts).
+if (stateText !== null && prev.identity?.id !== me.id) {
+  refuse(`This folder holds the copy of another GitHub account (id ${prev.identity?.id ?? "unknown"}), not ${me.login}'s; nothing was written. Use a separate output folder.`);
+}
 const tokenKind = who.headers.get("x-oauth-scopes") === null ? "fine-grained (no scopes listed)" : `classic, scopes: ${scopes.join(", ") || "none"}`;
 
 // 2. Each repository in scope: readable or not, and why.
@@ -407,6 +438,19 @@ for (const full of readable) {
   const iss = await searchAll(`assignee:${me.login} is:issue is:open repo:${name}`, name, "issue");
   const prs = await searchAll(`assignee:${me.login} is:pull-request is:open repo:${name}`, name, "pull request");
   if (prs.items.some((i) => i.pull_request === undefined)) incomplete(`the pull request search for ${name} returned something that isn't a pull request`);
+  // The search index can miss a newly assigned issue in both its items and its total, so the
+  // search is checked against GitHub's own list of the repository's open issues assigned to the
+  // same login (which also holds pull requests, told apart by their pull_request key).
+  const listed = (await allPages(`/repos/${name}/issues?assignee=${encodeURIComponent(me.login)}&state=open&per_page=100`, `${name}'s issue list`))
+    .filter((i) => isObj(i) && i.pull_request === undefined);
+  if (!listed.every((i) => posInt(i.number) && isStr(i.node_id) && NODE.test(i.node_id))) incomplete(`${name}'s issue list has an item without a number or node ID`);
+  const inSearch = new Set(iss.items.filter((i) => i.pull_request === undefined).map((i) => i.node_id));
+  const inList = new Set(listed.map((i) => i.node_id));
+  const onlyList = listed.filter((i) => !inSearch.has(i.node_id)).map((i) => `#${i.number}`);
+  const onlySearch = iss.items.filter((i) => i.pull_request === undefined && !inList.has(i.node_id)).map((i) => `#${i.number}`);
+  if (onlyList.length || onlySearch.length) {
+    incomplete(`the search and GitHub's issue list for ${name} disagree (only in the list: ${onlyList.join(", ") || "none"}; only in the search: ${onlySearch.join(", ") || "none"}); GitHub's search may be catching up, run again in a minute`);
+  }
   const leaked = [];
   let issues = 0;
   for (const i of iss.items) {
@@ -422,6 +466,7 @@ for (const full of readable) {
     issues,
     pull_requests_assigned: prs.items.map((i) => i.number).sort((a, b) => a - b),
     pull_request_pages: prs.pages,
+    checked_against_issue_list: listed.length,
   };
 }
 
@@ -476,12 +521,14 @@ const closesIssue = (prBody, prRepo, repo, number) => {
   return false;
 };
 const prCache = new Map();
-const readPull = async (repo, number) => {
+const readPull = async (repo, number, nodeId) => {
   const key = `${repo}#${number}`.toLowerCase();
   if (prCache.has(key)) return prCache.get(key);
   let info;
   const r = await get(`/repos/${repo}/pulls/${number}`);
-  const okPull = (b) => isObj(b) && b.number === number && (b.state === "open" || b.state === "closed") && Number.isInteger(b.commits) && b.commits >= 0
+  const okPull = (b) => isObj(b) && b.number === number && (nodeId == null || b.node_id === nodeId)
+    && isStr(b.base?.repo?.full_name) && b.base.repo.full_name.toLowerCase() === canonName(repo).toLowerCase()
+    && (b.state === "open" || b.state === "closed") && Number.isInteger(b.commits) && b.commits >= 0
     && typeof b.merged === "boolean" && typeof b.draft === "boolean" && (b.body == null || isStr(b.body)) && (b.merged_at == null || isTime(b.merged_at))
     && b.merged === (b.merged_at != null);
   if (r.status === 200 && okPull(r.body)) {
@@ -546,11 +593,11 @@ for (const [full, number, nodeId] of found) {
   const cIds = new Set();
   const cleanComments = [];
   for (const c of comments) {
-    if (!isObj(c) || !posInt(c.id) || !isStr(c.body) || !isTime(c.created_at) || !userOf(c.user)) incomplete(`${what}: a comment without an id, author, time or text`);
+    if (!isObj(c) || !posInt(c.id) || !isStr(c.body) || !isTime(c.created_at) || !isTime(c.updated_at) || !userOf(c.user)) incomplete(`${what}: a comment without an id, author, times or text`);
     // The same comment twice in one answer means the pages overlapped: the count can't be trusted.
     if (cIds.has(c.id)) incomplete(`${what}: GitHub sent comment ${c.id} twice`);
     cIds.add(c.id);
-    cleanComments.push({ id: c.id, author: userOf(c.user), created_at: c.created_at, updated_at: isTime(c.updated_at) ? c.updated_at : c.created_at, body: c.body });
+    cleanComments.push({ id: c.id, author: userOf(c.user), created_at: c.created_at, updated_at: c.updated_at, body: c.body });
   }
   const timeline = await allPages(`/repos/${name}/issues/${number}/timeline?per_page=100`, `${what} timeline`);
   const events = [];
@@ -567,10 +614,20 @@ for (const [full, number, nodeId] of found) {
     if (e.commit_id != null && !(isStr(e.commit_id) && SHA.test(e.commit_id))) incomplete(`${what}: a ${e.event} event with an odd commit`);
     const at = e.created_at;
     const ev = { event: e.event, actor: userOf(e.actor) ?? userOf(e.user), at };
-    if (e.label?.name) ev.label = e.label.name;
-    if (e.milestone?.title) ev.milestone = e.milestone.title;
-    if (e.rename) ev.rename = { from: String(e.rename.from ?? ""), to: String(e.rename.to ?? "") };
-    if (userOf(e.assignee)) ev.assignee = userOf(e.assignee);
+    // What each kind of event must carry; an event without it is a malformed answer.
+    const needs = {
+      labeled: () => isStr(e.label?.name), unlabeled: () => isStr(e.label?.name),
+      milestoned: () => isStr(e.milestone?.title), demilestoned: () => isStr(e.milestone?.title),
+      renamed: () => isStr(e.rename?.from) && isStr(e.rename?.to),
+      assigned: () => userOf(e.assignee) !== null, unassigned: () => userOf(e.assignee) !== null,
+      "cross-referenced": () => isObj(e.source?.issue),
+    }[e.event];
+    if (needs && !needs()) incomplete(`${what}: a ${e.event} event without what it is about`);
+    if (userOf(e.actor) === null && userOf(e.user) === null && e.actor !== null) incomplete(`${what}: a ${e.event} event with an odd actor`);
+    if (e.label) ev.label = e.label.name;
+    if (e.milestone) ev.milestone = e.milestone.title;
+    if (e.rename) ev.rename = { from: e.rename.from, to: e.rename.to };
+    if (e.assignee) ev.assignee = userOf(e.assignee);
     if (e.state_reason) ev.state_reason = e.state_reason;
     if (isStr(e.commit_id)) ev.commit = e.commit_id;
     const src = e.source?.issue;
@@ -596,7 +653,7 @@ for (const [full, number, nodeId] of found) {
     }
   }
   // One entry per thing linked: a pull request or issue by repository and number, a commit by sha.
-  const linkKey = (l) => (l.kind === "commit" ? `commit:${l.sha}` : `${String(l.repository).toLowerCase()}#${l.number}`);
+  const linkKey = (l) => (l.kind === "commit" ? `commit:${String(l.repository).toLowerCase()}:${l.sha}` : `${String(l.repository).toLowerCase()}#${l.number}`);
   const byKey = new Map();
   for (const l of links) {
     const k = linkKey(l);
@@ -617,7 +674,7 @@ for (const [full, number, nodeId] of found) {
   const delivery = [];
   for (const l of byKey.values()) {
     if (l.kind !== "pull_request" || !l.repository || !byLowerName.has(l.repository.toLowerCase())) continue;
-    const pr = await readPull(l.repository, l.number);
+    const pr = await readPull(canonName(l.repository), l.number, l.node_id);
     if (!pr.readable) { l.state = "unreadable"; continue; }
     l.state = pr.merged ? "merged" : pr.state;
     l.closes_this_issue = closesIssue(pr.body, l.repository, name, number);
@@ -723,9 +780,18 @@ const linkMove = (old, id, there) => {
   const byId = new Map(there.comments.map((c) => [c.id, c]));
   const rest = [];
   for (const c of oldComments) { if (byId.has(c.id)) taken.add(byId.get(c.id)); else rest.push(c); }
+  const unmatched = [];
   for (const c of rest) {
     const same = there.comments.find((x) => !taken.has(x) && commentSig(x) === commentSig(c));
     if (same) { taken.add(same); same.previous_ids = [...new Set([...(same.previous_ids ?? []), ...(c.previous_ids ?? []), c.id])]; }
+    else unmatched.push(c);
+  }
+  // Edited since the last run: the same author and creation time, if exactly one comment on each
+  // side has them, is the same comment (its latest text kept). Anything less certain is kept, marked.
+  for (const c of unmatched) {
+    const mine = (xs) => xs.filter((x) => x.author === c.author && x.created_at === c.created_at);
+    const cand = mine(there.comments.filter((x) => !taken.has(x)));
+    if (cand.length === 1 && mine(unmatched).length === 1) { taken.add(cand[0]); cand[0].previous_ids = [...new Set([...(cand[0].previous_ids ?? []), ...(c.previous_ids ?? []), c.id])]; }
     else there.comments.push({ ...c, no_longer_on_github: true });
   }
   const usedE = new Set();
@@ -797,6 +863,7 @@ for (const [id, old] of Object.entries(prev.issues)) {
 // archived while its repository couldn't be read): each archived one whose repository is readable
 // is looked up at its old address, and one that forwards to an issue recorded now is linked to it
 // (its notes go with it) instead of staying archived.
+const returnedMoved = [];
 for (const [id, r] of Object.entries(prev.no_longer_assigned)) {
   if (merged[id] || noLonger[id]) continue;
   const old = r.last_known_record;
@@ -811,6 +878,7 @@ for (const [id, r] of Object.entries(prev.no_longer_assigned)) {
       const there = Object.values(merged).find((m) => m.repository.toLowerCase() === nowRepo.toLowerCase() && m.number === b.number);
       if (!sameAddress && there && there.node_id === b.node_id && there.node_id !== id) {
         linkMove(old, id, there);
+        returnedMoved.push(`${there.repository}#${there.number}`);
         continue;
       }
       // Open and assigned again, in scope, yet not found by the search: the search is behind.
@@ -828,6 +896,27 @@ for (const [id, r] of Object.entries(prev.no_longer_assigned)) {
 // with earlier node IDs mapped to the current one.
 alias.clear();
 for (const rec of Object.values(merged)) for (const old of rec.previous_node_ids ?? []) alias.set(old, rec.node_id);
+// A cross-reference whose source issue moved (not one of mine) comes back pointing at the source's
+// new address and node ID. Where two cross-references share their time and actor but point at
+// different sources, the older source's address is looked up: if it forwards to the other, they
+// are one source, and one event.
+const sourceLook = new Map();
+for (const rec of Object.values(merged)) {
+  const xs = rec.events.filter((e) => e.event === "cross-referenced" && !e.key.startsWith("id:") && e.source);
+  for (const a of xs) for (const b of xs) {
+    if (a === b || a.at !== b.at || a.actor !== b.actor || canon(a.source.node_id) === canon(b.source.node_id)) continue;
+    if (!byLowerName.has(a.source.repository.toLowerCase())) continue;
+    const k = `${a.source.repository}#${a.source.number}`.toLowerCase();
+    if (!sourceLook.has(k)) {
+      const r = await get(`/repos/${canonName(a.source.repository)}/issues/${a.source.number}`);
+      if (r.status === 200) { checkIssueBody(r.body, `looking up ${k}`); sourceLook.set(k, { repo: canonName(repoFromApiUrl(r.body.repository_url)), number: r.body.number, node: r.body.node_id }); }
+      else if ([403, 404, 410].includes(r.status)) sourceLook.set(k, null);
+      else incomplete(`looking up ${k}: GitHub answered ${r.status}${said(r)}`);
+    }
+    const now2 = sourceLook.get(k);
+    if (now2 && now2.node === b.source.node_id && now2.number === b.source.number && now2.repo.toLowerCase() === canonName(b.source.repository).toLowerCase()) alias.set(a.source.node_id, b.source.node_id);
+  }
+}
 const eventId = (e) => (e.key.startsWith("id:") ? e.key : `${e.event}:${e.at}:${canon(e.source?.node_id ?? "")}`);
 for (const rec of Object.values(merged)) {
   const seenC = new Set();
@@ -837,7 +926,7 @@ for (const rec of Object.values(merged)) {
   rec.events = rec.events.filter((e) => { const k = eventId(e); return !seenE.has(k) && seenE.add(k); });
   rec.events.sort((x, y) => String(x.at).localeCompare(String(y.at)) || eventId(x).localeCompare(eventId(y)));
 }
-const returned = Object.keys(prev.no_longer_assigned).filter((id) => merged[id]).map((id) => `${merged[id].repository}#${merged[id].number}`);
+const returned = [...Object.keys(prev.no_longer_assigned).filter((id) => merged[id]).map((id) => `${merged[id].repository}#${merged[id].number}`), ...returnedMoved];
 for (const [id, old] of compareWith) {
   const rec = merged[id];
   if (!prev.issues[id] || !sameExceptTime(old, { ...rec, predecessors: undefined })) changed.push(`${rec.repository}#${rec.number}`);
@@ -866,7 +955,7 @@ const block = (v) => {
 const code = (v) => `\`${String(v).replace(/[`\u0000-\u001f\u007f]/g, "")}\``;
 const notesStart = (rec) => `## My notes\n\nYour own notes on ${text(rec.repository)}\\#${rec.number}. The synchronization never changes this section.\n`;
 const linkLine = (l) => {
-  if (l.kind === "commit") return `- commit ${code(l.sha.slice(0, 12))}${l.repository ? ` in ${text(l.repository)}` : ""} (${l.via})`;
+  if (l.kind === "commit") return `- commit ${code(l.sha.slice(0, 12))}${l.repository ? ` in ${text(l.repository)}` : ""}${l.state ? `, ${text(l.state)}` : ""} (${l.via})`;
   const what = l.kind === "pull_request" ? "pull request" : l.kind === "issue" ? "issue" : "mentioned";
   let s = `- ${what} ${text(l.repository)}\\#${l.number}`;
   if (l.node_id) s += `, node ${code(l.node_id)}`;
@@ -939,16 +1028,17 @@ const notesFor = (f) => {
   return t == null ? null : splitRecord(t, f).notes;
 };
 for (const rec of Object.values(merged)) {
-  // The issue's own file and the files of every earlier address it had (a move): a notes section
-  // still exactly as the synchronization made it gives way; two different real ones stop the run.
+  // The issue's own file and the files of every earlier address it had (a move): everything after
+  // a notes line is the person's, starter text included, so it is carried exactly; two different
+  // ones stop the run.
   const sources = [{ file: rec.file, repository: rec.repository, number: rec.number }, ...(rec.predecessors ?? [])];
   const real = [];
   for (const src of sources) {
     const n = notesFor(src.file);
-    if (n !== null && n !== notesStart(src) && !real.some((x) => x.notes === n)) real.push({ file: src.file, notes: n });
+    if (n !== null && !real.some((x) => x.notes === n)) real.push({ file: src.file, notes: n });
   }
   if (real.length > 1) refuse(`${real.map((x) => `issues/${x.file}`).join(" and ")} hold different notes for one issue; nothing was written. Combine them, then run again.`);
-  const body = real[0]?.notes ?? notesFor(rec.file) ?? notesStart(rec);
+  const body = real[0]?.notes ?? notesStart(rec);
   for (const src of rec.predecessors ?? []) if (src.file !== rec.file && fileBaseline.get(src.file) != null && !toRemove.includes(src.file)) toRemove.push(src.file);
   notesHashes[rec.file] = sha(body);
   files.push([join(issuesDir, rec.file), `${recordSource(rec)}\n${body}`]);

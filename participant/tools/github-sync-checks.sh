@@ -125,8 +125,9 @@ expect "web #1 and api #1 kept apart (two files)" "$(ls "$W/a/issues" | grep -c 
 expect "delivery evidence for web #1" "$(grep -A2 'kettlebook-web\\#1:' "$W/a/delivery-links.md" | grep -o 'partial')" partial
 expect "a pull request mentioned only in text (api #1 -> web #4), followed" "$(grep -c '^- pull request practice-owner\\/kettlebook-web\\#4, node `PR_pretend_web_4`, open (written in the text)' "$W/a/issues/practice-owner__kettlebook-api__1.md")" 1
 expect_has "run 2" "$(line '^Kept as no longer')" "Notes sections kept exactly (read back): 5 of 5"
-expect "a commit address in web #2's text, confirmed by GitHub" "$(grep -c '^- commit `a1b2c3d4e5f6` in practice-owner\\/kettlebook-web (written in the text)' "$W/a/issues/practice-owner__kettlebook-web__2.md")" 1
+expect "a commit address in web #2's text, confirmed by GitHub" "$(grep -c '^- commit `a1b2c3d4e5f6` in practice-owner\\/kettlebook-web, confirmed (written in the text)' "$W/a/issues/practice-owner__kettlebook-web__2.md")" 1
 expect "so web #2's delivery evidence" "$(grep -A2 'kettlebook-web\\#2:' "$W/a/delivery-links.md" | grep -o 'partial')" partial
+expect "a made-up commit address in api #3's text, shown as not found" "$(grep -c '^- commit `000000000000` in practice-owner\\/kettlebook-api, not found (written in the text)' "$W/a/issues/practice-owner__kettlebook-api__3.md")" 1
 expect "a commit address in api #3's text that doesn't exist, not counted" "$(grep -A2 'kettlebook-api\\#3:' "$W/a/delivery-links.md" | grep -o 'missing')" missing
 
 cp -R "$W/a" "$W/b"
@@ -189,11 +190,15 @@ fault event-no-id 1 "a labeled event without an id"
 fault commit-gap 1 "GitHub counted 2 commits but sent 1"
 fault assignee-no-id 1 "missing fields or has odd ones"
 fault offsite-redirect 1 "redirected to another server"
+fault search-misses-one 1 "only in the list: #2"
+fault pr-other-repo 1 "practice-owner/kettlebook-web#4: GitHub answered 200 with odd fields"
 fault skip-page 1 "doesn't ask for page 2 of the same list"
 fault next-other-list 1 "doesn't ask for page 2 of the same list"
 fault list-redirect 1 "redirected a list request"
 fault link-garbled 1 "Link header that can't be read"
 fault token-in-body 2 "would contain the token itself"
+expect "  the token's value in the message" "$(printf '%s' "$OUTPUT" | grep -c 'pretend-token')" 0
+fault scopes-echo 2 "can do more than read (repo, [token])"
 expect "  the token's value in the message" "$(printf '%s' "$OUTPUT" | grep -c 'pretend-token')" 0
 fault write-token 2 "can do more than read (repo)"
 fault gist-token 2 "can do more than read (gist)"
@@ -259,6 +264,12 @@ refusal "a notes section that isn't valid UTF-8" "$W/r10" "isn't an ordinary UTF
 mkdir -p "$W/r5" "$W/elsewhere"; ln -s "$W/elsewhere" "$W/r5/issues"
 refusal "an issues folder that is a link" "$W/r5" "isn't an ordinary folder"
 expect "  files written where the link points" "$(find "$W/elsewhere" -type f | wc -l | tr -d ' ')" 0
+cp -R "$W/a" "$W/r11"; node -e 'const f=process.argv[1],fs=require("fs"),s=JSON.parse(fs.readFileSync(f,"utf8"));s.identity.id=4242;fs.writeFileSync(f,JSON.stringify(s,null,2)+"\n")' "$W/r11/sync-state.json"
+refusal "a folder holding another account's copy" "$W/r11" "holds the copy of another GitHub account"
+OUTPUT=$(GTQ_GITHUB_TOKEN=github_pat_not_a_real_one node "$TOOLS/github-sync.mjs" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/r12" 2>&1); CODE=$?
+say "- a real-looking token sent to the pretend server"
+expect "  exit" "$CODE" 2
+expect_has "  message" "$OUTPUT" "must be a pretend one"
 OUTPUT=$(env -u GTQ_GITHUB_TOKEN node "$TOOLS/github-sync.mjs" --scope "$W/scope.json" --out "$W/r6" 2>&1); CODE=$?
 say "- no token"
 expect "  exit" "$CODE" 2
@@ -327,8 +338,15 @@ W="$W" ROOT="$ROOT" node -e '
   const [rec, log] = process.argv.slice(1);
   const t = fs.readFileSync(rec, "utf8").split(process.env.W).join("<temp>").split(process.env.ROOT).join("<repo>").split(process.env.HOME).join("~");
   const tmp = path.join(path.dirname(log), `.${path.basename(log)}.${process.pid}.new`);
-  fs.writeFileSync(tmp, t, { flag: "wx", mode: 0o644 });
-  fs.renameSync(tmp, log);
-' "$REC" "$LOG" || { echo "The record couldn't be published; here it is:"; cat "$REC"; exit 1; }
+  try {
+    fs.writeFileSync(tmp, t, { flag: "wx", mode: 0o644 });
+    fs.renameSync(tmp, log);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch {}
+    console.log(`The record could not be saved (${err.code ?? "error"}); here is what it held:`);
+    process.stdout.write(t);
+    process.exit(1);
+  }
+' "$REC" "$LOG" || exit 1
 cat "$LOG"
 [ "$BAD" -eq 0 ]

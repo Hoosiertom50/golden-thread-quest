@@ -41,6 +41,14 @@ for r in "$WEB" "$API"; do
   fi
 done
 
+echo "This creates, on $OWNER's account:"
+echo "  two PUBLIC repositories, $OWNER/$WEB and $OWNER/$API, each with a README;"
+echo "  in each, a \"practice\" label and a \"Practice sprint 1\" milestone;"
+echo "  six made-up issues (five assigned to $OWNER), three comments, a branch, a commit and a pull request."
+printf 'Type yes to create them: '
+read -r ANSWER
+[ "$ANSWER" = "yes" ] || { say "Nothing was created."; exit 1; }
+
 say "Creating the two practice repositories (public, with a README)..."
 gh repo create "$OWNER/$WEB" --public --add-readme \
   --description "Practice data for a training quest: made-up issues about a made-up app." >/dev/null
