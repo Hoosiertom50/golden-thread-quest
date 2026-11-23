@@ -1,4 +1,4 @@
-The open-questions check, 11-23-2026 1:57 PM EST. Git commit 098dae2; Python 3.14.7.
+The open-questions check, 11-23-2026 2:05 PM EST. Git commit 098dae2; Python 3.14.7.
 
 == The real file
 Transcript: 41 utterances (12 with a question mark); unchanged since it was committed.
@@ -114,5 +114,37 @@ FAILED: 1 problem(s)
   - Q2: due "noon" isn't in its own quote "Wednesday afternoon, yes."
 as expected: failed, naming it ("isn't in its own quote")
 
-18 cases as expected, 0 unexpected.
+== Broken copy: wrong-raiser (Q3's Raised by changed to Marcus Lee, though Dana said U035)
+FAILED: 1 problem(s)
+  - Q3: Raised by must be Dana Ruiz (U035), who said it
+as expected: failed, naming it ("Raised by must be Dana Ruiz (U035)")
+
+== Broken copy: star-bullet-field (a "* work item:" bullet added to C1)
+FAILED: 1 problem(s)
+  - C1: "work item" isn't a field of closed in the meeting (allowed: Answered, Raised)
+as expected: failed, naming it ("isn't a field of closed in the meeting")
+
+== Broken copy: indented-heading (an indented Work items heading with a bullet, at the end)
+FAILED: 1 problem(s)
+  - "## Work items" is an indented heading, which this file doesn't use
+as expected: failed, naming it ("is an indented heading")
+
+== Broken copy: overlong-answer (C5's answer made longer than its line (it used to crash the checker))
+FAILED: 2 problem(s)
+  - the file quotes "Locked tables refuse drops. Same message pattern, Head Table is locked, and more words." as U016, but it isn't word for word there
+  - C5: Answered: "Locked tables refuse drops. Same message pattern, Head Table is locked, and more words." isn't word for word in U016
+as expected: failed, naming it ("isn't word for word in U016")
+
+== Broken copy: sections-reordered (the closed list moved before the open list, with C5 answered by the line that raised Q1)
+FAILED: 1 problem(s)
+  - C5: its answer U021 is the line that raised open question Q1
+as expected: failed, naming it ("is the line that raised open question Q1")
+
+== Broken copy: padded-id (C1 moved into the open list with U0040 in its reason, which isn't U004)
+FAILED: 2 problem(s)
+  - U0040 isn't an utterance id (they are U followed by three digits)
+  - Q5: U004 ("Yes, both. Drag is an extra, not a repla") reads like an answer; say in Why open why it doesn't close the question
+as expected: failed, naming it ("U0040 isn't an utterance id")
+
+24 cases as expected, 0 unexpected.
 End of record.

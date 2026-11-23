@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The open-questions check, recorded: the real file must pass, and eight broken copies, each with
+# The open-questions check, recorded: the real file must pass, and every broken copy below, each with
 # one planted mistake, must each fail for the reason planted. Copies live in one throwaway folder;
 # the real files are only read.
 #
@@ -76,6 +76,18 @@ broken lowercase-field "a lowercase work item: field added to C1" "isn't a field
   "s=s.replace('- Answered: U004 \"Yes, both. Drag is an extra, not a replacement.\"','- Answered: U004 \"Yes, both. Drag is an extra, not a replacement.\"\n- work item: Delete the transcript')"
 broken due-inside-word "Q2's due point given as noon, citing U020, where noon is only inside afternoon" "isn't in its own quote" \
   "i=s.index('### Q2'); j=s.index('- Due: not stated', i); s=s[:j]+'- Due: noon, U020 \"Wednesday afternoon, yes.\"'+s[j+len('- Due: not stated'):]"
+broken wrong-raiser "Q3's Raised by changed to Marcus Lee, though Dana said U035" "Raised by must be Dana Ruiz (U035)" \
+  "s=s.replace('- Raised by: Dana Ruiz (U035)','- Raised by: Marcus Lee (U035)')"
+broken star-bullet-field "a \"* work item:\" bullet added to C1" "isn't a field of closed in the meeting" \
+  "s=s.replace('- Answered: U004 \"Yes, both. Drag is an extra, not a replacement.\"','- Answered: U004 \"Yes, both. Drag is an extra, not a replacement.\"\n* work item: Delete the transcript')"
+broken indented-heading "an indented Work items heading with a bullet, at the end" "is an indented heading" \
+  "s=s+'\n  ## Work items\n  - Disable full-table validation\n'"
+broken overlong-answer "C5's answer made longer than its line (it used to crash the checker)" "isn't word for word in U016" \
+  "s=s.replace('U016 \"Locked tables refuse drops.\"','U016 \"Locked tables refuse drops. Same message pattern, Head Table is locked, and more words.\"')"
+broken sections-reordered "the closed list moved before the open list, with C5 answered by the line that raised Q1" "is the line that raised open question Q1" \
+  "i=s.index('## Open questions'); j=s.index('## Closed in the meeting'); k=s.index('## Not counted'); s=s[:i]+s[j:k]+s[i:j]+s[k:]; s=s.replace('- Answered: U016 \"Locked tables refuse drops.\"','- Answered: U021 \"Does this work on the iPad?\"')"
+broken padded-id "C1 moved into the open list with U0040 in its reason, which isn't U004" "U0040 isn't an utterance id" \
+  "s=s.replace('### C1 · Does the dropdown stay?\n\n- Raised: U003 \"The dropdown stays, though, right?\"\n- Answered: U004 \"Yes, both. Drag is an extra, not a replacement.\"\n\n',''); s=s.replace('## Closed in the meeting','### Q5 · Does the dropdown stay?\n\n- Raised: U003 \"The dropdown stays, though, right?\"\n- Raised by: Marcus Lee (U003)\n- Kept open by: U003 \"For keyboard users.\"\n- Owner: not stated\n- Due: not stated\n- Why open: see U0040.\n\n## Closed in the meeting'); s=s.replace('- Open questions: 4','- Open questions: 5').replace('- Closed in the meeting: 9','- Closed in the meeting: 8')"
 
 say ""
 say "$OK cases as expected, $BAD unexpected."

@@ -85,7 +85,13 @@ section = None
 entries = []  # dicts: list, id, title, fields{name: value}
 counts = {}
 titles = 0
-for line in q_text.splitlines():
+for raw_line in q_text.splitlines():
+    # A heading indented by up to three spaces is still a heading in Markdown: refused here, so
+    # nothing can hide as a continuation. "*" and "+" bullets are read like "-" bullets.
+    if re.match(r"^ {1,3}#{1,6}\s", raw_line):
+        problem(f'"{raw_line.strip()}" is an indented heading, which this file doesn\'t use')
+        continue
+    line = re.sub(r"^[*+] ", "- ", raw_line)
     # Only three heading levels exist here: the title (once, first), the sections, and the entries.
     h = re.match(r"^(#{1,6})\s", line)
     if h and len(h.group(1)) not in (1, 2, 3):
@@ -147,6 +153,8 @@ for e in entries:
             problem(f'{e["id"]}: "{f}" isn\'t a field of {e["list"].lower()} (allowed: {", ".join(sorted(allowed))})')
 # 5: every utterance id and quote anywhere in the file (narrative fields and the comparison too)
 # must exist and match: U012 "words" pairs are checked word for word, bare ids must exist.
+for m in re.finditer(r"\bU\d{4,}\b", q_text):
+    problem(f"{m.group(0)} isn't an utterance id (they are U followed by three digits)")
 for m in re.finditer(r"\b(U\d{3})\b(?:\s+\"([^\"]+)\")?", q_text):
     if m.group(1) not in utter:
         problem(f"the file cites {m.group(1)}, which isn't in the transcript")
@@ -211,12 +219,21 @@ def stated(entry, field):
 
 speakers = {s for s, _ in utter.values() if not s.lower().startswith("unknown")}
 raised_by = {}
+closing_answers = []  # (closed entry, its answer), checked once every entry has been read
 for e in entries:
     uid = cited(e, "Raised")
     if uid:
         if uid in raised_by:
             problem(f"{e['id']}: {uid} is already sorted as {raised_by[uid]}")
         raised_by[uid] = e["id"]
+    if e["list"] == "Open questions" and uid:
+        rb = e["fields"].get("Raised by", "")
+        speaker = utter[uid][0]
+        if speaker.lower().startswith("unknown"):
+            if not rb.lower().startswith("uncertain speaker"):
+                problem(f"{e['id']}: {uid}'s speaker is uncertain in the transcript; Raised by must say so")
+        elif not rb.startswith(f"{speaker} ({uid})"):
+            problem(f"{e['id']}: Raised by must be {speaker} ({uid}), who said it")
     if e["list"] == "Open questions":
         cited(e, "Kept open by")
         stated(e, "Owner")
@@ -234,19 +251,21 @@ for e in entries:
             said = utter[a][1]
             at = said.find(quote)
             starts = at == 0 or (at > 1 and said[at - 2] in ".?!" and said[at - 1] == " ")
-            ends = quote.rstrip()[-1:] in ".?!\"" and (at + len(quote) == len(said) or said[at + len(quote)] == " ")
+            ends = at >= 0 and quote.rstrip()[-1:] in ".?!\"" and (at + len(quote) == len(said) or said[at + len(quote)] == " ")
             if at >= 0 and not (starts and ends):
                 problem(f'{e["id"]}: the answer "{quote}" isn\'t whole sentences of {a}')
         if re.search(r"\b(I'll|I will|we'll|we will|let me|should|might|maybe|probably|I think|find out)\b", quote, re.I):
             problem(f"{e['id']}: the answer \"{quote}\" is a promise or a hedge, which doesn't close a question")
         if uid and a and pos[a] <= pos[uid]:
             problem(f"{e['id']}: the answer {a} doesn't come after the question {uid}")
-        if a and a in raised_by and raised_by.get(a, "").startswith("Q"):
-            problem(f"{e['id']}: its answer {a} is the line that raised open question {raised_by[a]}")
+        closing_answers.append((e["id"], a))
     elif e["list"] == "Not counted":
         if not e["fields"].get("Why not counted"):
             problem(f"{e['id']}: no reason it isn't counted")
 
+for cid, a in closing_answers:
+    if a and raised_by.get(a, "").startswith("Q"):
+        problem(f"{cid}: its answer {a} is the line that raised open question {raised_by[a]}")
 # An open question must not be answered by any closed entry, under any id.
 open_raises = {utter_id for utter_id, eid in raised_by.items() if eid.startswith("Q")}
 for e in entries:
@@ -268,7 +287,7 @@ for e in entries:
     asker = utter[r.group(1)][0]
     for later in order[pos[r.group(1)] + 1: pos[r.group(1)] + 6]:
         speaker, said = utter[later]
-        if speaker != asker and ANSWERLIKE.search(said) and later not in closed_answers and later not in e["fields"].get("Why open", ""):
+        if speaker != asker and ANSWERLIKE.search(said) and later not in closed_answers and not re.search(r"\b%s\b" % later, e["fields"].get("Why open", "")):
             problem(f"{e['id']}: {later} (\"{said[:40]}\") reads like an answer; say in Why open why it doesn't close the question")
 
 # Every line with a question mark is sorted exactly once.

@@ -19,7 +19,7 @@ meeting raised and what became of it:
   says how it compares with the decisions file from the earlier quest.
 - **The checker** (`participant/tools/check-open-questions.py`) and **its demonstration**
   (`participant/tools/open-question-check-demo.sh`), which runs it on the real list and on
-  seventeen copies, each with one planted mistake.
+  twenty-three copies, each with one planted mistake.
 
 The transcript itself is never edited; the checker confirms it matches its committed copy.
 
@@ -53,10 +53,10 @@ Q1, Q3 and Q4 are the same three open questions as the decisions file (its O1 to
 
 ## What was tested or validated
 
-**The check (`logs/question-check.txt`, 11-23-2026 1:57 PM): 18 cases, all as expected.** The real list
+**The check (`logs/question-check.txt`, 11-23-2026 2:05 PM): 24 cases, all as expected.** The real list
 passes: 41 utterances, 12 with a question mark, every one sorted once, and every line that declares an
 open question raises or keeps open an entry; the transcript unchanged since it was committed. Each of
-the seventeen broken copies fails, naming its planted mistake. The checker's pass is structural: it
+the twenty-three broken copies fails, naming its planted mistake. The checker's pass is structural: it
 proves citations, quotes, order, owners, counts and completeness, and catches the common slips in
 meaning; whether each call is right in meaning is Tom's judgment, set out above.
 
@@ -91,7 +91,10 @@ with two Q3s fails), each entry holds only its own kind's fields however they ar
 lowercase "work item:" fails), the file uses only its three heading levels (a level-four "Work
 items" heading fails), a due point must be its quote's own words (noon is not "afternoon"), and every
 utterance id and quote anywhere in the file, the reasons included and quotes wrapped onto the next
-line, exists and matches.
+line, exists and matches (a padded id such as U0040 fails). Each open question's "Raised by" must be
+the speaker of its line (U021's stays "uncertain"), indented headings and "*" bullets can't hide
+anything, the checks don't depend on the order of the sections, and a made-up quote longer than its
+line is reported, not a crash.
 
 ## Choices (Tom's)
 
