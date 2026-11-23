@@ -58,6 +58,14 @@ broken decisions-mixed-in "a Decisions section added to the questions file" "isn
   "s=s.replace('## Not counted','## Decisions\n\n- D1 drag to assign\n\n## Not counted')"
 broken wrong-count "the open count says 3" "says 3, the list has 4" \
   "s=s.replace('- Open questions: 4','- Open questions: 3')"
+broken duplicate-id "Q4 renamed Q3, so two questions share one id" "Q3 is used twice" \
+  "s=s.replace('### Q4 · ','### Q3 · ')"
+broken promise-as-answer "C5 closed by Priya's promise to test, not an answer" "is a promise or a hedge" \
+  "s=s.replace('- Answered: U016 \"Locked tables refuse drops.\"','- Answered: U019 \"I\\'ll test it rather than assume it.\"')"
+broken declared-question-left-out "Q3 (U035, declared as an open question, no question mark) deleted" "U035 declares an open question" \
+  "i=s.index('### Q3'); j=s.index('### Q4'); s=s[:i]+s[j:]; s=s.replace('- Open questions: 4','- Open questions: 3')"
+broken owner-by-fragment "Q4's owner given as Sam Okafor, citing U016, where \"Same\" holds his first name only inside another word" "neither the speaker of U016 nor named in it" \
+  "i=s.index('### Q4'); j=s.index('- Owner: not stated', i); s=s[:j]+'- Owner: Sam Okafor, U016 \"Same message pattern\"'+s[j+len('- Owner: not stated'):]"
 
 say ""
 say "$OK cases as expected, $BAD unexpected."

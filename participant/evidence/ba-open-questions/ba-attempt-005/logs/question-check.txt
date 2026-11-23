@@ -1,4 +1,4 @@
-The open-questions check, 11-23-2026 1:35 PM EST. Git commit 098dae2; Python 3.14.7.
+The open-questions check, 11-23-2026 1:49 PM EST. Git commit 098dae2; Python 3.14.7.
 
 == The real file
 Transcript: 41 utterances (12 with a question mark); unchanged since it was committed.
@@ -20,8 +20,10 @@ Closed in the meeting: 9
 Not counted: 1
   N1 raised at U022: Who raised the iPad question?
 
-PASSED: every citation and quote checks out, nothing answered is listed as open, every owner
-and due point is stated or marked not stated, and every question in the transcript is sorted once.
+PASSED, structurally: every citation and quote checks out, no answer-like reply near an open
+question is unexplained, every owner and due point is stated (by its own line) or marked not
+stated, no closing answer is a promise or hedge, and every question-marked or declared question is
+sorted once. Whether each call is right in meaning is a person's judgment, reviewed by hand.
 as expected: passed (exit 0)
 
 == Broken copy: answered-listed-open (C1, answered at U004 "Yes, both.", moved into the open list)
@@ -35,12 +37,14 @@ FAILED: 1 problem(s)
 as expected: failed, naming it ("neither the speaker of U035 nor named in it")
 
 == Broken copy: missing-id (Q4 cites U099, which doesn't exist)
-FAILED: 1 problem(s)
+FAILED: 2 problem(s)
+  - the file cites U099, which isn't in the transcript
   - Q4: Kept open by cites U099, which isn't in the transcript
 as expected: failed, naming it ("U099, which isn't in the transcript")
 
 == Broken copy: changed-quote (C5's quote changed by one word)
-FAILED: 1 problem(s)
+FAILED: 2 problem(s)
+  - the file quotes "Locked tables accept drops." as U016, but it isn't word for word there
   - C5: Answered: "Locked tables accept drops." isn't word for word in U016
 as expected: failed, naming it ("isn't word for word in U016")
 
@@ -64,5 +68,25 @@ FAILED: 1 problem(s)
   - count "Open questions" says 3, the list has 4
 as expected: failed, naming it ("says 3, the list has 4")
 
-9 cases as expected, 0 unexpected.
+== Broken copy: duplicate-id (Q4 renamed Q3, so two questions share one id)
+FAILED: 1 problem(s)
+  - Q3 is used twice
+as expected: failed, naming it ("Q3 is used twice")
+
+== Broken copy: promise-as-answer (C5 closed by Priya's promise to test, not an answer)
+FAILED: 1 problem(s)
+  - C5: the answer "I'll test it rather than assume it." is a promise or a hedge, which doesn't close a question
+as expected: failed, naming it ("is a promise or a hedge")
+
+== Broken copy: declared-question-left-out (Q3 (U035, declared as an open question, no question mark) deleted)
+FAILED: 1 problem(s)
+  - U035 declares an open question ("Yes. And the open questions: tablet touch support, and wheth") but no entry cites it
+as expected: failed, naming it ("U035 declares an open question")
+
+== Broken copy: owner-by-fragment (Q4's owner given as Sam Okafor, citing U016, where "Same" holds his first name only inside another word)
+FAILED: 1 problem(s)
+  - Q4: owner Sam Okafor is neither the speaker of U016 nor named in it (guessed?)
+as expected: failed, naming it ("neither the speaker of U016 nor named in it")
+
+13 cases as expected, 0 unexpected.
 End of record.

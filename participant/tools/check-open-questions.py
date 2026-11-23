@@ -96,20 +96,44 @@ for line in q_text.splitlines():
         if not m or m.group(1) != want:
             problem(f'"{line}" isn\'t a {want or "?"}-entry heading for its section')
             continue
-        entries.append({"list": section, "id": m.group(1) + m.group(2), "title": m.group(3), "fields": {}})
+        eid = m.group(1) + m.group(2)
+        if any(e["id"] == eid for e in entries):
+            problem(f"{eid} is used twice")
+        entries.append({"list": section, "id": eid, "title": m.group(3), "fields": {}})
         continue
     m = re.match(r"^- ([A-Z][A-Za-z ]+): (.*)$", line)
     if m and section == "Counts":
         if not m.group(2).isdigit():
             problem(f'count "{m.group(1)}" isn\'t a number')
+        if m.group(1) in counts:
+            problem(f'count "{m.group(1)}" is given twice')
         counts[m.group(1)] = int(m.group(2)) if m.group(2).isdigit() else -1
     elif m and entries and section in ALLOWED - {"Counts", "Compared with the decisions file"}:
+        if m.group(1) in entries[-1]["fields"]:
+            problem(f'{entries[-1]["id"]}: "{m.group(1)}" is given twice')
         entries[-1]["fields"][m.group(1)] = m.group(2)
     elif line.startswith("  ") and entries and entries[-1]["fields"]:
         last = list(entries[-1]["fields"])[-1]
         entries[-1]["fields"][last] += " " + line.strip()
 
 CITE = re.compile(r"^(U\d{3}) \"(.+)\"$")
+FIELDS = {
+    "Open questions": ({"Raised", "Raised by", "Kept open by", "Owner", "Due", "Why open"}, set()),
+    "Closed in the meeting": ({"Raised", "Answered"}, set()),
+    "Not counted": ({"Raised", "Why not counted"}, set()),
+}
+for e in entries:
+    allowed = FIELDS[e["list"]][0]
+    for f in e["fields"]:
+        if f not in allowed:
+            problem(f'{e["id"]}: "{f}" isn\'t a field of {e["list"].lower()} (allowed: {", ".join(sorted(allowed))})')
+# 5: every utterance id and quote anywhere in the file (narrative fields and the comparison too)
+# must exist and match: U012 "words" pairs are checked word for word, bare ids must exist.
+for m in re.finditer(r"\b(U\d{3})\b(?: \"([^\"]+)\")?", q_text):
+    if m.group(1) not in utter:
+        problem(f"the file cites {m.group(1)}, which isn't in the transcript")
+    elif m.group(2) and m.group(2) not in utter[m.group(1)][1]:
+        problem(f'the file quotes "{m.group(2)}" as {m.group(1)}, but it isn\'t word for word there')
 
 
 def cited(entry, field, required=True):
@@ -151,12 +175,21 @@ def stated(entry, field):
     speaker, said = utter[uid]
     if quote not in said:
         problem(f'{entry["id"]}: {field}: "{quote}" isn\'t word for word in {uid}')
-    if field == "Owner" and who != speaker and who.split()[0] not in said:
-        problem(f"{entry['id']}: owner {who} is neither the speaker of {uid} nor named in it (guessed?)")
-    if field == "Due" and not re.search(r"\b(by|before|until|on|monday|tuesday|wednesday|thursday|friday|tomorrow|today|next|week|noon|end of)\b", quote, re.I):
-        problem(f"{entry['id']}: due point \"{quote}\" doesn't state a time")
+    if field == "Owner":
+        # The owner must be one of the meeting's speakers, and either say the line or be named in it
+        # by a whole word (first name or full name), never a substring of another word.
+        if who not in speakers:
+            problem(f"{entry['id']}: owner {who} isn't one of the meeting's speakers")
+        elif who != speaker and not re.search(r"\b(%s|%s)\b" % (re.escape(who), re.escape(who.split()[0])), said):
+            problem(f"{entry['id']}: owner {who} is neither the speaker of {uid} nor named in it (guessed?)")
+    if field == "Due":
+        # The due value must be the quoted words themselves (so it can't say Friday while citing
+        # Wednesday); whether that line sets the answer's deadline is for the reviewer.
+        if who.lower() not in quote.lower():
+            problem(f"{entry['id']}: due \"{who}\" isn't in its own quote \"{quote}\"")
 
 
+speakers = {s for s, _ in utter.values() if not s.lower().startswith("unknown")}
 raised_by = {}
 for e in entries:
     uid = cited(e, "Raised")
@@ -174,6 +207,9 @@ for e in entries:
             problem(f"{e['id']}: an open question has an answer recorded")
     elif e["list"] == "Closed in the meeting":
         a = cited(e, "Answered")
+        quote = CITE.match(e["fields"].get("Answered", "")).group(2) if CITE.match(e["fields"].get("Answered", "")) else ""
+        if re.search(r"\b(I'll|I will|we'll|we will|let me|should|might|maybe|probably|I think|find out)\b", quote, re.I):
+            problem(f"{e['id']}: the answer \"{quote}\" is a promise or a hedge, which doesn't close a question")
         if uid and a and pos[a] <= pos[uid]:
             problem(f"{e['id']}: the answer {a} doesn't come after the question {uid}")
         if a and a in raised_by and raised_by.get(a, "").startswith("Q"):
@@ -211,6 +247,14 @@ for uid in order:
     if "?" in utter[uid][1] and uid not in raised_by:
         problem(f"{uid} asks a question (\"{utter[uid][1][:60]}\") but isn't in any list")
 
+# A line that declares an open question (with or without a question mark) must be cited by an entry.
+# (A mention in a reason doesn't count: the line must raise an entry or be what keeps one open.)
+cited_ids = {CITE.match(e["fields"][f]).group(1) for e in entries for f in ("Raised", "Kept open by")
+             if CITE.match(e["fields"].get(f, ""))}
+for uid in order:
+    if re.search(r"open question", utter[uid][1], re.I) and uid not in cited_ids:
+        problem(f"{uid} declares an open question (\"{utter[uid][1][:60]}\") but no entry cites it")
+
 # Counts.
 lists = {"Open questions": "Q", "Closed in the meeting": "C", "Not counted": "N"}
 for name, letter in lists.items():
@@ -237,5 +281,7 @@ if problems:
     for p in problems:
         print(f"  - {p}")
     sys.exit(1)
-print("\nPASSED: every citation and quote checks out, nothing answered is listed as open, every owner")
-print("and due point is stated or marked not stated, and every question in the transcript is sorted once.")
+print("\nPASSED, structurally: every citation and quote checks out, no answer-like reply near an open")
+print("question is unexplained, every owner and due point is stated (by its own line) or marked not")
+print("stated, no closing answer is a promise or hedge, and every question-marked or declared question is")
+print("sorted once. Whether each call is right in meaning is a person's judgment, reviewed by hand.")

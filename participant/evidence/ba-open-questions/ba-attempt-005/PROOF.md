@@ -18,7 +18,7 @@ meeting raised and what became of it:
   counted**, every entry citing utterance identifiers and quoting them word for word. It also
   says how it compares with the decisions file from the earlier quest.
 - **The checker** (`participant/tools/check-open-questions.py`) and **its demonstration**
-  (`participant/tools/open-question-check-demo.sh`), which runs it on the real list and on eight
+  (`participant/tools/open-question-check-demo.sh`), which runs it on the real list and on twelve
   copies, each with one planted mistake.
 
 The transcript itself is never edited; the checker confirms it matches its committed copy.
@@ -53,9 +53,12 @@ Q1, Q3 and Q4 are the same three open questions as the decisions file (its O1 to
 
 ## What was tested or validated
 
-**The check (`logs/question-check.txt`, 11-23-2026 1:35 PM): 9 cases, all as expected.** The real list
-passes: 41 utterances, 12 with a question mark, every one sorted once; the transcript unchanged since
-it was committed. Each of the eight broken copies fails, naming its planted mistake.
+**The check (`logs/question-check.txt`, 11-23-2026 1:49 PM): 13 cases, all as expected.** The real list
+passes: 41 utterances, 12 with a question mark, every one sorted once, and every line that declares an
+open question raises or keeps open an entry; the transcript unchanged since it was committed. Each of
+the twelve broken copies fails, naming its planted mistake. The checker's pass is structural: it
+proves citations, quotes, order, owners, counts and completeness, and catches the common slips in
+meaning; whether each call is right in meaning is Tom's judgment, set out above.
 
 1. **Criterion 1, verified:** every entry cites the line that raised it, and the checker found every
    cited identifier in the transcript and every quote word for word in it; a copy citing U099 fails
@@ -64,12 +67,14 @@ it was committed. Each of the eight broken copies fails, naming its planted mist
    by "Yes, both." at U004) into the open list fails with "U004 … reads like an answer". The checker
    looks at the five lines after each open question: a reply by someone else that reads like an
    answer must be explained in "Why open" unless it is already the answer to another question.
-   Every closed question's answer comes after it (a copy answering U009 with U008 fails).
+   Every closed question's answer comes after it (a copy answering U009 with U008 fails), and is not
+   a promise or a hedge (a copy closing C5 with Priya's "I'll test it rather than assume it." fails).
 3. **Criterion 3, verified:** an owner or due point is recorded only with the line that states it; the
    one owner, Priya Shah on Q2, cites U019, her own "I'll test it rather than assume it."
 4. **Criterion 4, verified:** the owner of Q1, Q3 and Q4 and every due point is written "not stated",
    never guessed; a copy that makes Marcus Lee the owner of Q3, citing a line he neither said nor is
-   named in, fails ("neither the speaker of U035 nor named in it").
+   named in, fails ("neither the speaker of U035 nor named in it"), and so does one that makes Sam
+   Okafor an owner because "Same" in U016 contains his first name (names must be whole words).
 5. **Criterion 5, verified:** none of the 15 questions is rhetorical; the rules say how one would be
    told apart (asked for effect, no answer expected) and that checks that got a real answer ("…,
    right?") are questions, closed.
@@ -77,9 +82,12 @@ it was committed. Each of the eight broken copies fails, naming its planted mist
    ("isn't allowed here"). Decisions, proposals and commitments stay in the decisions file.
 7. **Criterion 7, verified:** each open question says why it is still open, and each closed one cites
    the line that answered it, so another person can check every call against the transcript; a copy
-   that drops the printing question (U030) fails ("U030 asks a question … but isn't in any list").
+   that drops the printing question (U030) fails ("U030 asks a question … but isn't in any list"),
+   and so does one that drops Q3, declared as an open question at U035 without a question mark.
 
-Also checked: the counts match the lists (a copy saying 3 open fails).
+Also checked: the counts match the lists (a copy saying 3 open fails), no id is used twice (a copy
+with two Q3s fails), each entry holds only its own kind's fields, and every utterance id and quote
+anywhere in the file, the reasons included, exists and matches.
 
 ## Choices (Tom's)
 
@@ -116,7 +124,11 @@ bash participant/tools/open-question-check-demo.sh <a new logs folder>
   lines later, would not be flagged. The judgment is the person's; the check catches the common slip.
 - **An owner is checked by who spoke or was named, not by what was promised.** A line said by
   someone who did not take the question on (say, "Good, add it.") would pass as that person's
-  ownership; the rules, and the reviewer, decide whether a line really states an owner.
+  ownership; the rules, and the reviewer, decide whether a line really states an owner. The same
+  goes for a due point: the checker binds it to its own quote, but whether that line sets the
+  answer's deadline is a reviewer's call.
+- **A closing answer is checked for order and for promise or hedge words, not for relevance.** That
+  the cited line answers *this* question is the person's call, shown in each closed entry.
 - **One synthetic meeting.** No real meeting, no real people; a real transcript would need its own
   redaction and permission first.
 

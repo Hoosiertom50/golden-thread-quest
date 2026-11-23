@@ -32,8 +32,11 @@ Claude (Claude Code), 11-23-2026. Nothing here answers a question or contacts an
 - Kept open by: U018 "It should cover drops for free."
 - Owner: Priya Shah, U019 "I'll test it rather than assume it."
 - Due: not stated
-- Why open: the only answer is hedged ("should"), and Priya promises to find out by testing; the
-  build she can test arrives Wednesday afternoon (U020), but no date is stated for the answer.
+- Why open: the answer to whether it works is hedged ("should"), and Priya promises to find out
+  by testing. The wrap-up agrees the behaviour (U034 "undo covers drops", and Dana's "Yes." at
+  U035), which is a decision about what should happen, not a confirmation that undo already covers
+  drops; that is what Priya will test. The build she can test arrives Wednesday afternoon (U020),
+  but no date is stated for the answer.
 
 ### Q3 · Do first-time users need a drag hint?
 
