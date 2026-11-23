@@ -22,7 +22,7 @@ set +x   # never trace: a trace would print the token
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 LOGS="$ROOT/participant/evidence/github-read-assigned-issues/github-attempt-002/logs"
 OUT="$ROOT/participant/context/github/assigned"
-SYNC=(node "$ROOT/participant/tools/github-sync.mjs" --per-page 2)
+SYNC=(node "$ROOT/participant/tools/github-sync.mjs" --per-page 1)
 MODE=${1:-}
 
 if [ -z "${GTQ_GITHUB_TOKEN:-}" ]; then
@@ -188,7 +188,8 @@ case "$MODE" in
     REC="$LOGS/second-run.txt"
     {
       echo "Two consecutive synchronization runs, $(stamp). Git commit $(git -C "$ROOT" rev-parse --short HEAD). Node $(node --version)."
-      echo "Pages of 2 on purpose, so paging shows; for real use the default is 100."
+      echo "Pages of 1 on purpose, so every repository with two or more issues comes over several pages;"
+      echo "for real use the default is 100."
       echo
       echo "== Run 1"
       "${SYNC[@]}" 2>&1

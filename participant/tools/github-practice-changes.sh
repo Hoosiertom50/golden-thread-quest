@@ -7,8 +7,11 @@
 #       close api #3 (completed), rename web #2, transfer api #2 to the web repository
 #   bash participant/tools/github-practice-changes.sh final   (made 11-23-2026)
 #       unassign web #2, close api #1 as not planned, transfer web #5 back to the api repository
-#   bash participant/tools/github-practice-changes.sh last
+#   bash participant/tools/github-practice-changes.sh last   (made 11-23-2026)
 #       close web #1 as completed, assign web #2 to you again, transfer api #4 to the web repository
+#   bash participant/tools/github-practice-changes.sh review
+#       close web #6 as not planned (after the review: its record must show closed, the reason and
+#       the time, with its notes kept)
 
 set -euo pipefail
 
@@ -65,8 +68,14 @@ case "${1:-}" in
     echo "   now: $NEW"
     echo "Done."
     ;;
+  review)
+    confirm "close $OWNER/$WEB #6 as not planned"
+    echo "1. Closing $WEB #6 as not planned..."
+    gh issue close 6 --repo "$OWNER/$WEB" --reason "not planned" >/dev/null
+    echo "Done."
+    ;;
   *)
-    echo "Usage: bash participant/tools/github-practice-changes.sh rehearsal | final | last"
+    echo "Usage: bash participant/tools/github-practice-changes.sh rehearsal | final | last | review"
     exit 2
     ;;
 esac

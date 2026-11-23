@@ -163,6 +163,10 @@ expect "the moved note, now in web #5's file" "$(notes_of "$W/b/issues/practice-
 expect "api #2's old file" "$( [ -e "$W/b/issues/practice-owner__kettlebook-api__2.md" ] && echo present || echo gone)" gone
 expect "api #3's file (kept)" "$( [ -e "$W/b/issues/practice-owner__kettlebook-api__3.md" ] && echo present || echo gone)" present
 expect "api #3's banner" "$(grep -c '^> \*\*No longer assigned:\*\* closed' "$W/b/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "api #3's record: state as GitHub gave it when it left" "$(grep -c '^| State | closed |$' "$W/b/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "api #3's record: its state reason" "$(grep -c '^| State reason | completed |$' "$W/b/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "api #3's record: its closing time" "$(grep -c '^| Closed | 11-23-2026 .* (2026-11-23T15:00:00Z) |$' "$W/b/issues/practice-owner__kettlebook-api__3.md")" 1
+expect "an open issue's record has a state reason row too" "$(grep -c '^| State reason | none given |$' "$W/b/issues/practice-owner__kettlebook-web__1.md")" 1
 
 say ""
 say "3. The same changes, but the moved issue gets a new node ID (as GitHub does)."

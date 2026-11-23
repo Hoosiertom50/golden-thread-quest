@@ -2,7 +2,8 @@
 
 Attempt: `github-attempt-002`
 
-Written by Tom Carter with Claude (Claude Code), 11-23-2026. The choices below are Tom's, from
+Written by Tom Carter with Claude (Claude Code), 11-23-2026; revised the same day after the review
+(see "Revised after review" below). The choices below are Tom's, from
 Tom's answers to one question at a time; Claude wrote the code and this page. Every GitHub write
 (creating the practice repositories, and the changes between runs) was made by Tom, with Tom's own
 login; the synchronization only reads.
@@ -79,8 +80,10 @@ page with no `next` link is the end only if no `last` link names a later page, a
 is checked by asking for the following one, which must be empty.
 
 **The records (criterion 5).** Each issue's record has its repository full name, number, node ID,
-title, state, state reason, author, assignees, labels, milestone, body, created, updated and closed
-times. The direct read of each issue decides (the search index can lag), and must answer for the
+title, state, state reason (its own row, "none given" while GitHub gives none), author, assignees,
+labels, milestone, body, created, updated and closed times. When an issue leaves because it was
+closed or unassigned, its last known record is brought up to what GitHub said at that moment:
+closed, with its state reason and closing time. The direct read of each issue decides (the search index can lag), and must answer for the
 same address; a malformed answer (a missing body or author field, an assignee without an id, a
 time that isn't GitHub's ISO form) stops the run rather than being filled in.
 
@@ -130,6 +133,24 @@ name, checked, and renamed into place, with the previous ones put back on any er
 by someone while the run was writing is put back, or kept aside as `<file>.<pid>.saved`, never
 overwritten; files a person wrote are never replaced; no file is written if any would contain the
 token.
+
+## Revised after review
+
+The first review asked for three changes:
+
+1. **State reason, and closed issues still shown as open.** Every record now has a State reason row,
+   and the record of an issue that left because it was closed (or unassigned) shows GitHub's state
+   at that moment, its reason and its closing time, instead of the open state it last had while
+   assigned.
+2. **One page per repository in the real runs.** The runs are recorded again with pages of 1, so a
+   repository with two issues comes over two pages, each followed by its next link and the end
+   confirmed.
+3. **The evidence folder's name.** The quest text names `attempt-001`; the quest app created this
+   attempt as `github-attempt-002` when the quest was started, and its evidence page resolves every
+   required proof path into this folder (each shown as detected). The files are where the app
+   looks for them.
+
+<!-- RE-RECORDING NUMBERS TO FILL -->
 
 ## What tells me "assigned to me" is still true
 
@@ -248,8 +269,9 @@ saved while files were being swapped, kept (TEST ONLY copies of the tool make th
 moment).
 
 **Reviews.** A deep self-review before every round, then Copilot review rounds on a practice pull
-request until a round reported no open issue; every finding was reproduced or reasoned through
-first, fixed, or answered with the reason it is a limitation below.
+request until a round reported no open issue (the eleventh); every finding was reproduced or
+reasoned through first, fixed, or answered with the reason it is a limitation below. A last round,
+on the final records, raised six more corner cases, listed under the limitations.
 
 ## Remaining limitations
 
@@ -271,6 +293,16 @@ first, fixed, or answered with the reason it is a limitation below.
 - **Uncertain matches are kept, not guessed.** After a move, an old comment that can't be matched
   one to one (two comments by one person in the same second, one of them edited) is kept marked as
   no longer on GitHub rather than merged.
+- **Found in the last review round and left open (Tom's decision, to hand in today).** The final
+  practice review raised six more cases; none is in the practice data, and fixing any would mean
+  recording the real runs again. (1) GitHub can signal a secondary rate limit with only a message,
+  no `Retry-After`: a repository read that way would be reported unreadable for that run and its
+  issues listed as inaccessible until the next run, nothing deleted. (2) A repository answer naming
+  a different repository without a redirect is accepted. (3) An answer that omits the milestone
+  field is read as "no milestone". (4) A comment's own `issue_url` isn't checked against the issue
+  it was listed under. (5) The page asked for after a list's end is checked for a `next` link but
+  not a `last` link. (6) The record and checks scripts remove a leftover temporary file of the same
+  name even if another run made it. Each would be the next fix.
 - **Every run reads everything.** It doesn't yet fetch only what changed since the last run (delta
   synchronization, a separate quest).
 

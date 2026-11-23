@@ -877,6 +877,7 @@ const noLonger = {};
 const newlyGone = [];
 for (const [id, old] of Object.entries(prev.issues)) {
   if (merged[id]) continue;
+  let seenNow = null; // GitHub's answer for the issue at its own address, when it was looked up
   let reason;
   let detail = null;
   const scopeEntry = byLowerName.get(old.repository.toLowerCase());
@@ -914,7 +915,9 @@ for (const [id, old] of Object.entries(prev.issues)) {
       } else if (b.state === "closed") {
         reason = "closed";
         detail = `closed ${shown(b.closed_at)}${b.state_reason ? ` (${b.state_reason})` : ""}`;
+        seenNow = b;
       } else if (!b.assignees.some((a) => a.id === me.id)) {
+        seenNow = b;
         reason = "unassigned";
         detail = b.assignees.length ? `now assigned to ${b.assignees.map(userOf).join(", ")}` : "now assigned to no one";
       } else {
@@ -927,7 +930,22 @@ for (const [id, old] of Object.entries(prev.issues)) {
       incomplete(`looking up ${old.repository}#${old.number}: GitHub answered ${r.status}${said(r)}`);
     }
   }
-  noLonger[id] = { node_id: id, repository: old.repository, number: old.number, title: old.title, reason, detail, detected_at: now, last_known_record: old };
+  // The last known record is the previous one brought up to what GitHub said when the issue was
+  // looked up (its state, state reason, closing time, title, labels, milestone and assignees), so a
+  // closed issue's record says closed, with its reason and time, not the open state it had before.
+  const lastKnown = seenNow ? {
+    ...old,
+    title: seenNow.title,
+    state: seenNow.state,
+    state_reason: seenNow.state_reason ?? null,
+    closed_at: seenNow.closed_at ?? null,
+    updated_at: seenNow.updated_at,
+    assignees: seenNow.assignees.map(userOf).filter(Boolean),
+    labels: seenNow.labels.map((l) => (isStr(l) ? l : l?.name)).filter(isStr),
+    milestone: seenNow.milestone?.title ?? null,
+    state_seen_at: now,
+  } : old;
+  noLonger[id] = { node_id: id, repository: old.repository, number: old.number, title: lastKnown.title, reason, detail, detected_at: now, last_known_record: lastKnown };
   newlyGone.push(`${old.repository}#${old.number} (${reason})`);
 }
 // An issue listed as no longer assigned may since have moved and been assigned again (or been
@@ -1055,7 +1073,8 @@ const recordSource = (rec, banner) => [
   `| Number | ${rec.number} |`,
   `| Node ID | ${code(rec.node_id)} |`,
   `| Link | ${rec.url ? `<${encodeURI(rec.url)}>` : "—"} |`,
-  `| State | ${text(rec.state)}${rec.state_reason ? ` (${text(rec.state_reason)})` : ""} |`,
+  `| State | ${text(rec.state)} |`,
+  `| State reason | ${rec.state_reason ? text(rec.state_reason) : "none given"} |`,
   `| Author | ${text(rec.author ?? "—")} |`,
   `| Assignees | ${rec.assignees.map(text).join(", ") || "—"} |`,
   `| Labels | ${rec.labels.map(text).join(", ") || "—"} |`,
