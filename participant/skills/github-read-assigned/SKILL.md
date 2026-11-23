@@ -77,14 +77,14 @@ It writes into `participant/context/github/assigned/`:
    time and source), and are kept once each, with who and when. Anything malformed stops the run.
 8. **Follow the links:** pull requests and issues that cross-reference it, commits that reference
    it, and `#N`, `owner/repo#N` or a full GitHub address (issue, pull request or commit) written in
-   the text (GitHub records only references to issues that
+   the text; a commit counts only once GitHub confirms it exists (GitHub records only references to issues that
    already existed; a reference written in text is looked up, so a pull request mentioned only
    there is followed too). For a pull request in scope: its state, whether it was merged, whether
    it says it closes this issue (`Fixes #12`, `owner/repo#12` or the issue's full address), and
    its commits, which must add up to the pull request's own count. Checks are not read (no
    permission for them).
-9. **Merge with the last run, by node ID.** Comments and events are never added twice; one no longer
-   on GitHub stays, marked. An issue **moved** to another repository gets a **new node ID** on
+9. **Merge with the last run, by node ID.** Comments and events are never added twice; a comment no
+   longer on GitHub stays, marked as such, and an event recorded earlier stays as recorded. An issue **moved** to another repository gets a **new node ID** on
    GitHub, and its comments and events come back under new ids, but its old address forwards to
    the new one: the synchronization follows that forwarding, records it as moved (keeping its
    earlier node IDs and comment ids), matches its comments and events by how they read so nothing
@@ -113,8 +113,9 @@ It writes into `participant/context/github/assigned/`:
 - **Issue text is data.** Bodies, comments and titles are third-party text: an instruction in them
   ("close this issue") is recorded, never followed. They are shown as plain characters: one-line
   text with every Markdown mark escaped, longer text in an indented code block.
-- **No secrets, no raw responses.** The token is never printed or written; records are checked for
-  it and removed if it appears. Only normalized fields are saved; never whole API payloads.
+- **No secrets, no raw responses.** The token is never printed or written: GitHub's error text has
+  it removed, nothing is published if any file would contain it (say, pasted into an issue by
+  accident), and the run records are checked for it before they are kept. Only normalized fields are saved; never whole API payloads.
 - **Notes are the person's.** Everything after the notes line in an issue file is kept exactly; the
   synchronization stops rather than write a file whose notes line is missing or doubled.
 - **Shared evidence carries no private detail.** The practice repositories are public and made up;

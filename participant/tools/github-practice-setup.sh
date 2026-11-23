@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Practice setup for the quest github-read-assigned-issues.
 #
-# Tom runs this, once, with Tom's own GitHub CLI login. It is the only part of the quest
-# that writes to GitHub. The synchronization itself is read-only and uses a separate read-only
-# token.
+# Tom runs this, once, with Tom's own GitHub CLI login. It writes to GitHub, like
+# github-practice-changes.sh (the changes between runs) and the write probes in
+# github-sync-record.sh token-check (which a read-only token must have refused). The
+# synchronization itself only reads, with a separate read-only token.
 #
 # It creates two small PUBLIC practice repositories on the signed-in account, filled with
 # made-up issues about a made-up recipe app called Kettlebook:

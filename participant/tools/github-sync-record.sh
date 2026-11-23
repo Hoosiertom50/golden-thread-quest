@@ -29,20 +29,37 @@ if [ -z "${GTQ_GITHUB_TOKEN:-}" ]; then
   exit 2
 fi
 mkdir -p "$LOGS" || exit 2
+# The logs folder must be a real folder inside the repository (no link anywhere on the way).
+D="$LOGS"
+while [ "$D" != "$ROOT" ]; do
+  if [ -L "$D" ] || [ ! -d "$D" ]; then echo "$D isn't an ordinary folder (a link?); nothing was recorded."; exit 2; fi
+  D=$(dirname "$D")
+done
+# Each record is first built in a private temporary file (made new, owner-only), removed on exit.
+RAW=$(mktemp "${TMPDIR:-/tmp}/gtq-record.XXXXXX") || { echo "Could not make a temporary file; nothing was recorded."; exit 2; }
+trap 'rm -f -- "$RAW"' EXIT
 
 # The request headers, printed by the shell itself (no separate program sees the token).
 auth() { printf 'Authorization: Bearer %s\nAccept: application/vnd.github+json\n' "$GTQ_GITHUB_TOKEN"; }
 stamp() { date '+%m-%d-%Y %-I:%M %p %Z'; }
-# Finish a record: hide this computer's folders, then make sure the token isn't in it (if it is,
-# the record is removed).
+# Finish a record: hide this computer's folders (replaced as literal text), refuse if the token is
+# in it (its value is never printed), then publish it by writing a new file in the logs folder and
+# renaming it over the record, so an existing link there is replaced, never followed. The raw
+# text stays in the temporary file until the record is safely in place.
 finish() { # raw file, record
-  sed -e "s#$ROOT#<repo>#g" -e "s#$HOME#~#g" "$1" > "$2"
-  rm -f -- "$1"
-  if grep -qF -f <(printf '%s\n' "$GTQ_GITHUB_TOKEN") -- "$2"; then
-    rm -f -- "$2"
-    echo "The token appeared in the record, so the record was removed. Nothing was kept."
-    exit 3
-  fi
+  ROOT="$ROOT" node -e '
+    const fs = require("fs"), path = require("path");
+    const [raw, rec] = process.argv.slice(1);
+    let t = fs.readFileSync(raw, "utf8");
+    if (process.env.GTQ_GITHUB_TOKEN && t.includes(process.env.GTQ_GITHUB_TOKEN)) { console.log("The token appeared in the record, so it was not kept."); process.exit(3); }
+    t = t.split(process.env.ROOT).join("<repo>").split(process.env.HOME).join("~");
+    const tmp = path.join(path.dirname(rec), `.${path.basename(rec)}.${process.pid}.new`);
+    fs.writeFileSync(tmp, t, { flag: "wx", mode: 0o644 });
+    fs.renameSync(tmp, rec);
+  ' "$1" "$2"
+  local rc=$?
+  [ "$rc" = 3 ] && exit 3   # the token was in it: nothing is shown or kept
+  if [ "$rc" != 0 ]; then echo "The record wasn't published (see above); here is the run's output:"; cat -- "$1"; exit 3; fi
 }
 # One line per issue file: the SHA-256 of the exact bytes after its notes line.
 notes_hashes() {
@@ -88,7 +105,6 @@ section() { awk -v start="$2" -v stop="$3" '$0 == start {f=1; next} stop != "" &
 case "$MODE" in
   token-check)
     REC="$LOGS/token-check.txt"
-    RAW="$REC.raw"
     BAD=0
     field() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const v=JSON.parse(s)[process.argv[1]];process.stdout.write(typeof v==="string"?v:"")}catch{}})' "$1"; }
     probe() { # what, method, url, body, undo-hint
@@ -130,7 +146,6 @@ case "$MODE" in
     ;;
   two-runs)
     REC="$LOGS/second-run.txt"
-    RAW="$REC.raw"
     {
       echo "Two consecutive synchronization runs, $(stamp). Git commit $(git -C "$ROOT" rev-parse --short HEAD). Node $(node --version)."
       echo "Pages of 2 on purpose, so paging shows; for real use the default is 100."
@@ -184,7 +199,6 @@ case "$MODE" in
     ;;
   disappearance)
     REC="$LOGS/disappearance.txt"
-    RAW="$REC.raw"
     B=$(notes_hashes)
     {
       echo "A run after changes on GitHub, $(stamp). Git commit $(git -C "$ROOT" rev-parse --short HEAD). Node $(node --version)."

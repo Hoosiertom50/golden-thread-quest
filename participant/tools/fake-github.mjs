@@ -28,6 +28,10 @@
 //   next-other-list  web #1's comments come in two pages, the second link pointing at web #2's comments
 //   repositories-path  web #1's comments come in two pages, the second link in GitHub's
 //                    /repositories/<id>/... form (legitimate: must be accepted)
+//   link-unquoted    the same two pages, the Link written rel=next (no quotes, legitimate)
+//   link-garbled     the same two pages, the Link header unreadable
+//   list-redirect    web #1's comments answer with a redirect
+//   token-in-body    web #1's body holds the bearer token the request was made with
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -119,6 +123,11 @@ const server = createServer((req, res) => {
     const next = more || FAULT === "empty-page";
     return json(res, 200, { total_count: declared, incomplete_results: FAULT === "incomplete", items: out }, next ? { link: linkTo(url, p + (FAULT === "skip-page" ? 2 : 1)) } : {});
   }
+  if ((m = path.match(/^\/repos\/([^/]+)\/([^/]+)\/commits\/([0-9a-f]{40})$/))) {
+    const key = repoKey(m[1], m[2]);
+    const known = key && world.repos[key].issues.some((i) => (i.pull_request?.commits ?? []).some((c) => c.sha === m[3]));
+    return known ? json(res, 200, { sha: m[3] }) : json(res, 422, { message: "No commit found for SHA" });
+  }
   if ((m = path.match(/^\/repos\/([^/]+)\/([^/]+)$/))) {
     const key = repoKey(m[1], m[2]);
     if (!key) return json(res, 404, { message: "Not Found" });
@@ -148,6 +157,7 @@ const server = createServer((req, res) => {
         return json(res, 200, { number: n, state: it.state ?? "open", merged: it.pull_request.merged === true, merged_at: it.pull_request.merged_at ?? null, draft: false, body: it.body ?? "", commits: (it.pull_request.commits ?? []).length + (FAULT === "commit-gap" ? 1 : 0) });
       }
       const one = issueJson(key, it);
+      if (FAULT === "token-in-body" && it.node_id === "I_pretend_web_1") one.body = `pasted by mistake: ${req.headers.authorization.slice(7)}`;
       if (FAULT === "assignee-no-id" && it.node_id === "I_pretend_web_1") delete one.assignees[0].id;
       return json(res, 200, one);
     }
@@ -156,13 +166,19 @@ const server = createServer((req, res) => {
       : m[6] === "timeline" ? (it.timeline ?? []) : (it.pull_request?.commits ?? []).map((c) => ({ sha: c.sha, commit: { message: c.message } }));
     if (it.node_id === "I_pretend_web_1" && FAULT === "comment-repeat" && m[6] === "comments") list = [list[0], list[0]];
     if (it.node_id === "I_pretend_web_1" && FAULT === "event-no-id" && m[6] === "timeline") list = list.map((e) => (e.event === "labeled" ? { ...e, id: undefined } : e));
-    if (it.node_id === "I_pretend_web_1" && m[6] === "comments" && (FAULT === "next-other-list" || FAULT === "repositories-path")) {
+    if (it.node_id === "I_pretend_web_1" && m[6] === "comments" && FAULT === "list-redirect") {
+      res.writeHead(302, { location: original.href });
+      return res.end();
+    }
+    if (it.node_id === "I_pretend_web_1" && m[6] === "comments" && ["next-other-list", "repositories-path", "link-unquoted", "link-garbled"].includes(FAULT)) {
       const p = Number(url.searchParams.get("page") ?? 1);
       if (p === 1) {
         const nx = new URL(original);
         nx.searchParams.set("page", "2");
-        nx.pathname = FAULT === "next-other-list" ? nx.pathname.replace(/\/issues\/1\//, "/issues/2/") : `/repositories/${repoId(key)}/issues/1/comments`;
-        return json(res, 200, list.slice(0, 1), { link: `<${nx.href}>; rel="next"` });
+        if (FAULT === "next-other-list") nx.pathname = nx.pathname.replace(/\/issues\/1\//, "/issues/2/");
+        if (FAULT === "repositories-path") nx.pathname = `/repositories/${repoId(key)}/issues/1/comments`;
+        const link = FAULT === "link-unquoted" ? `<${nx.href}>; rel=next` : FAULT === "link-garbled" ? `${nx.href} rel=next` : `<${nx.href}>; rel="next"`;
+        return json(res, 200, list.slice(0, 1), { link });
       }
       return json(res, 200, list.slice(1));
     }

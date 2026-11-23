@@ -12,7 +12,8 @@ set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 TOOLS="$ROOT/participant/tools"
 LOGDIR=${1:?usage: github-sync-checks.sh <logs folder>}
-mkdir -p "$LOGDIR"
+mkdir -p "$LOGDIR" || exit 1
+if [ -L "$LOGDIR" ]; then echo "$LOGDIR is a link; give a real folder."; exit 1; fi
 LOG="$LOGDIR/pretend-github-checks.txt"
 W=$(mktemp -d "${TMPDIR:-/tmp}/github-sync-checks.XXXXXX") || { echo "Could not make a temporary folder; nothing was run."; exit 1; }
 SPID=""
@@ -124,6 +125,9 @@ expect "web #1 and api #1 kept apart (two files)" "$(ls "$W/a/issues" | grep -c 
 expect "delivery evidence for web #1" "$(grep -A2 'kettlebook-web\\#1:' "$W/a/delivery-links.md" | grep -o 'partial')" partial
 expect "a pull request mentioned only in text (api #1 -> web #4), followed" "$(grep -c '^- pull request practice-owner\\/kettlebook-web\\#4, node `PR_pretend_web_4`, open (written in the text)' "$W/a/issues/practice-owner__kettlebook-api__1.md")" 1
 expect_has "run 2" "$(line '^Kept as no longer')" "Notes sections kept exactly (read back): 5 of 5"
+expect "a commit address in web #2's text, confirmed by GitHub" "$(grep -c '^- commit `a1b2c3d4e5f6` in practice-owner\\/kettlebook-web (written in the text)' "$W/a/issues/practice-owner__kettlebook-web__2.md")" 1
+expect "so web #2's delivery evidence" "$(grep -A2 'kettlebook-web\\#2:' "$W/a/delivery-links.md" | grep -o 'partial')" partial
+expect "a commit address in api #3's text that doesn't exist, not counted" "$(grep -A2 'kettlebook-api\\#3:' "$W/a/delivery-links.md" | grep -o 'missing')" missing
 
 cp -R "$W/a" "$W/b"
 cp -R "$W/a" "$W/c"
@@ -187,9 +191,18 @@ fault assignee-no-id 1 "missing fields or has odd ones"
 fault offsite-redirect 1 "redirected to another server"
 fault skip-page 1 "doesn't ask for page 2 of the same list"
 fault next-other-list 1 "doesn't ask for page 2 of the same list"
+fault list-redirect 1 "redirected a list request"
+fault link-garbled 1 "Link header that can't be read"
+fault token-in-body 2 "would contain the token itself"
+expect "  the token's value in the message" "$(printf '%s' "$OUTPUT" | grep -c 'pretend-token')" 0
 fault write-token 2 "can do more than read (repo)"
 fault gist-token 2 "can do more than read (gist)"
 
+say "- link-unquoted (legitimate: rel=next without quotes)"
+start "$WORLD" link-unquoted
+sync_to "$W/lu"
+expect "  exit" "$CODE" 0
+expect "  web #1's comments, both pages" "$(grep -c '^### Comment ' "$W/lu/issues/practice-owner__kettlebook-web__1.md")" 2
 say "- repositories-path (legitimate: GitHub's other form of a page address)"
 start "$WORLD" repositories-path
 sync_to "$W/rp"
@@ -306,6 +319,16 @@ expect "request methods named" "$(grep -o 'method: "[A-Z]*"' "$TOOLS/github-sync
 say ""
 say "$OK expectations as expected, $BAD unexpected."
 say "End of record."
-sed -e "s#$W#<temp>#g" -e "s#$ROOT#<repo>#g" -e "s#$HOME#~#g" "$REC" > "$LOG.new" && mv "$LOG.new" "$LOG"
+# Published by writing a new file in the logs folder and renaming it over the record (a link there
+# is replaced, never followed); the temp folder, repository and home addresses are replaced as
+# literal text.
+W="$W" ROOT="$ROOT" node -e '
+  const fs = require("fs"), path = require("path");
+  const [rec, log] = process.argv.slice(1);
+  const t = fs.readFileSync(rec, "utf8").split(process.env.W).join("<temp>").split(process.env.ROOT).join("<repo>").split(process.env.HOME).join("~");
+  const tmp = path.join(path.dirname(log), `.${path.basename(log)}.${process.pid}.new`);
+  fs.writeFileSync(tmp, t, { flag: "wx", mode: 0o644 });
+  fs.renameSync(tmp, log);
+' "$REC" "$LOG" || { echo "The record couldn't be published; here it is:"; cat "$REC"; exit 1; }
 cat "$LOG"
 [ "$BAD" -eq 0 ]
