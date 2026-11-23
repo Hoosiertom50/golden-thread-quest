@@ -1,29 +1,27 @@
-A run after changes on GitHub, 11-23-2026 9:58 AM EST. Git commit 90ed558. Node v22.23.3.
+A run after changes on GitHub, 11-23-2026 12:15 PM EST. Git commit 90ed558. Node v22.23.3.
 
-== Notes sections before
+== Notes sections before (SHA-256 of the exact bytes after each notes line)
 53b50e1ea93f1615fa5441171f590c3d62757aa28bd1ed653c5e6d250ca95be1  Hoosiertom50__gtq-practice-kettlebook-api__1.md
-576af9e77d4d35e51d67befa3bc52435e10efb1952985d1f700ad747b5f70942  Hoosiertom50__gtq-practice-kettlebook-api__2.md
-1b11ace35a028706a7625ef2f735562d35f1189b15964c835f0d1858a09a57f9  Hoosiertom50__gtq-practice-kettlebook-api__3.md
-e29762ab25e5d743aea6698cb6de5c6628d4342b2fa236f47a87ef316e3a9013  Hoosiertom50__gtq-practice-kettlebook-web__1.md
+d39ba676023cb010080c088ea841ced1c981cfe4ea5d78334afa9533a348209a  Hoosiertom50__gtq-practice-kettlebook-web__1.md
 90375238764ccd5a1f2acf5a50a99c8e2dd2ebbd7c5bdf0a9ba7e072c5e28804  Hoosiertom50__gtq-practice-kettlebook-web__2.md
+08a67265c6cc5c265ffebfe80a9736fb4db6504c0df8a1d45bec752204fb88ce  Hoosiertom50__gtq-practice-kettlebook-web__5.md
 
 == The run
-Synchronized 11-23-2026 9:58 AM as Hoosiertom50 (token: fine-grained (no scopes listed)).
+Synchronized 11-23-2026 12:15 PM as Hoosiertom50 (token: fine-grained (no scopes listed)).
 Scope: 3 repositories; unreadable: Hoosiertom50/gtq-practice-kettlebook-missing (not found, or this token can't see it (404)).
-  Hoosiertom50/gtq-practice-kettlebook-web: issues: 2 page(s) of 2, GitHub declared 3, received 3, kept 3; assigned pull requests, searched separately and left out: #4; pull requests the issue search returned: none.
+  Hoosiertom50/gtq-practice-kettlebook-web: issues: 1 page(s) of 2, GitHub declared 1, received 1, kept 1; assigned pull requests, searched separately and left out: #4; pull requests the issue search returned: none.
   Hoosiertom50/gtq-practice-kettlebook-api: issues: 1 page(s) of 2, GitHub declared 1, received 1, kept 1; assigned pull requests, searched separately and left out: none; pull requests the issue search returned: none.
-Total issues: declared 4, received 4 over 3 pages (complete); 4 issues assigned.
-This run: new none; changed Hoosiertom50/gtq-practice-kettlebook-web#2, Hoosiertom50/gtq-practice-kettlebook-api#1; moved Hoosiertom50/gtq-practice-kettlebook-api#2 → Hoosiertom50/gtq-practice-kettlebook-web#5 (new node ID; linked by GitHub's forwarding); no longer assigned Hoosiertom50/gtq-practice-kettlebook-api#3 (closed); returned none; search behind none.
-Kept as no longer assigned: 1. Notes sections unchanged: 5 of 5.
-Requests to GitHub: 25, all GET.
+Total issues: declared 2, received 2 over 2 pages (complete); 2 issues assigned.
+This run: new none; changed none; moved Hoosiertom50/gtq-practice-kettlebook-web#5 → Hoosiertom50/gtq-practice-kettlebook-api#4 (new node ID; linked by GitHub's forwarding); no longer assigned Hoosiertom50/gtq-practice-kettlebook-web#2 (unassigned), Hoosiertom50/gtq-practice-kettlebook-api#1 (closed); returned none; search behind none.
+Kept as no longer assigned: 2. Notes sections kept exactly (read back): 4 of 4.
+Requests to GitHub: 23, all GET.
 exit 0
 
 == Notes sections after
 53b50e1ea93f1615fa5441171f590c3d62757aa28bd1ed653c5e6d250ca95be1  Hoosiertom50__gtq-practice-kettlebook-api__1.md
-1b11ace35a028706a7625ef2f735562d35f1189b15964c835f0d1858a09a57f9  Hoosiertom50__gtq-practice-kettlebook-api__3.md
-e29762ab25e5d743aea6698cb6de5c6628d4342b2fa236f47a87ef316e3a9013  Hoosiertom50__gtq-practice-kettlebook-web__1.md
+08a67265c6cc5c265ffebfe80a9736fb4db6504c0df8a1d45bec752204fb88ce  Hoosiertom50__gtq-practice-kettlebook-api__4.md
+d39ba676023cb010080c088ea841ced1c981cfe4ea5d78334afa9533a348209a  Hoosiertom50__gtq-practice-kettlebook-web__1.md
 90375238764ccd5a1f2acf5a50a99c8e2dd2ebbd7c5bdf0a9ba7e072c5e28804  Hoosiertom50__gtq-practice-kettlebook-web__2.md
-576af9e77d4d35e51d67befa3bc52435e10efb1952985d1f700ad747b5f70942  Hoosiertom50__gtq-practice-kettlebook-web__5.md
 
 == No longer assigned, from the index
 ## No longer assigned
@@ -32,7 +30,14 @@ Kept, never deleted: each with why it left and its last known record (in its fil
 
 | Issue | Last known title | Why | Noticed | Record |
 |---|---|---|---|---|
-| Hoosiertom50\/gtq-practice-kettlebook-api\#3 | Document the export format | closed: closed 11-23-2026 9\:55 AM \(completed\) | 11-23-2026 9:58 AM | [Hoosiertom50\_\_gtq-practice-kettlebook-api\_\_3\.md](issues/Hoosiertom50__gtq-practice-kettlebook-api__3.md) |
+| Hoosiertom50\/gtq-practice-kettlebook-api\#1 | Return ingredients in a stable order | closed: closed 11-23-2026 12\:14 PM \(not\_planned\) | 11-23-2026 12:15 PM | [Hoosiertom50\_\_gtq-practice-kettlebook-api\_\_1\.md](issues/Hoosiertom50__gtq-practice-kettlebook-api__1.md) |
+| Hoosiertom50\/gtq-practice-kettlebook-web\#2 | Add a print view for recipes and shopping lists | unassigned: now assigned to no one | 11-23-2026 12:15 PM | [Hoosiertom50\_\_gtq-practice-kettlebook-web\_\_2\.md](issues/Hoosiertom50__gtq-practice-kettlebook-web__2.md) |
 
-Check: every notes section is byte-identical after the run (moved ones under their new file name).
+== Notes, issue by issue
+  Hoosiertom50__gtq-practice-kettlebook-api__1.md: same
+  Hoosiertom50__gtq-practice-kettlebook-web__1.md: same
+  Hoosiertom50__gtq-practice-kettlebook-web__2.md: same
+  Hoosiertom50__gtq-practice-kettlebook-web__5.md -> Hoosiertom50__gtq-practice-kettlebook-api__4.md: same
+Check: every notes section is byte-identical, issue by issue (a moved issue's in its new file).
+Check: the run finished.
 End of record.

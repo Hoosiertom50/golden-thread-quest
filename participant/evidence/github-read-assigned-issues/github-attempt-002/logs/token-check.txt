@@ -1,7 +1,10 @@
-Token check, 11-23-2026 9:46 AM EST. Git commit 90ed558.
-One harmless write with the token: create a label in the web practice repository.
-A read-only token must be refused (403). Nothing else is attempted.
+Token check, 11-23-2026 12:12 PM EST. Git commit 90ed558.
+The token was given Contents, Issues and Pull requests, read-only (Metadata is read-only
+by design). It must read, and GitHub must refuse one harmless write for each of the three.
 The token belongs to: Hoosiertom50
-GitHub answered: 403
-Result: refused, as expected. The token can't write.
+Read issue #1: GitHub answered 200 (200 expected).
+Issues write (create a label): GitHub answered 403, "Resource not accessible by personal access token": refused for lack of permission.
+Pull requests write (set #4's title to its own title): GitHub answered 403, "Resource not accessible by personal access token": refused for lack of permission.
+Contents write (create token-write-test.md): GitHub answered 403, "Resource not accessible by personal access token": refused for lack of permission.
+Result: it reads, and every write was refused for the three permissions the token holds.
 End of record.

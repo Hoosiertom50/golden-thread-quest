@@ -1,7 +1,7 @@
 {
   "tool": "github-sync",
   "schema": 1,
-  "synchronized_at": "2026-11-23T14:58:10.558Z",
+  "synchronized_at": "2026-11-23T17:15:19.011Z",
   "identity": {
     "login": "Hoosiertom50",
     "id": 173497887
@@ -15,23 +15,24 @@
     "Hoosiertom50/gtq-practice-kettlebook-web": {
       "readable": true,
       "full_name": "Hoosiertom50/gtq-practice-kettlebook-web",
-      "last_successful_sync": "2026-11-23T14:58:10.558Z",
+      "last_successful_sync": "2026-11-23T17:15:19.011Z",
       "search": {
-        "pages": 2,
-        "declared": 3,
-        "received": 3,
+        "pages": 1,
+        "declared": 1,
+        "received": 1,
         "pull_requests_in_issue_search": [],
-        "issues": 3,
+        "issues": 1,
         "pull_requests_assigned": [
           4
         ],
-        "pull_request_pages": 1
+        "pull_request_pages": 1,
+        "checked_against_issue_list": 1
       }
     },
     "Hoosiertom50/gtq-practice-kettlebook-api": {
       "readable": true,
       "full_name": "Hoosiertom50/gtq-practice-kettlebook-api",
-      "last_successful_sync": "2026-11-23T14:58:10.558Z",
+      "last_successful_sync": "2026-11-23T17:15:19.011Z",
       "search": {
         "pages": 1,
         "declared": 1,
@@ -39,7 +40,8 @@
         "pull_requests_in_issue_search": [],
         "issues": 1,
         "pull_requests_assigned": [],
-        "pull_request_pages": 1
+        "pull_request_pages": 1,
+        "checked_against_issue_list": 1
       }
     },
     "Hoosiertom50/gtq-practice-kettlebook-missing": {
@@ -49,7 +51,7 @@
     }
   },
   "summary": {
-    "synchronized_at": "2026-11-23T14:58:10.558Z",
+    "synchronized_at": "2026-11-23T17:15:19.011Z",
     "identity": {
       "login": "Hoosiertom50",
       "id": 173497887,
@@ -59,29 +61,27 @@
     "repositories_unreadable": [
       "Hoosiertom50/gtq-practice-kettlebook-missing (not found, or this token can't see it (404))"
     ],
-    "pages_read": 3,
-    "total_declared_by_github": 4,
-    "total_received": 4,
+    "pages_read": 2,
+    "total_declared_by_github": 2,
+    "total_received": 2,
     "complete": true,
     "pull_requests_assigned_not_counted": [
       "Hoosiertom50/gtq-practice-kettlebook-web#4"
     ],
     "pull_requests_dropped_from_issue_search": [],
-    "issues_assigned": 4,
+    "issues_assigned": 2,
     "added": [],
-    "changed": [
-      "Hoosiertom50/gtq-practice-kettlebook-web#2",
-      "Hoosiertom50/gtq-practice-kettlebook-api#1"
-    ],
+    "changed": [],
     "moved": [
-      "Hoosiertom50/gtq-practice-kettlebook-api#2 → Hoosiertom50/gtq-practice-kettlebook-web#5 (new node ID; linked by GitHub's forwarding)"
+      "Hoosiertom50/gtq-practice-kettlebook-web#5 → Hoosiertom50/gtq-practice-kettlebook-api#4 (new node ID; linked by GitHub's forwarding)"
     ],
     "newly_no_longer_assigned": [
-      "Hoosiertom50/gtq-practice-kettlebook-api#3 (closed)"
+      "Hoosiertom50/gtq-practice-kettlebook-web#2 (unassigned)",
+      "Hoosiertom50/gtq-practice-kettlebook-api#1 (closed)"
     ],
     "returned": [],
     "search_was_behind": [],
-    "requests": 25
+    "requests": 23
   },
   "issues": {
     "I_kwDOV40wwM8AAAABhxgqlw": {
@@ -201,118 +201,13 @@
       ],
       "delivery_evidence": "partial",
       "file": "Hoosiertom50__gtq-practice-kettlebook-web__1.md",
-      "last_synced_at": "2026-11-23T14:58:10.558Z"
+      "last_synced_at": "2026-11-23T17:15:19.011Z"
     },
-    "I_kwDOV40wwM8AAAABhxgwfg": {
-      "node_id": "I_kwDOV40wwM8AAAABhxgwfg",
-      "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
-      "number": 2,
-      "url": "https://github.com/Hoosiertom50/gtq-practice-kettlebook-web/issues/2",
-      "title": "Add a print view for recipes and shopping lists",
-      "state": "open",
-      "state_reason": null,
-      "author": "Hoosiertom50",
-      "assignees": [
-        "Hoosiertom50"
-      ],
-      "labels": [
-        "enhancement",
-        "practice"
-      ],
-      "milestone": "Practice sprint 1",
-      "body": "A clean, one-page print layout for a recipe.\n\nNeeds the stable ingredient order from Hoosiertom50/gtq-practice-kettlebook-api#1 first.",
-      "created_at": "2026-11-23T14:26:15Z",
-      "updated_at": "2026-11-23T14:55:01Z",
-      "closed_at": null,
-      "comments": [],
-      "events": [
-        {
-          "event": "milestoned",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:15Z",
-          "milestone": "Practice sprint 1",
-          "key": "id:37018424409"
-        },
-        {
-          "event": "assigned",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:16Z",
-          "assignee": "Hoosiertom50",
-          "key": "id:37018426400"
-        },
-        {
-          "event": "labeled",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:17Z",
-          "label": "enhancement",
-          "key": "id:37018427847"
-        },
-        {
-          "event": "labeled",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:17Z",
-          "label": "practice",
-          "key": "id:37018428292"
-        },
-        {
-          "event": "cross-referenced",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:31Z",
-          "source": {
-            "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
-            "number": 5,
-            "node_id": "I_kwDOV40wwM8AAAABhyDhOQ",
-            "pull_request": false
-          },
-          "key": "cross-referenced:2026-11-23T14:26:31Z:I_kwDOV40wwM8AAAABhyDhOQ"
-        },
-        {
-          "event": "cross-referenced",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:31Z",
-          "source": {
-            "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
-            "number": 2,
-            "node_id": "I_kwDOV40xIs8AAAABhxg5-w",
-            "pull_request": false
-          },
-          "key": "cross-referenced:2026-11-23T14:26:31Z:I_kwDOV40xIs8AAAABhxg5-w"
-        },
-        {
-          "event": "renamed",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:55:01Z",
-          "rename": {
-            "from": "Add a print view for recipes",
-            "to": "Add a print view for recipes and shopping lists"
-          },
-          "key": "id:37021585746"
-        }
-      ],
-      "links": [
-        {
-          "kind": "issue",
-          "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
-          "number": 5,
-          "node_id": "I_kwDOV40wwM8AAAABhyDhOQ",
-          "via": "cross-reference"
-        },
-        {
-          "kind": "mentioned",
-          "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
-          "number": 1,
-          "via": "written in the text"
-        }
-      ],
-      "delivery_evidence": "missing",
-      "file": "Hoosiertom50__gtq-practice-kettlebook-web__2.md",
-      "last_synced_at": "2026-11-23T14:58:10.558Z"
-    },
-    "I_kwDOV40wwM8AAAABhyDhOQ": {
-      "node_id": "I_kwDOV40wwM8AAAABhyDhOQ",
-      "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
-      "number": 5,
-      "url": "https://github.com/Hoosiertom50/gtq-practice-kettlebook-web/issues/5",
+    "I_kwDOV40xIs8AAAABh0nJ7g": {
+      "node_id": "I_kwDOV40xIs8AAAABh0nJ7g",
+      "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
+      "number": 4,
+      "url": "https://github.com/Hoosiertom50/gtq-practice-kettlebook-api/issues/4",
       "title": "Rate limit the export endpoint",
       "state": "open",
       "state_reason": null,
@@ -321,29 +216,24 @@
         "Hoosiertom50"
       ],
       "labels": [
-        "enhancement",
-        "practice"
+        "practice",
+        "enhancement"
       ],
       "milestone": "Practice sprint 1",
       "body": "Exports can be requested without limit. Add a per-user limit.",
       "created_at": "2026-11-23T14:26:22Z",
-      "updated_at": "2026-11-23T14:55:05Z",
+      "updated_at": "2026-11-23T17:14:50Z",
       "closed_at": null,
       "comments": [
         {
-          "id": 7104002453,
+          "id": 7108370263,
           "author": "Hoosiertom50",
           "created_at": "2026-11-23T14:26:30Z",
           "updated_at": "2026-11-23T14:26:30Z",
           "body": "Suggest 10 exports per hour per user. See also Hoosiertom50/gtq-practice-kettlebook-web#2.",
-          "no_longer_on_github": true
-        },
-        {
-          "id": 7104734147,
-          "author": "Hoosiertom50",
-          "created_at": "2026-11-23T14:26:30Z",
-          "updated_at": "2026-11-23T14:26:30Z",
-          "body": "Suggest 10 exports per hour per user. See also Hoosiertom50/gtq-practice-kettlebook-web#2."
+          "previous_ids": [
+            7104734147
+          ]
         }
       ],
       "events": [
@@ -352,121 +242,40 @@
           "actor": "Hoosiertom50",
           "at": "2026-11-23T14:26:22Z",
           "milestone": "Practice sprint 1",
-          "key": "id:37021593205"
+          "key": "id:37036423359"
         },
         {
           "event": "labeled",
           "actor": "Hoosiertom50",
           "at": "2026-11-23T14:26:23Z",
           "label": "practice",
-          "key": "id:37021593309"
+          "key": "id:37036423468"
         },
         {
           "event": "labeled",
           "actor": "Hoosiertom50",
           "at": "2026-11-23T14:26:23Z",
           "label": "enhancement",
-          "key": "id:37021593446"
+          "key": "id:37036423598"
         },
         {
           "event": "assigned",
           "actor": "Hoosiertom50",
           "at": "2026-11-23T14:26:23Z",
           "assignee": "Hoosiertom50",
-          "key": "id:37021593581"
+          "key": "id:37036423759"
         },
         {
           "event": "transferred",
           "actor": "Hoosiertom50",
           "at": "2026-11-23T14:55:06Z",
-          "key": "id:37021594081"
-        }
-      ],
-      "links": [
-        {
-          "kind": "mentioned",
-          "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
-          "number": 2,
-          "via": "written in the text"
-        }
-      ],
-      "delivery_evidence": "missing",
-      "file": "Hoosiertom50__gtq-practice-kettlebook-web__5.md",
-      "last_synced_at": "2026-11-23T14:58:10.558Z",
-      "moved_from": [
-        {
-          "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
-          "number": 2,
-          "node_id": "I_kwDOV40xIs8AAAABhxg5-w",
-          "noticed_at": "2026-11-23T14:58:10.558Z"
-        }
-      ],
-      "previous_node_ids": [
-        "I_kwDOV40xIs8AAAABhxg5-w"
-      ]
-    },
-    "I_kwDOV40xIs8AAAABhxg2ig": {
-      "node_id": "I_kwDOV40xIs8AAAABhxg2ig",
-      "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
-      "number": 1,
-      "url": "https://github.com/Hoosiertom50/gtq-practice-kettlebook-api/issues/1",
-      "title": "Return ingredients in a stable order",
-      "state": "open",
-      "state_reason": null,
-      "author": "Hoosiertom50",
-      "assignees": [
-        "Hoosiertom50"
-      ],
-      "labels": [
-        "bug",
-        "practice"
-      ],
-      "milestone": "Practice sprint 1",
-      "body": "The ingredients endpoint returns items in a different order on each call.\n\nSame number as Hoosiertom50/gtq-practice-kettlebook-web#1 on purpose: the two must never be mixed up.",
-      "created_at": "2026-11-23T14:26:19Z",
-      "updated_at": "2026-11-23T14:26:20Z",
-      "closed_at": null,
-      "comments": [],
-      "events": [
-        {
-          "event": "milestoned",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:19Z",
-          "milestone": "Practice sprint 1",
-          "key": "id:37018432197"
+          "key": "id:37036423898"
         },
         {
-          "event": "assigned",
+          "event": "transferred",
           "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:20Z",
-          "assignee": "Hoosiertom50",
-          "key": "id:37018433928"
-        },
-        {
-          "event": "labeled",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:21Z",
-          "label": "bug",
-          "key": "id:37018434972"
-        },
-        {
-          "event": "labeled",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:26:21Z",
-          "label": "practice",
-          "key": "id:37018435404"
-        },
-        {
-          "event": "cross-referenced",
-          "actor": "Hoosiertom50",
-          "at": "2026-11-23T14:55:02Z",
-          "source": {
-            "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
-            "number": 2,
-            "node_id": "I_kwDOV40wwM8AAAABhxgwfg",
-            "pull_request": false
-          },
-          "key": "cross-referenced:2026-11-23T14:55:02Z:I_kwDOV40wwM8AAAABhxgwfg"
+          "at": "2026-11-23T17:14:51Z",
+          "key": "id:37036424340"
         }
       ],
       "links": [
@@ -475,35 +284,40 @@
           "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
           "number": 2,
           "node_id": "I_kwDOV40wwM8AAAABhxgwfg",
-          "via": "cross-reference"
-        },
-        {
-          "kind": "mentioned",
-          "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
-          "number": 1,
           "via": "written in the text"
         }
       ],
       "delivery_evidence": "missing",
-      "file": "Hoosiertom50__gtq-practice-kettlebook-api__1.md",
-      "last_synced_at": "2026-11-23T14:58:10.558Z"
+      "file": "Hoosiertom50__gtq-practice-kettlebook-api__4.md",
+      "last_synced_at": "2026-11-23T17:15:19.011Z",
+      "moved_from": [
+        {
+          "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
+          "number": 5,
+          "node_id": "I_kwDOV40wwM8AAAABhyDhOQ",
+          "noticed_at": "2026-11-23T17:15:19.011Z"
+        }
+      ],
+      "previous_node_ids": [
+        "I_kwDOV40wwM8AAAABhyDhOQ"
+      ]
     }
   },
   "no_longer_assigned": {
-    "I_kwDOV40xIs8AAAABhxg-oA": {
-      "node_id": "I_kwDOV40xIs8AAAABhxg-oA",
-      "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
-      "number": 3,
-      "title": "Document the export format",
-      "reason": "closed",
-      "detail": "closed 11-23-2026 9:55 AM (completed)",
-      "detected_at": "2026-11-23T14:58:10.558Z",
+    "I_kwDOV40wwM8AAAABhxgwfg": {
+      "node_id": "I_kwDOV40wwM8AAAABhxgwfg",
+      "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
+      "number": 2,
+      "title": "Add a print view for recipes and shopping lists",
+      "reason": "unassigned",
+      "detail": "now assigned to no one",
+      "detected_at": "2026-11-23T17:15:19.011Z",
       "last_known_record": {
-        "node_id": "I_kwDOV40xIs8AAAABhxg-oA",
-        "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
-        "number": 3,
-        "url": "https://github.com/Hoosiertom50/gtq-practice-kettlebook-api/issues/3",
-        "title": "Document the export format",
+        "node_id": "I_kwDOV40wwM8AAAABhxgwfg",
+        "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
+        "number": 2,
+        "url": "https://github.com/Hoosiertom50/gtq-practice-kettlebook-web/issues/2",
+        "title": "Add a print view for recipes and shopping lists",
         "state": "open",
         "state_reason": null,
         "author": "Hoosiertom50",
@@ -511,49 +325,179 @@
           "Hoosiertom50"
         ],
         "labels": [
-          "practice",
-          "documentation"
+          "enhancement",
+          "practice"
         ],
         "milestone": "Practice sprint 1",
-        "body": "Write down the fields of the export file.",
-        "created_at": "2026-11-23T14:26:25Z",
-        "updated_at": "2026-11-23T14:26:27Z",
+        "body": "A clean, one-page print layout for a recipe.\n\nNeeds the stable ingredient order from Hoosiertom50/gtq-practice-kettlebook-api#1 first.",
+        "created_at": "2026-11-23T14:26:15Z",
+        "updated_at": "2026-11-23T14:55:01Z",
         "closed_at": null,
         "comments": [],
         "events": [
           {
             "event": "milestoned",
             "actor": "Hoosiertom50",
-            "at": "2026-11-23T14:26:25Z",
+            "at": "2026-11-23T14:26:15Z",
             "milestone": "Practice sprint 1",
-            "key": "id:37018443317"
+            "key": "id:37018424409"
           },
           {
             "event": "assigned",
             "actor": "Hoosiertom50",
-            "at": "2026-11-23T14:26:27Z",
+            "at": "2026-11-23T14:26:16Z",
             "assignee": "Hoosiertom50",
-            "key": "id:37018445710"
+            "key": "id:37018426400"
           },
           {
             "event": "labeled",
             "actor": "Hoosiertom50",
-            "at": "2026-11-23T14:26:27Z",
+            "at": "2026-11-23T14:26:17Z",
+            "label": "enhancement",
+            "key": "id:37018427847"
+          },
+          {
+            "event": "labeled",
+            "actor": "Hoosiertom50",
+            "at": "2026-11-23T14:26:17Z",
             "label": "practice",
-            "key": "id:37018446006"
+            "key": "id:37018428292"
           },
           {
-            "event": "labeled",
+            "event": "cross-referenced",
             "actor": "Hoosiertom50",
-            "at": "2026-11-23T14:26:27Z",
-            "label": "documentation",
-            "key": "id:37018446372"
+            "at": "2026-11-23T14:26:31Z",
+            "source": {
+              "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
+              "number": 5,
+              "node_id": "I_kwDOV40wwM8AAAABhyDhOQ",
+              "pull_request": false
+            },
+            "key": "cross-referenced:2026-11-23T14:26:31Z:I_kwDOV40wwM8AAAABhyDhOQ"
+          },
+          {
+            "event": "renamed",
+            "actor": "Hoosiertom50",
+            "at": "2026-11-23T14:55:01Z",
+            "rename": {
+              "from": "Add a print view for recipes",
+              "to": "Add a print view for recipes and shopping lists"
+            },
+            "key": "id:37021585746"
           }
         ],
-        "links": [],
+        "links": [
+          {
+            "kind": "issue",
+            "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
+            "number": 5,
+            "node_id": "I_kwDOV40wwM8AAAABhyDhOQ",
+            "via": "cross-reference"
+          },
+          {
+            "kind": "issue",
+            "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
+            "number": 1,
+            "node_id": "I_kwDOV40xIs8AAAABhxg2ig",
+            "via": "written in the text"
+          }
+        ],
         "delivery_evidence": "missing",
-        "file": "Hoosiertom50__gtq-practice-kettlebook-api__3.md",
-        "last_synced_at": "2026-11-23T14:53:43.434Z"
+        "file": "Hoosiertom50__gtq-practice-kettlebook-web__2.md",
+        "last_synced_at": "2026-11-23T17:13:48.097Z"
+      }
+    },
+    "I_kwDOV40xIs8AAAABhxg2ig": {
+      "node_id": "I_kwDOV40xIs8AAAABhxg2ig",
+      "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
+      "number": 1,
+      "title": "Return ingredients in a stable order",
+      "reason": "closed",
+      "detail": "closed 11-23-2026 12:14 PM (not_planned)",
+      "detected_at": "2026-11-23T17:15:19.011Z",
+      "last_known_record": {
+        "node_id": "I_kwDOV40xIs8AAAABhxg2ig",
+        "repository": "Hoosiertom50/gtq-practice-kettlebook-api",
+        "number": 1,
+        "url": "https://github.com/Hoosiertom50/gtq-practice-kettlebook-api/issues/1",
+        "title": "Return ingredients in a stable order",
+        "state": "open",
+        "state_reason": null,
+        "author": "Hoosiertom50",
+        "assignees": [
+          "Hoosiertom50"
+        ],
+        "labels": [
+          "bug",
+          "practice"
+        ],
+        "milestone": "Practice sprint 1",
+        "body": "The ingredients endpoint returns items in a different order on each call.\n\nSame number as Hoosiertom50/gtq-practice-kettlebook-web#1 on purpose: the two must never be mixed up.",
+        "created_at": "2026-11-23T14:26:19Z",
+        "updated_at": "2026-11-23T14:26:20Z",
+        "closed_at": null,
+        "comments": [],
+        "events": [
+          {
+            "event": "milestoned",
+            "actor": "Hoosiertom50",
+            "at": "2026-11-23T14:26:19Z",
+            "milestone": "Practice sprint 1",
+            "key": "id:37018432197"
+          },
+          {
+            "event": "assigned",
+            "actor": "Hoosiertom50",
+            "at": "2026-11-23T14:26:20Z",
+            "assignee": "Hoosiertom50",
+            "key": "id:37018433928"
+          },
+          {
+            "event": "labeled",
+            "actor": "Hoosiertom50",
+            "at": "2026-11-23T14:26:21Z",
+            "label": "bug",
+            "key": "id:37018434972"
+          },
+          {
+            "event": "labeled",
+            "actor": "Hoosiertom50",
+            "at": "2026-11-23T14:26:21Z",
+            "label": "practice",
+            "key": "id:37018435404"
+          },
+          {
+            "event": "cross-referenced",
+            "actor": "Hoosiertom50",
+            "at": "2026-11-23T14:55:02Z",
+            "source": {
+              "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
+              "number": 2,
+              "node_id": "I_kwDOV40wwM8AAAABhxgwfg",
+              "pull_request": false
+            },
+            "key": "cross-referenced:2026-11-23T14:55:02Z:I_kwDOV40wwM8AAAABhxgwfg"
+          }
+        ],
+        "links": [
+          {
+            "kind": "issue",
+            "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
+            "number": 2,
+            "node_id": "I_kwDOV40wwM8AAAABhxgwfg",
+            "via": "cross-reference"
+          },
+          {
+            "kind": "issue",
+            "repository": "Hoosiertom50/gtq-practice-kettlebook-web",
+            "number": 1,
+            "node_id": "I_kwDOV40wwM8AAAABhxgqlw",
+            "via": "written in the text"
+          }
+        ],
+        "delivery_evidence": "missing",
+        "file": "Hoosiertom50__gtq-practice-kettlebook-api__1.md",
+        "last_synced_at": "2026-11-23T17:13:48.097Z"
       }
     }
   }

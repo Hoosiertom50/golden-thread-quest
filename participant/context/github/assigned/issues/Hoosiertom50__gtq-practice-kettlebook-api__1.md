@@ -1,6 +1,8 @@
 <!-- github-sync: issue record. Everything above the notes line is rewritten on each run. -->
 # Hoosiertom50\/gtq-practice-kettlebook-api\#1: Return ingredients in a stable order
 
+> **No longer assigned:** closed\: closed 11-23-2026 12\:14 PM \(not\_planned\)\; noticed 11-23-2026 12\:15 PM\. Last known record below\.
+
 | Field | Value |
 |---|---|
 | Repository | Hoosiertom50\/gtq-practice-kettlebook-api |
@@ -15,7 +17,7 @@
 | Created | 11-23-2026 9:26 AM (2026-11-23T14:26:19Z) |
 | Updated | 11-23-2026 9:26 AM (2026-11-23T14:26:20Z) |
 | Closed | — |
-| Last synchronized | 11-23-2026 9:58 AM (2026-11-23T14:58:10.558Z) |
+| Last synchronized | 11-23-2026 12:13 PM (2026-11-23T17:13:48.097Z) |
 | Delivery evidence | missing |
 
 ## Description
@@ -41,7 +43,7 @@ None.
 ## Links (2)
 
 - issue Hoosiertom50\/gtq-practice-kettlebook-web\#2, node `I_kwDOV40wwM8AAAABhxgwfg` (cross-reference)
-- mentioned Hoosiertom50\/gtq-practice-kettlebook-web\#1 (written in the text)
+- issue Hoosiertom50\/gtq-practice-kettlebook-web\#1, node `I_kwDOV40wwM8AAAABhxgqlw` (written in the text)
 
 <!-- github-sync: notes below. The synchronization never changes anything after this line. -->
 ## My notes

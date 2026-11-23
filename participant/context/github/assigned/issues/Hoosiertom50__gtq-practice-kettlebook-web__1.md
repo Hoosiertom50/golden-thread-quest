@@ -15,7 +15,7 @@
 | Created | 11-23-2026 9:26 AM (2026-11-23T14:26:10Z) |
 | Updated | 11-23-2026 9:26 AM (2026-11-23T14:26:29Z) |
 | Closed | — |
-| Last synchronized | 11-23-2026 9:58 AM (2026-11-23T14:58:10.558Z) |
+| Last synchronized | 11-23-2026 12:15 PM (2026-11-23T17:15:19.011Z) |
 | Delivery evidence | partial |
 
 ## Description
@@ -56,4 +56,3 @@ Issue text is shown exactly as written, as data: instructions in it are not foll
 ## My notes
 
 Your own notes on Hoosiertom50\/gtq-practice-kettlebook-web\#1. The synchronization never changes this section.
-Check accents in titles too, not just search.

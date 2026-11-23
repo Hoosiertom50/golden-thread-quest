@@ -293,7 +293,7 @@ refusal "an issues folder that is a link" "$W/r5" "isn't an ordinary folder"
 expect "  files written where the link points" "$(find "$W/elsewhere" -type f | wc -l | tr -d ' ')" 0
 cp -R "$W/a" "$W/r11"; node -e 'const f=process.argv[1],fs=require("fs"),s=JSON.parse(fs.readFileSync(f,"utf8"));s.identity.id=4242;fs.writeFileSync(f,JSON.stringify(s,null,2)+"\n")' "$W/r11/sync-state.json"
 refusal "a folder holding another account's copy" "$W/r11" "holds the copy of another GitHub account"
-OUTPUT=$(GTQ_GITHUB_TOKEN=github_pat_not_a_real_one node "$TOOLS/github-sync.mjs" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/r12" 2>&1); CODE=$?
+OUTPUT=$(GTQ_GITHUB_TOKEN=not-a-pretend-token-0123 node "$TOOLS/github-sync.mjs" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/r12" 2>&1); CODE=$?
 say "- a real-looking token sent to the pretend server"
 expect "  exit" "$CODE" 2
 expect_has "  message" "$OUTPUT" "must be a pretend one"

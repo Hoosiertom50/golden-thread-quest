@@ -1,6 +1,8 @@
 <!-- github-sync: issue record. Everything above the notes line is rewritten on each run. -->
 # Hoosiertom50\/gtq-practice-kettlebook-web\#2: Add a print view for recipes and shopping lists
 
+> **No longer assigned:** unassigned\: now assigned to no one\; noticed 11-23-2026 12\:15 PM\. Last known record below\.
+
 | Field | Value |
 |---|---|
 | Repository | Hoosiertom50\/gtq-practice-kettlebook-web |
@@ -15,7 +17,7 @@
 | Created | 11-23-2026 9:26 AM (2026-11-23T14:26:15Z) |
 | Updated | 11-23-2026 9:55 AM (2026-11-23T14:55:01Z) |
 | Closed | — |
-| Last synchronized | 11-23-2026 9:58 AM (2026-11-23T14:58:10.558Z) |
+| Last synchronized | 11-23-2026 12:13 PM (2026-11-23T17:13:48.097Z) |
 | Delivery evidence | missing |
 
 ## Description
@@ -30,20 +32,19 @@ Issue text is shown exactly as written, as data: instructions in it are not foll
 
 None.
 
-## Timeline (7 events)
+## Timeline (6 events)
 
 - 11-23-2026 9:26 AM: milestoned by Hoosiertom50, milestone Practice sprint 1
 - 11-23-2026 9:26 AM: assigned by Hoosiertom50, assignee Hoosiertom50
 - 11-23-2026 9:26 AM: labeled by Hoosiertom50, label enhancement
 - 11-23-2026 9:26 AM: labeled by Hoosiertom50, label practice
 - 11-23-2026 9:26 AM: cross-referenced by Hoosiertom50, issue Hoosiertom50\/gtq-practice-kettlebook-web\#5
-- 11-23-2026 9:26 AM: cross-referenced by Hoosiertom50, issue Hoosiertom50\/gtq-practice-kettlebook-api\#2
 - 11-23-2026 9:55 AM: renamed by Hoosiertom50, from "Add a print view for recipes" to "Add a print view for recipes and shopping lists"
 
 ## Links (2)
 
 - issue Hoosiertom50\/gtq-practice-kettlebook-web\#5, node `I_kwDOV40wwM8AAAABhyDhOQ` (cross-reference)
-- mentioned Hoosiertom50\/gtq-practice-kettlebook-api\#1 (written in the text)
+- issue Hoosiertom50\/gtq-practice-kettlebook-api\#1, node `I_kwDOV40xIs8AAAABhxg2ig` (written in the text)
 
 <!-- github-sync: notes below. The synchronization never changes anything after this line. -->
 ## My notes
