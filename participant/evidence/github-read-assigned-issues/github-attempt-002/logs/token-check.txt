@@ -1,0 +1,7 @@
+Token check, 11-23-2026 9:46 AM EST. Git commit 90ed558.
+One harmless write with the token: create a label in the web practice repository.
+A read-only token must be refused (403). Nothing else is attempted.
+The token belongs to: Hoosiertom50
+GitHub answered: 403
+Result: refused, as expected. The token can't write.
+End of record.

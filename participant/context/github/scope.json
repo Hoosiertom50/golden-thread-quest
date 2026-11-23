@@ -1,0 +1,8 @@
+{
+  "about": "Repositories the GitHub synchronization reads. All are public practice repositories holding made-up issues. The third does not exist on purpose: the synchronization must report it as unreadable, never skip it silently.",
+  "repositories": [
+    "Hoosiertom50/gtq-practice-kettlebook-web",
+    "Hoosiertom50/gtq-practice-kettlebook-api",
+    "Hoosiertom50/gtq-practice-kettlebook-missing"
+  ]
+}
