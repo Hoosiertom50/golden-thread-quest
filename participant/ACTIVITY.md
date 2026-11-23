@@ -174,3 +174,4 @@ Every change this application made to your files, newest last.
 - `2026-11-23T18:29:49Z` github-read-assigned-issues: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
 - `2026-11-23T18:30:09Z` github-read-assigned-issues: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-23T18:30:09Z` Submitted github-read-assigned-issues for review as submission-20261123183009-9a0ff4.
+- `2026-11-23T18:36:37Z` Review of github-read-assigned-issues: needs_changes by Claude (automated reviewer).

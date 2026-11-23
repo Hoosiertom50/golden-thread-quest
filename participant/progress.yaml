@@ -268,9 +268,10 @@ attempts:
   quest_id: github-read-assigned-issues
   quest_version: 2
   content_hash: sha256:68a888e3d237ce220c739aa1d60cf46c4e26bbc5ab0b71c03efdf2431c80c396
-  state: submitted
+  state: needs_changes
   started_at: '2026-11-23T14:23:12Z'
-  updated_at: '2026-11-23T18:30:09Z'
+  updated_at: '2026-11-23T18:36:37Z'
   evidence_path: participant/evidence/github-read-assigned-issues/github-attempt-002
   submission_id: submission-20261123183009-9a0ff4
-updated_at: '2026-11-23T18:30:09Z'
+  review_id: review-20261123183637-f0a8e4
+updated_at: '2026-11-23T18:36:37Z'
