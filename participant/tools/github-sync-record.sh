@@ -154,6 +154,9 @@ case "$MODE" in
       echo "The token was given Contents, Issues and Pull requests, read-only (Metadata is read-only"
       echo "by design). It must read, and GitHub must refuse one harmless write for each of the three."
       OWNER=$(curl -s -H @<(auth) https://api.github.com/user | field login)
+      # A login is letters, digits and hyphens (at most 39); anything else, or anything holding
+      # the token, is refused before it is recorded or put in an address.
+      if ! printf '%s' "$OWNER" | grep -Eq '^[A-Za-z0-9-]{1,39}$' || [ "${OWNER/"$GTQ_GITHUB_TOKEN"/}" != "$OWNER" ]; then OWNER=""; fi
       WEBR="https://api.github.com/repos/$OWNER/gtq-practice-kettlebook-web"
       echo "The token belongs to: ${OWNER:-unknown}"
       READ=$(curl -s -o /dev/null -w '%{http_code}' -H @<(auth) "$WEBR/issues/1")

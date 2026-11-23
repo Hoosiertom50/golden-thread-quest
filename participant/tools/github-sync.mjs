@@ -33,7 +33,7 @@ import {
   rmdirSync, unlinkSync, writeSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
-import { constants as FS, fstatSync } from "node:fs";
+import { constants as FS, fstatSync, fsyncSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -278,11 +278,14 @@ const get = async (url, { list = false } = {}) => {
     try { at = new URL(loc, at); } catch { incomplete(`GitHub redirected to an address that can't be read (${at.pathname})`); }
     if (at.origin !== u.origin) incomplete(`GitHub redirected to another server (${at.origin})`);
   }
-  if ((res.status === 403 || res.status === 429) && res.headers.get("x-ratelimit-remaining") === "0") {
+  // Throttled, by the primary limit or a secondary one (403 or 429 with Retry-After): stop, never
+  // read it as "this repository can't be read".
+  if ((res.status === 403 || res.status === 429) && (res.headers.get("x-ratelimit-remaining") === "0" || res.headers.get("retry-after") !== null || res.status === 429)) {
     incomplete("GitHub's rate limit was reached; run again later");
   }
   let body = null;
-  const text = await res.text();
+  let text;
+  try { text = UTF8.decode(new Uint8Array(await res.arrayBuffer())); } catch { incomplete(`GitHub's answer for ${at.pathname} isn't valid UTF-8, or couldn't be read`); }
   try { body = text ? JSON.parse(text) : null; } catch { body = undefined; }
   return { status: res.status, headers: res.headers, body, url: at.href, redirected: at.href !== u.href, finalPath: at.pathname };
 };
@@ -363,11 +366,14 @@ const allPages = async (path, what) => {
     if (next) sameList(path, next, page + 1);
     if (!next && last !== null && last > page) incomplete(`${what}: page ${page} has no next link, but GitHub says the last page is ${last}`);
     items.push(...r.body);
-    if (!next && r.body.length >= per) {
+    // The apparent end is checked: the following page must be empty and point nowhere further.
+    if (!next) {
       const probe = new URL(path, opts.api);
       probe.searchParams.set("page", String(page + 1));
       const r2 = await get(`${probe.pathname}${probe.search}`, { list: true });
-      if (r2.status !== 200 || !Array.isArray(r2.body) || r2.body.length !== 0) incomplete(`${what}: page ${page} was full and had no next link, but page ${page + 1} isn't empty`);
+      if (r2.status !== 200 || !Array.isArray(r2.body) || r2.body.length !== 0 || nextLink(r2.headers) !== null) {
+        incomplete(`${what}: page ${page} had no next link, but page ${page + 1} isn't an empty end`);
+      }
     }
     url = next;
   }
@@ -443,6 +449,8 @@ const searchAll = async (q, name, what) => {
     const next = nextLink(r.headers);
     if (next && r.body.items.length === 0) incomplete(`the ${what} search for ${name}: an empty page that isn't the last`);
     if (next) sameList(first, next, pages + 1);
+    const lastHint = lastPage(r.headers);
+    if (!next && lastHint !== null && lastHint > pages) incomplete(`the ${what} search for ${name}: page ${pages} has no next link, but GitHub says the last page is ${lastHint}`);
     items.push(...r.body.items);
     url = next;
   }
@@ -595,6 +603,9 @@ const resolveRef = async (repo, number) => {
   const r = await get(`/repos/${repo}/issues/${number}`);
   if (r.status === 200) {
     checkIssueBody(r.body, `the reference ${repo}#${number}`);
+    const there = canonName(repoFromApiUrl(r.body.repository_url));
+    const same = there.toLowerCase() === canonName(repo).toLowerCase() && r.body.number === number;
+    if (!same && !(await forwardedTo(r, there, r.body.number))) incomplete(`the reference ${repo}#${number}: GitHub answered for ${there}#${r.body.number} without forwarding there`);
     info = { kind: r.body.pull_request !== undefined ? "pull_request" : "issue", node_id: r.body.node_id, repository: repoFromApiUrl(r.body.repository_url), number: r.body.number };
   } else if (![403, 404, 410].includes(r.status)) {
     incomplete(`looking up the reference ${repo}#${number}: GitHub answered ${r.status}${said(r)}`);
@@ -660,6 +671,8 @@ for (const [full, number, nodeId] of found) {
     if (e.assignee) ev.assignee = userOf(e.assignee);
     if (e.state_reason) ev.state_reason = e.state_reason;
     if (isStr(e.commit_id)) ev.commit = e.commit_id;
+    // GitHub's schema allows a reference without its commit (one this token can't see): recorded so.
+    if (e.event === "referenced" && !isStr(e.commit_id)) ev.commit_not_given = true;
     const src = e.source?.issue;
     if (src !== undefined) {
       const srcRepo = src?.repository?.full_name ?? repoFromApiUrl(src?.repository_url);
@@ -825,7 +838,12 @@ const linkMove = (old, id, there) => {
   const oldComments = old.comments ?? [];
   const byId = new Map(there.comments.map((c) => [c.id, c]));
   const rest = [];
-  for (const c of oldComments) { if (byId.has(c.id)) taken.add(byId.get(c.id)); else rest.push(c); }
+  for (const c of oldComments) {
+    if (!byId.has(c.id)) { rest.push(c); continue; }
+    const same = byId.get(c.id);
+    taken.add(same);
+    if (c.previous_ids) same.previous_ids = [...new Set([...(same.previous_ids ?? []), ...c.previous_ids])];
+  }
   const unmatched = [];
   for (const c of rest) {
     const same = there.comments.find((x) => !taken.has(x) && commentSig(x) === commentSig(c));
@@ -884,9 +902,11 @@ for (const [id, old] of Object.entries(prev.issues)) {
         detail = `moved to ${nowRepo}#${b.number}${byLowerName.has(nowRepo.toLowerCase()) ? "" : " (outside the scope list)"}`;
         const there = Object.values(merged).find((m) => m.repository.toLowerCase() === canonName(nowRepo).toLowerCase() && m.number === b.number);
         if (there && there.node_id === b.node_id) { linkMove(old, id, there); continue; }
-        if (there) {
-          detail += "; GitHub gave it a new node ID there, so it is also recorded as a new issue";
-        } else if (byLowerName.has(nowRepo.toLowerCase()) && b.state === "open" && (b.assignees ?? []).some((a) => a?.id === me.id)) {
+        if (there) incomplete(`${old.repository}#${old.number} forwards to ${nowRepo}#${b.number}, but two reads of that address gave different node IDs`);
+        // 13: moved within the scope and then closed or unassigned: say both.
+        if (byLowerName.has(nowRepo.toLowerCase()) && b.state === "closed") detail += `, then closed ${shown(b.closed_at)}${b.state_reason ? ` (${b.state_reason})` : ""}`;
+        else if (byLowerName.has(nowRepo.toLowerCase()) && !b.assignees.some((a) => a.id === me.id)) detail += b.assignees.length ? `, now assigned to ${b.assignees.map(userOf).join(", ")}` : ", now assigned to no one";
+        else if (byLowerName.has(nowRepo.toLowerCase()) && b.state === "open" && (b.assignees ?? []).some((a) => a?.id === me.id)) {
           incomplete(`${old.repository}#${old.number} moved to ${nowRepo}#${b.number}, which is open and assigned, but the search didn't return it yet (GitHub's search index is behind); run again in a minute`);
         }
       } else if (b.state === "closed") {
@@ -959,7 +979,14 @@ for (const rec of Object.values(merged)) {
     const k = `${a.source.repository}#${a.source.number}`.toLowerCase();
     if (!sourceLook.has(k)) {
       const r = await get(`/repos/${canonName(a.source.repository)}/issues/${a.source.number}`);
-      if (r.status === 200) { checkIssueBody(r.body, `looking up ${k}`); sourceLook.set(k, { repo: canonName(repoFromApiUrl(r.body.repository_url)), number: r.body.number, node: r.body.node_id }); }
+      if (r.status === 200) {
+        checkIssueBody(r.body, `looking up ${k}`);
+        const at2 = canonName(repoFromApiUrl(r.body.repository_url));
+        const same = at2.toLowerCase() === canonName(a.source.repository).toLowerCase() && r.body.number === a.source.number;
+        // Only GitHub's own forwarding links two sources; an answer for another address without it stops the run.
+        if (!same && !(await forwardedTo(r, at2, r.body.number))) incomplete(`looking up ${k}: GitHub answered for ${at2}#${r.body.number} without forwarding there`);
+        sourceLook.set(k, same ? null : { repo: at2, number: r.body.number, node: r.body.node_id });
+      }
       else if ([403, 404, 410].includes(r.status)) sourceLook.set(k, null);
       else incomplete(`looking up ${k}: GitHub answered ${r.status}${said(r)}`);
     }
@@ -1057,7 +1084,8 @@ const recordSource = (rec, banner) => [
   ...(rec.events.length ? rec.events.map((e) => {
     const bits = [e.label && `label ${text(e.label)}`, e.milestone && `milestone ${text(e.milestone)}`, e.assignee && `assignee ${text(e.assignee)}`,
       e.rename && `from "${text(e.rename.from)}" to "${text(e.rename.to)}"`, e.state_reason && text(e.state_reason),
-      e.source && `${e.source.pull_request ? "pull request" : "issue"} ${text(e.source.repository)}\\#${e.source.number}`, e.commit && `commit ${code(e.commit.slice(0, 12))}`].filter(Boolean);
+      e.source && `${e.source.pull_request ? "pull request" : "issue"} ${text(e.source.repository)}\\#${e.source.number}`, e.commit && `commit ${code(e.commit.slice(0, 12))}`,
+      e.commit_not_given && "commit not given by GitHub"].filter(Boolean);
     return `- ${shown(e.at)}: ${text(e.event)} by ${text(e.actor ?? "—")}${bits.length ? `, ${bits.join(", ")}` : ""}`;
   }) : ["None."]),
   "",
@@ -1215,6 +1243,7 @@ const writeNew = (path, content, mode = 0o644) => {
       const bytes = Buffer.from(content, "utf8");
       let done = 0;
       while (done < bytes.length) done += writeSync(fd, bytes, done, bytes.length - done);
+      fsyncSync(fd); // on disk, not only in the cache
     } finally {
       closeSync(fd);
     }
@@ -1365,6 +1394,12 @@ try {
     ? `Stopped: ${err.message}; the previous files (with that save) were put back; nothing was changed. Run again.`
     : `Writing failed (${err.code ?? err.message}); the previous files were put back; nothing was changed.`);
   process.exit(2);
+}
+// The renames themselves are flushed to disk (the folders' own entries) before any previous
+// version is let go, so a power cut can't leave new files missing and old ones gone.
+for (const d of [issuesDir, out]) {
+  let fd;
+  try { fd = openSync(d, "r"); fsyncSync(fd); } catch { /* a system that can't flush a folder: carried on */ } finally { if (fd !== undefined) closeSync(fd); }
 }
 for (const [, kept] of swapped) if (kept) try { unlinkSync(kept); } catch { /* gone */ }
 for (const p of removedOld) try { unlinkSync(`${p}.${process.pid}.old`); } catch { /* gone */ }

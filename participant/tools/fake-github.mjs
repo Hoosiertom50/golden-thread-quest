@@ -37,6 +37,9 @@
 //   scopes-echo      /user lists "repo" and echoes the bearer token as a scope
 //   last-beyond      web #1's comments: page 1 has no next link but a last link naming page 2
 //   full-page-no-next  web #1's timeline: a full page of 100 events with no next link, and more after
+//   secondary-limit  reading the api repository answers 403 with Retry-After (GitHub's "slow down")
+//   bad-utf8         web #1's direct read holds bytes that aren't valid UTF-8
+//   short-page-more  web #1's comments: page 1 holds one comment and no next link, page 2 another
 //   transfer-by-id   a moved issue's old address redirects in the /repositories/<id>/ form
 //   transfer-wrong-id  the same, but with the numeric id of another repository
 
@@ -148,6 +151,10 @@ const server = createServer((req, res) => {
     return json(res, 200, items.map((it) => issueJson(key, it)), more ? { link: linkTo(url, p + 1) } : {});
   }
   if ((m = path.match(/^\/repos\/([^/]+)\/([^/]+)$/))) {
+    if (FAULT === "secondary-limit" && m[2] === "kettlebook-api") {
+      res.writeHead(403, { "content-type": "application/json", "retry-after": "60" });
+      return res.end(JSON.stringify({ message: "You have exceeded a secondary rate limit." }));
+    }
     const key = repoKey(m[1], m[2]);
     if (!key) return json(res, 404, { message: "Not Found" });
     return json(res, 200, { id: repoId(key), full_name: key, node_id: world.repos[key].node_id, private: false });
@@ -180,6 +187,12 @@ const server = createServer((req, res) => {
       const one = issueJson(key, it);
       if (FAULT === "token-in-body" && it.node_id === "I_pretend_web_1") one.body = `pasted by mistake: ${req.headers.authorization.slice(7)}`;
       if (FAULT === "assignee-no-id" && it.node_id === "I_pretend_web_1") delete one.assignees[0].id;
+      if (FAULT === "bad-utf8" && it.node_id === "I_pretend_web_1") {
+        const raw = Buffer.from(JSON.stringify(one).replace("Searching", "Search\u0001ing"));
+        raw[raw.indexOf(1)] = 0xff; // a byte that is never valid UTF-8
+        res.writeHead(200, { "content-type": "application/json" });
+        return res.end(raw);
+      }
       return json(res, 200, one);
     }
     let list = m[6] === "comments"
@@ -197,6 +210,10 @@ const server = createServer((req, res) => {
       const many = Array.from({ length: 101 }, (_, i) => ({ id: 80000 + i, event: "labeled", actor: { login: "practice-user" }, created_at: "2026-11-23T14:26:11Z", label: { name: `l${i}` } }));
       return json(res, 200, p === 1 ? many.slice(0, 100) : many.slice(100));
     }
+    if (it.node_id === "I_pretend_web_1" && m[6] === "comments" && FAULT === "short-page-more") {
+      const p = Number(url.searchParams.get("page") ?? 1);
+      return json(res, 200, p === 1 ? list.slice(0, 1) : p === 2 ? list.slice(1) : []);
+    }
     if (it.node_id === "I_pretend_web_1" && m[6] === "comments" && FAULT === "list-redirect") {
       res.writeHead(302, { location: original.href });
       return res.end();
@@ -211,7 +228,7 @@ const server = createServer((req, res) => {
         const link = FAULT === "link-unquoted" ? `<${nx.href}>; rel=next` : FAULT === "link-garbled" ? `${nx.href} rel=next` : `<${nx.href}>; rel="next"`;
         return json(res, 200, list.slice(0, 1), { link });
       }
-      return json(res, 200, list.slice(1));
+      return json(res, 200, p === 2 ? list.slice(1) : []);
     }
     const { p, items, more } = page(url, list);
     return json(res, 200, items, more ? { link: linkTo(url, p + 1) } : {});
