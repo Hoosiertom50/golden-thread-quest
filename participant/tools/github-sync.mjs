@@ -29,7 +29,7 @@
 //        [--api URL]   (URL: https://api.github.com, or http://127.0.0.1:PORT for a practice server)
 
 import {
-  closeSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmdirSync,
+  closeSync, linkSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmdirSync,
   unlinkSync, writeSync,
 } from "node:fs";
 import { createHash } from "node:crypto";
@@ -85,6 +85,9 @@ const shown = (iso) => {
 // Owner and repository names: letters, digits, "-", "_", "."; never starting with "."; they become
 // parts of file names.
 const NAME = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/;
+// GitHub node IDs: letters, digits, "_", "-", "=". They are printed into Markdown, so nothing else.
+const NODE = /^[A-Za-z0-9_=-]{1,100}$/;
+const SHA = /^[0-9a-f]{40}$/;
 const FULL = (s) => typeof s === "string" && s.split("/").length === 2 && s.split("/").every((p) => NAME.test(p));
 let scope;
 try {
@@ -102,12 +105,14 @@ if (!Array.isArray(repos) || repos.length === 0 || !repos.every(FULL) || new Set
 const out = resolve(opts.out);
 const NOT_ORDINARY = Symbol("not an ordinary file");
 // Read a file only after lstat says it is an ordinary file (a link is never followed, and a named
-// pipe is never opened). Gives the text, null if absent, or NOT_ORDINARY.
+// pipe is never opened), and only if it is valid UTF-8: decoding never replaces bytes, so a notes
+// section is kept exactly or the run stops. Gives the text, null if absent, or NOT_ORDINARY.
+const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const readOrdinary = (path) => {
   let st;
   try { st = lstatSync(path); } catch (err) { if (err.code === "ENOENT") return null; throw err; }
   if (st.isSymbolicLink() || !st.isFile()) return NOT_ORDINARY;
-  return readFileSync(path, "utf8");
+  try { return UTF8.decode(readFileSync(path)); } catch { return NOT_ORDINARY; }
 };
 const rel = relative(REPO, out);
 const inRepo = rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
@@ -133,6 +138,14 @@ const checkDirs = (stop) => {
   return missing;
 };
 const missingDirs = checkDirs(refuse);
+// A run killed while writing (it can't clean up after SIGKILL or a power cut) leaves its staged
+// ".<pid>.new" or kept ".<pid>.old" files, and its lock. Until a person has looked, no run starts.
+for (const dir of [out, issuesDir]) {
+  let names = [];
+  try { names = readdirSync(dir); } catch (err) { if (err.code !== "ENOENT") throw err; }
+  const left = names.filter((n) => /\.[0-9]+\.(new|old)$/.test(n));
+  if (left.length) refuse(`A previous run stopped while writing and left ${left.map((n) => relative(out, join(dir, n))).join(", ")}; nothing was written. Check the folder (a .old file is the previous version), tidy it, then run again.`);
+}
 
 // Files this tool writes start with these lines, so a file a person wrote is never replaced.
 const RECORD_HEAD = "<!-- github-sync: issue record. Everything above the notes line is rewritten on each run. -->";
@@ -144,7 +157,7 @@ const indexPath = join(out, "index.md");
 const linksPath = join(out, "delivery-links.md");
 
 const stateText = readOrdinary(statePath);
-if (stateText === NOT_ORDINARY) refuse("sync-state.json isn't an ordinary file; nothing was written.");
+if (stateText === NOT_ORDINARY) refuse("sync-state.json isn't an ordinary UTF-8 text file; nothing was written.");
 let prev = { issues: {}, no_longer_assigned: {}, repositories: {} };
 if (stateText !== null) {
   let p;
@@ -152,7 +165,8 @@ if (stateText !== null) {
   const okMap = (m) => m && typeof m === "object" && !Array.isArray(m);
   // Every record must have what later steps rely on: its node ID (the key), repository, number,
   // file name, title, comments, events and links. Anything else is left for a person to look at.
-  const okRec = (r, id) => okMap(r) && r.node_id === id && FULL(r.repository) && Number.isInteger(r.number) && r.number > 0
+  const okRec = (r, id) => okMap(r) && NODE.test(id) && r.node_id === id && FULL(r.repository)
+    && (r.previous_node_ids === undefined || (Array.isArray(r.previous_node_ids) && r.previous_node_ids.every((x) => typeof x === "string" && NODE.test(x)))) && Number.isInteger(r.number) && r.number > 0
     && typeof r.file === "string" && /^[A-Za-z0-9_-][A-Za-z0-9._-]*\.md$/.test(r.file) && typeof r.title === "string"
     && Array.isArray(r.comments) && r.comments.every((c) => okMap(c) && Number.isInteger(c.id) && typeof c.created_at === "string")
     && Array.isArray(r.events) && r.events.every((e) => okMap(e) && typeof e.key === "string") && Array.isArray(r.links);
@@ -167,7 +181,7 @@ if (stateText !== null) {
 }
 for (const [path, head, name] of [[indexPath, INDEX_HEAD, "index.md"], [linksPath, LINKS_HEAD, "delivery-links.md"]]) {
   const t = readOrdinary(path);
-  if (t === NOT_ORDINARY) refuse(`${name} isn't an ordinary file; nothing was written.`);
+  if (t === NOT_ORDINARY) refuse(`${name} isn't an ordinary UTF-8 text file; nothing was written.`);
   if (t !== null && !t.startsWith(`${head}\n`)) refuse(`${name} wasn't written by this tool; nothing was written. Move it, then run again.`);
 }
 // Every issue file this tool knows about: read now, kept as read, and checked again under the
@@ -185,7 +199,7 @@ const knownFiles = new Set([...Object.values(prev.issues), ...Object.values(prev
   .map((r) => r.file).filter((f) => typeof f === "string"));
 for (const f of knownFiles) {
   const t = readOrdinary(join(issuesDir, f));
-  if (t === NOT_ORDINARY) refuse(`issues/${f} isn't an ordinary file; nothing was written.`);
+  if (t === NOT_ORDINARY) refuse(`issues/${f} isn't an ordinary UTF-8 text file; nothing was written.`);
   if (t !== null) {
     const s = splitRecord(t, `issues/${f}`);
     if (s.error) refuse(`${s.error}; nothing was written. Restore it, then run again.`);
@@ -200,30 +214,40 @@ let requests = 0;
 const get = async (url) => {
   const u = new URL(url, opts.api);
   if (u.origin !== new URL(opts.api).origin) incomplete(`GitHub pointed outside ${opts.api} (${u.origin})`);
-  requests++;
+  // Redirects are followed by hand, at most 3, and each address is checked before it is asked:
+  // the token is only ever sent to the one server.
   let res;
-  try {
-    res = await fetch(u, {
-      method: "GET",
-      redirect: "follow",
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "gtq-github-sync",
-      },
-    });
-  } catch (err) {
-    incomplete(`GitHub couldn't be reached (${err.cause?.code ?? err.message})`);
+  let at = u;
+  for (let hop = 0; ; hop++) {
+    requests++;
+    try {
+      res = await fetch(at, {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          Authorization: `Bearer ${TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "User-Agent": "gtq-github-sync",
+        },
+      });
+    } catch (err) {
+      incomplete(`GitHub couldn't be reached (${err.cause?.code ?? err.message})`);
+    }
+    if (![301, 302, 303, 307, 308].includes(res.status)) break;
+    const loc = res.headers.get("location");
+    await res.body?.cancel();
+    if (!loc || hop >= 3) incomplete(`GitHub redirected ${loc ? "too many times" : "without an address"} (${at.pathname})`);
+    at = new URL(loc, at);
+    if (at.origin !== u.origin) incomplete(`GitHub redirected to another server (${at.origin})`);
   }
-  if (new URL(res.url).origin !== u.origin) incomplete("GitHub redirected to another server");
   if ((res.status === 403 || res.status === 429) && res.headers.get("x-ratelimit-remaining") === "0") {
     incomplete("GitHub's rate limit was reached; run again later");
   }
   let body = null;
   const text = await res.text();
   try { body = text ? JSON.parse(text) : null; } catch { body = undefined; }
-  return { status: res.status, headers: res.headers, body, url: res.url };
+  return { status: res.status, headers: res.headers, body, url: at.href };
 };
 // The "next" page, from GitHub's Link header; null when there is none.
 const nextLink = (headers) => {
@@ -267,13 +291,14 @@ if (who.status === 401) refuse("GitHub refused the token (401). Check GTQ_GITHUB
 if (who.status !== 200 || !isObj(who.body) || !isStr(who.body.login) || !/^[A-Za-z0-9-]{1,39}$/.test(who.body.login) || !posInt(who.body.id)) {
   incomplete("GitHub didn't say who the token belongs to");
 }
-// A classic token lists its scopes; any write scope is refused, so this tool can't be run with
-// more power than it needs. (A fine-grained token lists none; its read-only setting is proved
-// separately, in the PROOF.)
+// A classic token lists its scopes: only read scopes ("read:...") are accepted, and anything else
+// (repo, gist, user, workflow...) is refused, so this tool can't be run with more power than it
+// needs. A fine-grained token lists none; its read-only setting is checked separately
+// (github-sync-record.sh token-check).
 const scopes = (who.headers.get("x-oauth-scopes") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-const WRITE = /^(repo|public_repo|workflow|delete_repo|admin:.*|write:.*)$/;
-if (scopes.some((s) => WRITE.test(s))) {
-  refuse(`This token can write (${scopes.filter((s) => WRITE.test(s)).join(", ")}). Use a read-only token; nothing was read.`);
+const notRead = scopes.filter((sc) => !/^read:[a-z_:]+$/.test(sc));
+if (notRead.length) {
+  refuse(`This token can do more than read (${notRead.join(", ")}). Use a read-only token; nothing was read.`);
 }
 const me = { login: who.body.login, id: who.body.id };
 const tokenKind = who.headers.get("x-oauth-scopes") === null ? "fine-grained (no scopes listed)" : `classic, scopes: ${scopes.join(", ") || "none"}`;
@@ -307,7 +332,7 @@ const searchAll = async (q, name, what) => {
   let pages = 0;
   while (url) {
     pages++;
-    if (pages > 10) incomplete(`the ${what} search for ${name} has more than 10 pages (GitHub's search stops at 1,000 results)`);
+    if (pages > Math.ceil(1000 / opts.perPage)) incomplete(`the ${what} search for ${name} goes past 1,000 results, where GitHub's search stops`);
     const r = await get(url);
     if (r.status !== 200 || !isObj(r.body) || !Array.isArray(r.body.items) || !Number.isInteger(r.body.total_count)) {
       incomplete(`the ${what} search for ${name}: GitHub answered ${r.status}${said(r)}`);
@@ -323,7 +348,7 @@ const searchAll = async (q, name, what) => {
   }
   if (items.length !== declared) incomplete(`the ${what} search for ${name} declared ${declared} but sent ${items.length} (GitHub's search may still be catching up with a recent change; run again in a minute)`);
   for (const i of items) {
-    if (!isObj(i) || !posInt(i.number) || !isStr(i.node_id) || i.node_id === "" || !isStr(i.repository_url)) incomplete(`the ${what} search for ${name} sent an item without a number or node ID`);
+    if (!isObj(i) || !posInt(i.number) || !isStr(i.node_id) || !NODE.test(i.node_id) || !isStr(i.repository_url)) incomplete(`the ${what} search for ${name} sent an item without a number or node ID`);
     if (!i.repository_url.toLowerCase().endsWith(`/repos/${name.toLowerCase()}`)) incomplete(`the ${what} search for ${name} sent an item from another repository`);
   }
   const ids = items.map((i) => i.node_id);
@@ -367,11 +392,17 @@ const readIssue = async (full, number) => {
   const r = await get(`/repos/${repoInfo[full]?.full_name ?? full}/issues/${number}`);
   return r;
 };
+// Everything later steps rely on must be there and of the right kind; a malformed answer stops
+// the run rather than, say, an assignee without an id making an issue look unassigned.
 const checkIssueBody = (b, what) => {
-  if (!isObj(b) || !posInt(b.number) || !isStr(b.node_id) || !isStr(b.title) || !isStr(b.state) || !isTime(b.created_at) || !isTime(b.updated_at)
-    || !Array.isArray(b.assignees) || !Array.isArray(b.labels) || !repoFromApiUrl(b.repository_url)) {
-    incomplete(`${what}: GitHub's answer is missing fields`);
-  }
+  const ok = isObj(b) && posInt(b.number) && isStr(b.node_id) && NODE.test(b.node_id) && isStr(b.title)
+    && (b.state === "open" || b.state === "closed") && (b.state_reason == null || isStr(b.state_reason))
+    && (b.body == null || isStr(b.body)) && isTime(b.created_at) && isTime(b.updated_at) && (b.closed_at == null || isTime(b.closed_at))
+    && Array.isArray(b.assignees) && b.assignees.every((a) => isObj(a) && posInt(a.id) && isStr(a.login))
+    && Array.isArray(b.labels) && b.labels.every((l) => isStr(l) || (isObj(l) && isStr(l.name)))
+    && (b.milestone == null || (isObj(b.milestone) && isStr(b.milestone.title))) && (b.user == null || isObj(b.user))
+    && Number.isInteger(b.comments) && b.comments >= 0 && repoFromApiUrl(b.repository_url) !== null;
+  if (!ok) incomplete(`${what}: GitHub's answer is missing fields or has odd ones`);
 };
 // References written in text: "owner/repo#12" or "#12" (this repository).
 const textRefs = (text, here) => {
@@ -383,12 +414,13 @@ const textRefs = (text, here) => {
   }
   return refs;
 };
-const CLOSES = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b[\s:]+(?:([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+))?#([1-9][0-9]*)\b/gi;
+// A closing keyword and the issue: "#12", "owner/repo#12" or the issue's full address.
+const CLOSES = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b[\s:]+(?:https:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/issues\/|([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#)([1-9][0-9]*)\b/gi;
 const closesIssue = (prBody, prRepo, repo, number) => {
   if (!isStr(prBody)) return false;
   for (const m of prBody.matchAll(CLOSES)) {
-    const target = (m[1] ?? prRepo).toLowerCase();
-    if (target === repo.toLowerCase() && Number(m[2]) === number) return true;
+    const target = (m[1] ?? m[2] ?? prRepo).toLowerCase();
+    if (target === repo.toLowerCase() && Number(m[3]) === number) return true;
   }
   return false;
 };
@@ -398,8 +430,11 @@ const readPull = async (repo, number) => {
   if (prCache.has(key)) return prCache.get(key);
   let info;
   const r = await get(`/repos/${repo}/pulls/${number}`);
-  if (r.status === 200 && isObj(r.body) && isStr(r.body.state)) {
+  if (r.status === 200 && isObj(r.body) && (r.body.state === "open" || r.body.state === "closed") && Number.isInteger(r.body.commits)) {
     const commits = await allPages(`/repos/${repo}/pulls/${number}/commits?per_page=100`, `${repo}#${number} commits`);
+    if (!commits.every((c) => isObj(c) && isStr(c.sha) && SHA.test(c.sha))) incomplete(`${repo}#${number}: a commit without a proper SHA`);
+    if (new Set(commits.map((c) => c.sha)).size !== commits.length) incomplete(`${repo}#${number}: the same commit twice`);
+    if (commits.length !== r.body.commits) incomplete(`${repo}#${number}: GitHub counted ${r.body.commits} commits but sent ${commits.length}`);
     info = {
       readable: true,
       state: r.body.state,
@@ -407,14 +442,33 @@ const readPull = async (repo, number) => {
       merged_at: r.body.merged_at ?? null,
       draft: r.body.draft === true,
       body: r.body.body ?? "",
-      commits: commits.filter((c) => isObj(c) && isStr(c.sha)).map((c) => ({ sha: c.sha, message: String(c.commit?.message ?? "").split("\n")[0] })),
+      commits: commits.map((c) => ({ sha: c.sha, message: String(c.commit?.message ?? "").split("\n")[0] })),
     };
   } else if ([403, 404, 410].includes(r.status)) {
     info = { readable: false, reason: `GitHub answered ${r.status}` };
   } else {
-    incomplete(`the pull request ${repo}#${number}: GitHub answered ${r.status}${said(r)}`);
+    incomplete(`the pull request ${repo}#${number}: GitHub answered ${r.status}${r.status === 200 ? " with odd fields" : ""}${said(r)}`);
   }
   prCache.set(key, info);
+  return info;
+};
+
+// A reference written in text ("#4", "owner/repo#4") may be an issue or a pull request: in a
+// readable repository in scope it is looked up once, so a pull request mentioned only in text
+// still gets its state and commits.
+const refCache = new Map();
+const resolveRef = async (repo, number) => {
+  const key = `${repo}#${number}`.toLowerCase();
+  if (refCache.has(key)) return refCache.get(key);
+  let info = null;
+  const r = await get(`/repos/${repo}/issues/${number}`);
+  if (r.status === 200) {
+    checkIssueBody(r.body, `the reference ${repo}#${number}`);
+    info = { kind: r.body.pull_request !== undefined ? "pull_request" : "issue", node_id: r.body.node_id, repository: repoFromApiUrl(r.body.repository_url), number: r.body.number };
+  } else if (![403, 404, 410].includes(r.status)) {
+    incomplete(`looking up the reference ${repo}#${number}: GitHub answered ${r.status}${said(r)}`);
+  }
+  refCache.set(key, info);
   return info;
 };
 
@@ -428,18 +482,19 @@ for (const [full, number, nodeId] of found) {
   const b = r.body;
   checkIssueBody(b, what);
   if (b.node_id !== nodeId) incomplete(`${what}: the direct read has a different node ID than the search`);
+  if (b.number !== number || repoFromApiUrl(b.repository_url).toLowerCase() !== name.toLowerCase()) incomplete(`${what}: the direct read answered for a different address`);
   if (b.pull_request !== undefined) incomplete(`${what}: the search said issue, the direct read says pull request`);
   // The search index can lag behind: the direct read decides. An issue closed or unassigned since
   // the index was updated is left out here (and reported below, if it was assigned last time).
   if (b.state !== "open" || !b.assignees.some((a) => a?.id === me.id)) { searchBehind.push(what); continue; }
-  if (!Number.isInteger(b.comments) || b.comments < 0) incomplete(`${what}: no comment count`);
   const comments = await allPages(`/repos/${name}/issues/${number}/comments?per_page=100`, `${what} comments`);
   if (comments.length !== b.comments) incomplete(`${what}: GitHub counted ${b.comments} comments but sent ${comments.length}`);
   const cIds = new Set();
   const cleanComments = [];
   for (const c of comments) {
     if (!isObj(c) || !posInt(c.id) || !isStr(c.body) || !isTime(c.created_at) || !userOf(c.user)) incomplete(`${what}: a comment without an id, author, time or text`);
-    if (cIds.has(c.id)) continue; // the same comment twice: kept once
+    // The same comment twice in one answer means the pages overlapped: the count can't be trusted.
+    if (cIds.has(c.id)) incomplete(`${what}: GitHub sent comment ${c.id} twice`);
     cIds.add(c.id);
     cleanComments.push({ id: c.id, author: userOf(c.user), created_at: c.created_at, updated_at: isTime(c.updated_at) ? c.updated_at : c.created_at, body: c.body });
   }
@@ -450,7 +505,13 @@ for (const [full, number, nodeId] of found) {
   for (const e of timeline) {
     if (!isObj(e) || !isStr(e.event)) incomplete(`${what}: a timeline entry without an event name`);
     if (!MATERIAL.has(e.event)) continue;
-    const at = e.created_at ?? null;
+    // A material event needs a time, and an id unless it is a cross-reference (which GitHub gives
+    // no id, and which is then known by its time and its source).
+    if (!isTime(e.created_at)) incomplete(`${what}: a ${e.event} event without a time`);
+    if (e.id == null && !(e.event === "cross-referenced" && isObj(e.source?.issue))) incomplete(`${what}: a ${e.event} event without an id`);
+    if (e.id != null && !posInt(e.id)) incomplete(`${what}: a ${e.event} event with an odd id`);
+    if (e.commit_id != null && !(isStr(e.commit_id) && SHA.test(e.commit_id))) incomplete(`${what}: a ${e.event} event with an odd commit`);
+    const at = e.created_at;
     const ev = { event: e.event, actor: userOf(e.actor) ?? userOf(e.user), at };
     if (e.label?.name) ev.label = e.label.name;
     if (e.milestone?.title) ev.milestone = e.milestone.title;
@@ -459,13 +520,14 @@ for (const [full, number, nodeId] of found) {
     if (e.state_reason) ev.state_reason = e.state_reason;
     if (isStr(e.commit_id)) ev.commit = e.commit_id;
     const src = e.source?.issue;
-    if (isObj(src) && posInt(src.number) && isStr(src.node_id)) {
-      const srcRepo = src.repository?.full_name ?? repoFromApiUrl(src.repository_url);
+    if (src !== undefined) {
+      const srcRepo = src?.repository?.full_name ?? repoFromApiUrl(src?.repository_url);
+      if (!isObj(src) || !posInt(src.number) || !isStr(src.node_id) || !NODE.test(src.node_id) || !FULL(srcRepo)) incomplete(`${what}: a ${e.event} event with an odd source`);
       ev.source = { repository: srcRepo, number: src.number, node_id: src.node_id, pull_request: src.pull_request !== undefined };
     }
     // Most events have an id; cross-references don't, so they are known by what and when.
-    ev.key = e.id != null ? `id:${e.id}` : `${e.event}:${at}:${ev.source?.node_id ?? ev.commit ?? ""}`;
-    if (eventKeys.has(ev.key)) continue;
+    ev.key = e.id != null ? `id:${e.id}` : `${e.event}:${at}:${ev.source.node_id}`;
+    if (eventKeys.has(ev.key)) incomplete(`${what}: GitHub sent one timeline event twice`);
     eventKeys.add(ev.key);
     events.push(ev);
     if (ev.source) links.push({ kind: ev.source.pull_request ? "pull_request" : "issue", repository: ev.source.repository, number: ev.source.number, node_id: ev.source.node_id, via: "cross-reference" });
@@ -485,6 +547,16 @@ for (const [full, number, nodeId] of found) {
     const k = linkKey(l);
     const had = byKey.get(k);
     if (!had || (had.kind === "mentioned" && l.kind !== "mentioned")) byKey.set(k, { ...l, via: had ? `${l.via}; ${had.via}` : l.via });
+  }
+  for (const [k, l] of [...byKey]) {
+    if (l.kind !== "mentioned" || !byLowerName.has(l.repository.toLowerCase())) continue;
+    const ref = await resolveRef(l.repository, l.number);
+    if (!ref) { l.state = "not found"; continue; }
+    const k2 = `${ref.repository.toLowerCase()}#${ref.number}`;
+    byKey.delete(k);
+    const had = byKey.get(k2);
+    if (had) { had.via = `${had.via}; written in the text`; continue; }
+    byKey.set(k2, { kind: ref.kind, repository: ref.repository, number: ref.number, node_id: ref.node_id, via: "written in the text" });
   }
   // Pull requests linked from a readable repository in scope: their state and commits.
   const delivery = [];
@@ -535,7 +607,12 @@ const merged = {};
 const moved = [];
 const added = [];
 const changed = [];
-const sameExceptTime = (a, b) => JSON.stringify({ ...a, last_synced_at: null }) === JSON.stringify({ ...b, last_synced_at: null });
+// Two records are the same if every field but the sync time is, whatever order the fields are in.
+const stable = (v) => (Array.isArray(v) ? `[${v.map(stable).join(",")}]`
+  : v && typeof v === "object" ? `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(",")}}`
+  : JSON.stringify(v));
+const sameExceptTime = (a, b) => stable({ ...a, last_synced_at: null }) === stable({ ...b, last_synced_at: null });
+const compareWith = new Map(); // node ID -> its previous record, compared once merging is done
 for (const [id, rec] of current) {
   const old = prev.issues[id] ?? prev.no_longer_assigned[id]?.last_known_record ?? null;
   if (old) {
@@ -544,9 +621,8 @@ for (const [id, rec] of current) {
     const cNow = new Set(rec.comments.map((c) => c.id));
     for (const c of old.comments ?? []) if (!cNow.has(c.id)) rec.comments.push({ ...c, no_longer_on_github: true });
     rec.comments.sort((x, y) => x.created_at.localeCompare(y.created_at) || x.id - y.id);
-    const eNow = new Set(rec.events.map((e) => e.key));
-    for (const e of old.events ?? []) if (!eNow.has(e.key)) rec.events.push(e);
-    rec.events.sort((x, y) => String(x.at).localeCompare(String(y.at)));
+    rec.events.push(...(old.events ?? [])); // de-duplicated below, once every move is known
+    if (old.previous_node_ids) rec.previous_node_ids = [...old.previous_node_ids];
     if (old.repository.toLowerCase() !== rec.repository.toLowerCase() || old.number !== rec.number) {
       moved.push(`${old.repository}#${old.number} → ${rec.repository}#${rec.number}`);
       rec.moved_from = [...(old.moved_from ?? []), { repository: old.repository, number: old.number, noticed_at: now }];
@@ -554,12 +630,27 @@ for (const [id, rec] of current) {
       rec.moved_from = old.moved_from;
     }
     rec.previous_file = old.file !== rec.file ? old.file : undefined;
-    if (!prev.issues[id] || !sameExceptTime(old, { ...rec, previous_file: undefined })) changed.push(`${rec.repository}#${rec.number}`);
+    compareWith.set(id, old);
   } else {
     added.push(`${rec.repository}#${rec.number}`);
   }
   merged[id] = rec;
 }
+// GitHub gives a transferred issue a new node ID (seen with the practice repositories), but its old
+// address forwards to the new one. That forwarding is what links them: the issue is recorded as
+// moved, keeps its earlier IDs, comments and events, and its notes go with it.
+const linkMove = (old, id, there) => {
+  there.moved_from = [...(old.moved_from ?? []), ...(there.moved_from ?? []), { repository: old.repository, number: old.number, node_id: id, noticed_at: now }];
+  there.previous_node_ids = [...new Set([...(old.previous_node_ids ?? []), ...(there.previous_node_ids ?? []), id])];
+  const cThere = new Set(there.comments.map((c) => c.id));
+  for (const c of old.comments ?? []) if (!cThere.has(c.id)) there.comments.push({ ...c, no_longer_on_github: true });
+  there.events.push(...(old.events ?? []));
+  if (old.file !== there.file) there.previous_file = old.file;
+  const label = `${there.repository}#${there.number}`;
+  const at = added.indexOf(label);
+  if (at >= 0) added.splice(at, 1);
+  moved.push(`${old.repository}#${old.number} → ${label} (new node ID; linked by GitHub's forwarding)`);
+};
 // Issues assigned last time and not now: looked up directly to learn why.
 const noLonger = {};
 const newlyGone = [];
@@ -574,7 +665,8 @@ for (const [id, old] of Object.entries(prev.issues)) {
     detail = listed ? `the repository ${old.repository} couldn't be read this run` : `the repository ${old.repository} is no longer in the scope list`;
   } else {
     const r = await get(`/repos/${old.repository}/issues/${old.number}`);
-    if (r.status === 200 && isObj(r.body)) {
+    if (r.status === 200) {
+      checkIssueBody(r.body, `looking up ${old.repository}#${old.number}`);
       const b = r.body;
       const nowRepo = repoFromApiUrl(b.repository_url);
       if (b.node_id !== id && nowRepo?.toLowerCase() === old.repository.toLowerCase()) {
@@ -584,22 +676,7 @@ for (const [id, old] of Object.entries(prev.issues)) {
         reason = "transferred";
         detail = `moved to ${nowRepo}#${b.number}${byLowerName.has(nowRepo.toLowerCase()) ? "" : " (outside the scope list)"}`;
         const there = Object.values(merged).find((m) => m.repository.toLowerCase() === nowRepo.toLowerCase() && m.number === b.number);
-        if (there && there.node_id === b.node_id) {
-          // GitHub gives a transferred issue a new node ID (seen with the practice repositories),
-          // but its old address forwards to the new one. That forwarding is what links them: the
-          // issue is recorded as moved, keeps its earlier IDs and comments, and its notes go with it.
-          there.moved_from = [...(old.moved_from ?? []), ...(there.moved_from ?? []), { repository: old.repository, number: old.number, node_id: id, noticed_at: now }];
-          there.previous_node_ids = [...new Set([...(old.previous_node_ids ?? []), id])];
-          const cThere = new Set(there.comments.map((c) => c.id));
-          for (const c of old.comments ?? []) if (!cThere.has(c.id)) there.comments.push({ ...c, no_longer_on_github: true });
-          there.comments.sort((x, y) => x.created_at.localeCompare(y.created_at) || x.id - y.id);
-          if (old.file !== there.file) there.previous_file = old.file;
-          const label = `${there.repository}#${there.number}`;
-          const at = added.indexOf(label);
-          if (at >= 0) added.splice(at, 1);
-          moved.push(`${old.repository}#${old.number} → ${label} (new node ID; linked by GitHub's forwarding)`);
-          continue;
-        }
+        if (there && there.node_id === b.node_id) { linkMove(old, id, there); continue; }
         if (there) {
           detail += "; GitHub gave it a new node ID there, so it is also recorded as a new issue";
         } else if (byLowerName.has(nowRepo.toLowerCase()) && b.state === "open" && (b.assignees ?? []).some((a) => a?.id === me.id)) {
@@ -608,9 +685,9 @@ for (const [id, old] of Object.entries(prev.issues)) {
       } else if (b.state === "closed") {
         reason = "closed";
         detail = `closed ${shown(b.closed_at)}${b.state_reason ? ` (${b.state_reason})` : ""}`;
-      } else if (!(b.assignees ?? []).some((a) => a?.id === me.id)) {
+      } else if (!b.assignees.some((a) => a.id === me.id)) {
         reason = "unassigned";
-        detail = (b.assignees ?? []).length ? `now assigned to ${(b.assignees ?? []).map(userOf).join(", ")}` : "now assigned to no one";
+        detail = b.assignees.length ? `now assigned to ${b.assignees.map(userOf).join(", ")}` : "now assigned to no one";
       } else {
         incomplete(`${old.repository}#${old.number} is open and assigned, but the search didn't return it (GitHub's search index is behind); run again in a minute`);
       }
@@ -624,8 +701,48 @@ for (const [id, old] of Object.entries(prev.issues)) {
   noLonger[id] = { node_id: id, repository: old.repository, number: old.number, title: old.title, reason, detail, detected_at: now, last_known_record: old };
   newlyGone.push(`${old.repository}#${old.number} (${reason})`);
 }
-for (const [id, r] of Object.entries(prev.no_longer_assigned)) if (!merged[id] && !noLonger[id]) noLonger[id] = r;
+// An issue listed as no longer assigned may since have moved and been assigned again: if this run
+// found new issues, each archived one is looked up at its old address, and one that forwards to a
+// new issue is linked to it (its notes go with it) instead of staying archived.
+for (const [id, r] of Object.entries(prev.no_longer_assigned)) {
+  if (merged[id] || noLonger[id]) continue;
+  const old = r.last_known_record;
+  if (added.length && byLowerName.has(old.repository.toLowerCase())) {
+    const look = await get(`/repos/${old.repository}/issues/${old.number}`);
+    if (look.status === 200) {
+      checkIssueBody(look.body, `looking up ${old.repository}#${old.number}`);
+      const nowRepo = repoFromApiUrl(look.body.repository_url);
+      const there = Object.values(merged).find((m) => m.repository.toLowerCase() === nowRepo.toLowerCase() && m.number === look.body.number);
+      if (there && there.node_id === look.body.node_id && there.node_id !== id && added.includes(`${there.repository}#${there.number}`)) {
+        linkMove(old, id, there);
+        continue;
+      }
+    } else if (![403, 404, 410].includes(look.status)) {
+      incomplete(`looking up ${old.repository}#${old.number}: GitHub answered ${look.status}${said(look)}`);
+    }
+  }
+  noLonger[id] = r;
+}
+// Comments and events are kept once each. An event that came from a moved issue's earlier
+// address is the same event: a cross-reference's source is compared by the issue it points to,
+// with earlier node IDs mapped to the current one.
+const alias = new Map();
+for (const rec of Object.values(merged)) for (const old of rec.previous_node_ids ?? []) alias.set(old, rec.node_id);
+const canon = (nid) => alias.get(nid) ?? nid;
+const eventId = (e) => (e.key.startsWith("id:") ? e.key : `${e.event}:${e.at}:${canon(e.source?.node_id ?? "")}`);
+for (const rec of Object.values(merged)) {
+  const seenC = new Set();
+  rec.comments = rec.comments.filter((c) => !seenC.has(c.id) && seenC.add(c.id));
+  rec.comments.sort((x, y) => x.created_at.localeCompare(y.created_at) || x.id - y.id);
+  const seenE = new Set();
+  rec.events = rec.events.filter((e) => { const k = eventId(e); return !seenE.has(k) && seenE.add(k); });
+  rec.events.sort((x, y) => String(x.at).localeCompare(String(y.at)) || eventId(x).localeCompare(eventId(y)));
+}
 const returned = Object.keys(prev.no_longer_assigned).filter((id) => merged[id]).map((id) => `${merged[id].repository}#${merged[id].number}`);
+for (const [id, old] of compareWith) {
+  const rec = merged[id];
+  if (!prev.issues[id] || !sameExceptTime(old, { ...rec, previous_file: undefined })) changed.push(`${rec.repository}#${rec.number}`);
+}
 
 // Per repository: the last successful synchronization (kept from before for one that couldn't
 // be read this run).
@@ -647,7 +764,7 @@ const block = (v) => {
   if (s.trim() === "") return "    (empty)";
   return s.split("\n").map((l) => `    ${l}`).join("\n");
 };
-const code = (v) => `\`${String(v).replace(/`/g, "")}\``;
+const code = (v) => `\`${String(v).replace(/[`\u0000-\u001f\u007f]/g, "")}\``;
 const notesStart = (rec) => `## My notes\n\nYour own notes on ${text(rec.repository)}\\#${rec.number}. The synchronization never changes this section.\n`;
 const linkLine = (l) => {
   if (l.kind === "commit") return `- commit ${code(l.sha.slice(0, 12))}${l.repository ? ` in ${text(l.repository)}` : ""} (${l.via})`;
@@ -906,11 +1023,24 @@ for (const [f, t] of fileBaseline) if (readOrdinary(join(issuesDir, f)) !== t) s
 for (const [path] of files) {
   if (fileBaseline.has(relative(issuesDir, path))) continue;
   const t = readOrdinary(path);
-  if (t === NOT_ORDINARY) stopUnderLock(`${relative(out, path)} isn't an ordinary file; nothing was written.`);
+  if (t === NOT_ORDINARY) stopUnderLock(`${relative(out, path)} isn't an ordinary UTF-8 text file; nothing was written.`);
   if (t !== null && path !== indexPath && path !== linksPath && path !== statePath) stopUnderLock(`${relative(out, path)} already exists and this tool doesn't know it; nothing was written. Move it, then run again.`);
   if (t !== null && path === indexPath && !t.startsWith(`${INDEX_HEAD}\n`)) stopUnderLock("index.md wasn't written by this tool; nothing was written.");
   if (t !== null && path === linksPath && !t.startsWith(`${LINKS_HEAD}\n`)) stopUnderLock("delivery-links.md wasn't written by this tool; nothing was written.");
 }
+// Every issue file about to be written must split at exactly one notes line, with notes exactly
+// as planned, before anything is published.
+for (const [path, content] of files) {
+  const f = relative(issuesDir, path);
+  if (!(f in notesHashes)) continue;
+  const sp = splitRecord(content, `issues/${f}`);
+  if (sp.error || sha(sp.notes) !== notesHashes[f]) stopUnderLock(`issues/${f} would not keep its notes exactly (${sp.error ?? "they differ"}); nothing was written.`);
+}
+// What each file was when this run read it: a file replaced by the swap below must still have
+// been exactly that, or someone saved it meanwhile and everything is put back.
+const readAtStart = new Map([[statePath, stateText]]);
+for (const [f, t] of fileBaseline) readAtStart.set(join(issuesDir, f), t);
+class Conflict extends Error {}
 const staged = [];
 const swapped = [];
 const removedOld = [];
@@ -929,12 +1059,22 @@ try {
     swapped.push(entry);
     renameSync(tmp, path);
     entry[2] = true;
+    if (readAtStart.has(path) && (kept ? readOrdinary(kept) : null) !== readAtStart.get(path)) {
+      throw new Conflict(`${relative(out, path)} was saved by someone while this run was writing`);
+    }
   }
   // The files of issues that moved: their notes now live in the new file.
   for (const f of toRemove) {
     const p = join(issuesDir, f);
     renameSync(p, `${p}.${process.pid}.old`);
     removedOld.push(p);
+    if (readOrdinary(`${p}.${process.pid}.old`) !== fileBaseline.get(f)) throw new Conflict(`issues/${f} was saved by someone while this run was writing`);
+  }
+  // Read back: every notes section exactly as planned, before any previous version is let go.
+  for (const [f, h] of Object.entries(notesHashes)) {
+    const t = readOrdinary(join(issuesDir, f));
+    const sp = typeof t === "string" ? splitRecord(t, f) : { error: "unreadable" };
+    if (sp.error || sha(sp.notes) !== h) throw new Error(`the notes in issues/${f} didn't read back exactly`);
   }
 } catch (err) {
   const notPutBack = [];
@@ -955,16 +1095,13 @@ try {
     process.exit(2);
   }
   undo();
-  console.error(`Writing failed (${err.code ?? err.message}); the previous files were put back; nothing was changed.`);
+  console.error(err instanceof Conflict
+    ? `Stopped: ${err.message}; the previous files (with that save) were put back; nothing was changed. Run again.`
+    : `Writing failed (${err.code ?? err.message}); the previous files were put back; nothing was changed.`);
   process.exit(2);
 }
 for (const [, kept] of swapped) if (kept) try { unlinkSync(kept); } catch { /* gone */ }
 for (const p of removedOld) try { unlinkSync(`${p}.${process.pid}.old`); } catch { /* gone */ }
-// The notes, read back from the written files: each must be exactly what it was.
-const notesChanged = Object.entries(notesHashes).filter(([f, h]) => {
-  const t = readOrdinary(join(issuesDir, f));
-  return typeof t !== "string" || sha(splitRecord(t, f).notes ?? "") !== h;
-}).map(([f]) => f);
 releaseLock();
 
 // ---- the run report (no token, no raw response) -------------------------------------------------
@@ -977,9 +1114,5 @@ for (const f of readable) {
 }
 console.log(`Total issues: declared ${totalDeclared}, received ${totalReceived} over ${summary.pages_read} pages (${summary.complete ? "complete" : "NOT complete"}); ${Object.keys(merged).length} issues assigned.`);
 console.log(`This run: new ${list(added)}; changed ${list(changed)}; moved ${list(moved)}; no longer assigned ${list(newlyGone)}; returned ${list(returned)}; search behind ${list(searchBehind)}.`);
-console.log(`Kept as no longer assigned: ${Object.keys(noLonger).length}. Notes sections unchanged: ${Object.keys(notesHashes).length - notesChanged.length} of ${Object.keys(notesHashes).length}.`);
+console.log(`Kept as no longer assigned: ${Object.keys(noLonger).length}. Notes sections kept exactly (read back): ${Object.keys(notesHashes).length} of ${Object.keys(notesHashes).length}.`);
 console.log(`Requests to GitHub: ${requests}, all GET.`);
-if (notesChanged.length) {
-  console.error(`A notes section differs from before: ${notesChanged.join(", ")}.`);
-  process.exit(2);
-}

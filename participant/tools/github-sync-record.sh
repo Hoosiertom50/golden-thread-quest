@@ -4,8 +4,9 @@
 # and each record is checked for it before it is kept.
 #
 #   bash participant/tools/github-sync-record.sh token-check
-#       Proves the token is read-only: one harmless write (creating a label named
-#       "token-write-test" in the web practice repository) must be refused by GitHub.
+#       Checks the token reads, and that GitHub refuses one harmless write for each permission the
+#       token was given (Issues: create a label; Pull requests: set pull request #4's title to the
+#       title it already has; Contents: create a small file). Each must be refused (403).
 #   bash participant/tools/github-sync-record.sh two-runs
 #       Run 1, then a pause while you write a note in one issue's file, then run 2. The second
 #       run must add and change nothing, and every notes section must be byte-identical.
@@ -41,6 +42,26 @@ guard() {
     exit 3
   fi
 }
+# Compares the notes hashes issue by issue: each file's notes before must be the same file's notes
+# after, or, for an issue that moved, its new file's (found through moved_from in sync-state.json).
+compare_notes() { # before-lines, after-lines
+  BEFORE="$1" AFTER="$2" node -e '
+    const fs = require("fs");
+    const parse = (t) => new Map(t.split("\n").filter(Boolean).map((l) => { const [h, f] = l.split(/  /); return [f, h]; }));
+    const before = parse(process.env.BEFORE), after = parse(process.env.AFTER);
+    const state = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const movedTo = new Map();
+    for (const r of Object.values(state.issues)) for (const m of r.moved_from ?? []) movedTo.set(`${m.repository.replace("/", "__")}__${m.number}.md`, r.file);
+    let bad = 0;
+    for (const [f, h] of before) {
+      const to = after.has(f) ? f : movedTo.get(f);
+      const ok = to !== undefined && after.get(to) === h;
+      if (!ok) bad++;
+      console.log(`  ${f}${to && to !== f ? ` -> ${to}` : ""}: ${ok ? "same" : "DIFFERS or missing"}`);
+    }
+    console.log(bad || before.size === 0 ? "Check: a notes section DIFFERS or is missing." : "Check: every notes section is byte-identical, issue by issue (a moved issue'"'"'s in its new file).");
+  ' "$OUT/sync-state.json"
+}
 # One line per issue file: the SHA-256 of everything after its notes line.
 notes_hashes() {
   local f
@@ -55,19 +76,30 @@ case "$MODE" in
     REC="$LOGS/token-check.txt"
     {
       echo "Token check, $(stamp). Git commit $(git -C "$ROOT" rev-parse --short HEAD)."
-      echo "One harmless write with the token: create a label in the web practice repository."
-      echo "A read-only token must be refused (403). Nothing else is attempted."
-      OWNER=$(curl -s -H @<(auth) https://api.github.com/user | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).login||"")}catch{}})')
+      echo "The token was given Contents, Issues and Pull requests, read-only (Metadata is read-only"
+      echo "by design). It must read, and GitHub must refuse one harmless write for each of the three."
+      field() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const v=JSON.parse(s)[process.argv[1]];process.stdout.write(typeof v==="string"?v:"")}catch{}})' "$1"; }
+      OWNER=$(curl -s -H @<(auth) https://api.github.com/user | field login)
+      WEBR="https://api.github.com/repos/$OWNER/gtq-practice-kettlebook-web"
       echo "The token belongs to: ${OWNER:-unknown}"
-      CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H @<(auth) \
-        "https://api.github.com/repos/$OWNER/gtq-practice-kettlebook-web/labels" \
-        -d '{"name":"token-write-test","color":"ffffff"}')
-      echo "GitHub answered: $CODE"
-      if [ "$CODE" = "403" ]; then
-        echo "Result: refused, as expected. The token can't write."
+      echo "Read issue #1: GitHub answered $(curl -s -o /dev/null -w '%{http_code}' -H @<(auth) "$WEBR/issues/1") (200 expected)."
+      TITLE=$(curl -s -H @<(auth) "$WEBR/pulls/4" | field title)
+      BRANCH=$(curl -s -H @<(auth) "$WEBR" | field default_branch)
+      BAD=0
+      probe() { # what, method, url, body, undo-hint
+        local code
+        code=$(curl -s -o /dev/null -w '%{http_code}' -X "$2" -H @<(auth) "$3" -d "$4")
+        if [ "$code" = "403" ]; then echo "$1: GitHub answered 403, refused."; else BAD=1; echo "$1: GitHub answered $code, NOT refused. $5"; fi
+      }
+      probe "Issues write (create a label)" POST "$WEBR/labels" '{"name":"token-write-test","color":"ffffff"}' "Delete the label token-write-test."
+      probe "Pull requests write (set #4's title to its own title)" PATCH "$WEBR/pulls/4" \
+        "$(TITLE="$TITLE" node -e 'process.stdout.write(JSON.stringify({title: process.env.TITLE}))')" "Nothing to undo (the title is unchanged)."
+      probe "Contents write (create token-write-test.md)" PUT "$WEBR/contents/token-write-test.md" \
+        "$(BR="$BRANCH" node -e 'process.stdout.write(JSON.stringify({message:"token write test",content:"dGVzdAo=",branch:process.env.BR}))')" "Delete token-write-test.md."
+      if [ "$BAD" = 0 ]; then
+        echo "Result: every write was refused for the three permissions the token holds."
       else
-        echo "Result: NOT refused. The token can write: delete it on GitHub and make a read-only one."
-        [ "$CODE" = "201" ] && echo "(A label named token-write-test was created; delete it in the repository's labels.)"
+        echo "Result: the token can write: delete it on GitHub and make a read-only one."
       fi
       echo "End of record."
     } 2>&1 | tidy > "$REC"
@@ -109,9 +141,10 @@ case "$MODE" in
     guard "$REC"
     {
       echo
-      B=$(awk '/^== Notes sections before/{f=1;next} /^== Run 2/{f=0} f' "$REC")
-      A=$(awk '/^== Notes sections after/{f=1;next} f' "$REC")
-      if [ -n "$B" ] && [ "$B" = "$A" ]; then echo "Check: every notes section is byte-identical across run 2."; else echo "Check: a notes section DIFFERS across run 2."; fi
+      B=$(awk '/^== Notes sections before/{f=1;next} /^== Run 2/{f=0} f && NF' "$REC")
+      A=$(awk '/^== Notes sections after/{f=1;next} f && NF' "$REC")
+      echo "== Notes, issue by issue"
+      compare_notes "$B" "$A"
       if grep -q "^This run: new none; changed none; moved none; no longer assigned none; returned none" <(awk '/^== Run 2/{f=1} f' "$REC"); then
         echo "Check: run 2 added, changed, moved and removed nothing."
       else
@@ -142,10 +175,10 @@ case "$MODE" in
     guard "$REC"
     {
       echo
-      # A moved issue's file is renamed, so the hashes are compared as a set, not by file name.
-      B=$(awk '/^== Notes sections before/{f=1;next} /^== The run/{f=0} f && NF' "$REC" | cut -c1-64 | sort)
-      A=$(awk '/^== Notes sections after/{f=1;next} /^== No longer assigned/{f=0} f && NF' "$REC" | cut -c1-64 | sort)
-      if [ -n "$B" ] && [ "$B" = "$A" ]; then echo "Check: every notes section is byte-identical after the run (moved ones under their new file name)."; else echo "Check: the notes sections DIFFER after the run."; fi
+      B=$(awk '/^== Notes sections before/{f=1;next} /^== The run/{f=0} f && NF' "$REC")
+      A=$(awk '/^== Notes sections after/{f=1;next} /^== No longer assigned/{f=0} f && NF' "$REC")
+      echo "== Notes, issue by issue"
+      compare_notes "$B" "$A"
       echo "End of record."
     } >> "$REC"
     cat "$REC"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Changes made on GitHub between synchronization runs, for the quest github-read-assigned-issues.
-# Tom runs this himself with his own GitHub CLI login (it writes); the synchronization itself only
+# Tom runs this with Tom's own GitHub CLI login (it writes); the synchronization itself only
 # reads. Each set is made once.
 #
 #   bash participant/tools/github-practice-changes.sh rehearsal

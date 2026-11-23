@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Practice setup for the quest github-read-assigned-issues.
 #
-# Tom runs this himself, once, with his own GitHub CLI login. It is the only part of the quest
+# Tom runs this, once, with Tom's own GitHub CLI login. It is the only part of the quest
 # that writes to GitHub. The synchronization itself is read-only and uses a separate read-only
 # token.
 #
@@ -97,13 +97,15 @@ gh issue comment "$A2" --repo "$OWNER/$API" \
   --body "Suggest 10 exports per hour per user. See also $OWNER/$WEB#$W2." >/dev/null
 
 say "Creating a pull request that fixes web #$W1..."
-BASE_SHA=$(gh api "repos/$OWNER/$WEB/git/ref/heads/main" --jq .object.sha)
+# The account's default branch for new repositories need not be "main": ask the repository.
+BRANCH=$(gh api "repos/$OWNER/$WEB" --jq .default_branch)
+BASE_SHA=$(gh api "repos/$OWNER/$WEB/git/ref/heads/$BRANCH" --jq .object.sha)
 gh api "repos/$OWNER/$WEB/git/refs" -f ref="refs/heads/accent-search" -f sha="$BASE_SHA" >/dev/null
 CONTENT=$(printf 'Practice change: search ignores accents.\n' | base64)
 gh api -X PUT "repos/$OWNER/$WEB/contents/search-notes.md" \
   -f message="Make recipe search ignore accents" -f content="$CONTENT" \
   -f branch="accent-search" >/dev/null
-PR_URL=$(gh pr create --repo "$OWNER/$WEB" --head accent-search --base main \
+PR_URL=$(gh pr create --repo "$OWNER/$WEB" --head accent-search --base "$BRANCH" \
   --title "Make recipe search ignore accents" \
   --body "Fixes #$W1. Practice pull request: it is assigned to you, and must not be counted as an issue." \
   --assignee "@me")

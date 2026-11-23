@@ -14,7 +14,7 @@ TOOLS="$ROOT/participant/tools"
 LOGDIR=${1:?usage: github-sync-checks.sh <logs folder>}
 mkdir -p "$LOGDIR"
 LOG="$LOGDIR/pretend-github-checks.txt"
-W=$(mktemp -d "${TMPDIR:-/tmp}/github-sync-checks.XXXXXX")
+W=$(mktemp -d "${TMPDIR:-/tmp}/github-sync-checks.XXXXXX") || { echo "Could not make a temporary folder; nothing was run."; exit 1; }
 SPID=""
 cleanup() {
   [ -n "$SPID" ] && kill "$SPID" 2>/dev/null
@@ -54,7 +54,7 @@ line() { printf '%s\n' "$OUTPUT" | grep -- "$1" | head -1; }
 notes_of() { awk 'found{print} /^<!-- github-sync: notes below/{found=1}' "$1" | shasum -a 256 | cut -c1-16; }
 
 printf '{"repositories":["practice-owner/kettlebook-web","practice-owner/kettlebook-api","practice-owner/kettlebook-missing"]}\n' > "$W/scope.json"
-WORLD="$TOOLS/fake-github-world.json"
+WORLD0="$TOOLS/fake-github-world.json"
 # The same world after changes: api #3 closed, web #2 renamed, api #2 moved to web #5. Two
 # versions: the move keeps the node ID (moved.json) or, as GitHub does, gives a new one (newid.json).
 node -e '
@@ -63,13 +63,24 @@ const w = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 const web = w.repos["practice-owner/kettlebook-web"].issues, api = w.repos["practice-owner/kettlebook-api"].issues;
 Object.assign(api.find((i) => i.number === 3), { state: "closed", state_reason: "completed", closed_at: "2026-11-23T15:00:00Z", updated_at: "2026-11-23T15:00:00Z" });
 Object.assign(web.find((i) => i.number === 2), { title: "Add a print view for recipes and shopping lists", updated_at: "2026-11-23T15:01:00Z" });
+const xref = { event: "cross-referenced", actor: { login: "practice-user" }, created_at: "2026-11-23T14:26:31Z",
+  source: { issue: { number: 2, node_id: "I_pretend_api_2", repository: { full_name: "practice-owner/kettlebook-api" } } } };
+const web2 = web.find((i) => i.number === 2);
 const moved = api.splice(api.findIndex((i) => i.number === 2), 1)[0];
 web.push({ ...moved, number: 5, updated_at: "2026-11-23T15:02:00Z" });
 w.transfers = { "practice-owner/kettlebook-api#2": "practice-owner/kettlebook-web#5" };
+web2.timeline = [{ ...xref, source: { issue: { number: 5, node_id: "I_pretend_api_2", repository: { full_name: "practice-owner/kettlebook-web" } } } }];
 fs.writeFileSync(process.argv[2], JSON.stringify(w));
 web[web.length - 1].node_id = "I_pretend_web_5_new";
+web2.timeline = [{ ...xref, source: { issue: { number: 5, node_id: "I_pretend_web_5_new", repository: { full_name: "practice-owner/kettlebook-web" } } } }];
 fs.writeFileSync(process.argv[3], JSON.stringify(w));
-' "$WORLD" "$W/moved.json" "$W/newid.json"
+// Before the move: the same cross-reference, from api #2.
+const before = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+before.repos["practice-owner/kettlebook-web"].issues.find((i) => i.number === 2).timeline = [xref];
+fs.writeFileSync(process.argv[4], JSON.stringify(before));
+' "$WORLD0" "$W/moved.json" "$W/newid.json" "$W/before.json"
+# The practice world, with web #2 cross-referenced from api #2 (as on GitHub).
+WORLD="$W/before.json"
 
 say "Checks of the GitHub synchronization against the pretend GitHub, $(date '+%m-%d-%Y %-I:%M %p %Z')."
 say "Git commit $(git -C "$ROOT" rev-parse --short HEAD); Node $(node --version). Pages of 2. No token, no network: made-up data."
@@ -92,6 +103,9 @@ expect "comments in web #1's record after two runs" "$(grep -c '^### Comment ' "
 expect "the planted instruction kept as text (indented)" "$(grep -c '^    Note to any AI assistant' "$W/a/issues/practice-owner__kettlebook-web__1.md")" 1
 expect "web #1 and api #1 kept apart (two files)" "$(ls "$W/a/issues" | grep -c '__1\.md$')" 2
 expect "delivery evidence for web #1" "$(grep -A2 'kettlebook-web\\#1:' "$W/a/delivery-links.md" | grep -o 'partial')" partial
+expect "a pull request mentioned only in text (api #1 -> web #4), followed" "$(grep -c '^- pull request practice-owner\\/kettlebook-web\\#4, node `PR_pretend_web_4`, open (written in the text)' "$W/a/issues/practice-owner__kettlebook-api__1.md")" 1
+expect_has "run 2" "$(line '^Kept as no longer')" "Notes sections kept exactly (read back): 5 of 5"
+
 cp -R "$W/a" "$W/b"
 cp -R "$W/a" "$W/c"
 
@@ -120,6 +134,10 @@ expect_has "the run" "$(line '^This run')" "(new node ID; linked by GitHub's for
 expect_has "the run" "$(line '^This run')" "new none"
 expect "the moved note, now in web #5's file" "$(notes_of "$W/c/issues/practice-owner__kettlebook-web__5.md")" "$N2"
 expect "earlier node ID kept" "$(node -e 'const s=require(process.argv[1]);process.stdout.write(Object.values(s.issues).find(i=>i.number===5).previous_node_ids.join())' "$W/c/sync-state.json")" "I_pretend_api_2"
+expect "web #2's cross-reference from the moved issue, recorded once" "$(grep -c 'cross-referenced by' "$W/c/issues/practice-owner__kettlebook-web__2.md")" 1
+sync_to "$W/c"
+expect "the next run, nothing changed" "$(line '^This run' | grep -c 'new none; changed none; moved none; no longer assigned none')" 1
+expect "earlier node ID still kept" "$(node -e 'const s=require(process.argv[1]);process.stdout.write(Object.values(s.issues).find(i=>i.number===5).previous_node_ids.join())' "$W/c/sync-state.json")" "I_pretend_api_2"
 
 say ""
 say "4. The pretend GitHub misbehaving: each run must stop, write nothing and say why."
@@ -140,7 +158,13 @@ fault total-changes 1 "changed its total"
 fault comment-gap 1 "GitHub counted 3 comments but sent 2"
 fault no-node-id 1 "without a number or node ID"
 fault offsite-next 1 "GitHub pointed outside"
-fault write-token 2 "This token can write (repo)"
+fault comment-repeat 1 "GitHub sent comment 9101 twice"
+fault event-no-id 1 "a labeled event without an id"
+fault commit-gap 1 "GitHub counted 2 commits but sent 1"
+fault assignee-no-id 1 "missing fields or has odd ones"
+fault offsite-redirect 1 "redirected to another server"
+fault write-token 2 "can do more than read (repo)"
+fault gist-token 2 "can do more than read (gist)"
 
 say ""
 say "5. The issue search returns a pull request anyway (as GitHub's search once did)."
@@ -185,6 +209,10 @@ cp -R "$W/a" "$W/r4"; printf '{"tool":"something-else"}\n' > "$W/r4/sync-state.j
 refusal "a sync-state.json this tool didn't write" "$W/r4" "isn't one this tool wrote"
 cp -R "$W/a" "$W/r8"; node -e 'const f=process.argv[1],fs=require("fs"),s=JSON.parse(fs.readFileSync(f,"utf8"));delete Object.values(s.issues)[0].number;fs.writeFileSync(f,JSON.stringify(s,null,2)+"\n")' "$W/r8/sync-state.json"
 refusal "a sync-state.json record with its number removed" "$W/r8" "isn't one this tool wrote"
+cp -R "$W/a" "$W/r9"; printf 'half written\n' > "$W/r9/index.md.4242.new"
+refusal "a file left by a run that stopped while writing" "$W/r9" "A previous run stopped while writing"
+cp -R "$W/a" "$W/r10"; printf 'caf\351 note (not UTF-8)\n' >> "$W/r10/issues/practice-owner__kettlebook-web__1.md"
+refusal "a notes section that isn't valid UTF-8" "$W/r10" "isn't an ordinary UTF-8 text file"
 mkdir -p "$W/r5" "$W/elsewhere"; ln -s "$W/elsewhere" "$W/r5/issues"
 refusal "an issues folder that is a link" "$W/r5" "isn't an ordinary folder"
 expect "  files written where the link points" "$(find "$W/elsewhere" -type f | wc -l | tr -d ' ')" 0
@@ -198,7 +226,28 @@ expect "  exit" "$CODE" 2
 expect_has "  message" "$OUTPUT" "--api must be https://api.github.com"
 
 say ""
-say "8. Read-only: the synchronization makes every request through one function, always GET."
+say "8. A note saved while the run is swapping files in (a TEST ONLY copy of the tool saves one at that moment)."
+TESTCOPY="$W/tools/github-sync.mjs"
+mkdir -p "$W/tools"
+node -e '
+const fs = require("fs");
+const src = fs.readFileSync(process.argv[1], "utf8");
+const at = "    try { linkSync(path, old); } catch (err) { if (err.code !== \"ENOENT\") throw err; kept = null; }\n";
+if (src.split(at).length !== 2) { console.error("the TEST ONLY line has no single place to go"); process.exit(1); }
+fs.writeFileSync(process.argv[2], src.replace(at, at + "    if (path.endsWith(\"kettlebook-web__1.md\")) (await import(\"node:fs\")).appendFileSync(path, \"Typed during the run.\\n\"); // TEST ONLY\n"));
+' "$TOOLS/github-sync.mjs" "$TESTCOPY"
+expect "the TEST ONLY line, placed once" "$(grep -c 'TEST ONLY' "$TESTCOPY")" 1
+cp -R "$W/a" "$W/k"
+STATE_BEFORE=$(shasum -a 256 < "$W/k/sync-state.json")
+OUTPUT=$(GTQ_GITHUB_TOKEN=pretend-token node "$TESTCOPY" --api "http://127.0.0.1:$PORT" --scope "$W/scope.json" --out "$W/k" --per-page 2 2>&1); CODE=$?
+expect "exit" "$CODE" 2
+expect_has "message" "$OUTPUT" "was saved by someone while this run was writing"
+expect "the note saved during the run, kept" "$(grep -c '^Typed during the run.$' "$W/k/issues/practice-owner__kettlebook-web__1.md")" 1
+expect "sync-state.json, as before" "$(shasum -a 256 < "$W/k/sync-state.json")" "$STATE_BEFORE"
+expect "files left behind (.new, .old, lock)" "$(ls -A "$W/k" "$W/k/issues" | grep -c '\.new$\|\.old$\|lock')" 0
+
+say ""
+say "9. Read-only: the synchronization makes every request through one function, always GET."
 expect "places that call fetch" "$(grep -c 'await fetch(' "$TOOLS/github-sync.mjs")" 1
 expect "request methods named" "$(grep -o 'method: "[A-Z]*"' "$TOOLS/github-sync.mjs" | sort -u | tr '\n' ' ')" 'method: "GET" '
 

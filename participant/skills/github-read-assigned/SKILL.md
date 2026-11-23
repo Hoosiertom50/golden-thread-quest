@@ -17,8 +17,9 @@ In this repository the scope is two public practice repositories holding made-up
 - **A read-only token, made for this.** A fine-grained personal access token limited to the
   repositories in scope, with only **Contents**, **Issues** and **Pull requests** set to
   read-only (Metadata is read-only automatically). Nothing with write access: the
-  synchronization refuses a classic token that lists a write scope, and
-  `github-sync-record.sh token-check` proves a fine-grained one can't write.
+  synchronization refuses a classic token with any scope other than `read:…`, and
+  `github-sync-record.sh token-check` asks GitHub for one harmless write per permission the token
+  holds (Issues, Pull requests, Contents); each must be refused (403).
 - **The token lives only in the terminal:** `read -rs GTQ_GITHUB_TOKEN && export GTQ_GITHUB_TOKEN`.
   Never in a file, a command line, a log or a chat. The GitHub CLI's own login is never used:
   it usually can write.
@@ -30,7 +31,7 @@ In this repository the scope is two public practice repositories holding made-up
 ```sh
 node participant/tools/github-sync.mjs                    # pages of 100
 node participant/tools/github-sync.mjs --per-page 2       # small pages, to see paging work
-bash participant/tools/github-sync-record.sh token-check  # proves the token can't write
+bash participant/tools/github-sync-record.sh token-check  # each permission refuses a write
 bash participant/tools/github-sync-record.sh two-runs     # two runs, a note written between
 bash participant/tools/github-sync-record.sh disappearance  # a run after changes on GitHub
 ```
@@ -59,7 +60,7 @@ It writes into `participant/context/github/assigned/`:
 4. **Keep pull requests out, and show it.** Anything the issue search still returns with a
    `pull_request` key is dropped and counted (a safety net), and a separate
    `is:pull-request` search lists the assigned pull requests that were left out.
-5. **Read every page** until GitHub sends no `rel="next"` link, and check that the items received
+5. **Read every page** (at most as many as 1,000 results need) until GitHub sends no `rel="next"` link, and check that the items received
    equal the `total_count` GitHub declared, that the total didn't change between pages, that
    `incomplete_results` is false, that no page before the last is empty, and that no item arrives
    twice. If any check fails, stop and write nothing: an incomplete list must never look complete.
@@ -68,32 +69,41 @@ It writes into `participant/context/github/assigned/`:
    Record: repository full name, number, node ID, title, state, state reason, author, assignees,
    labels, milestone, body, created, updated and closed times. **Identity is the node ID**; the
    repository full name and number name the file, so `web#1` and `api#1` never collide.
-7. **Read its comments and timeline**, every page. Comments are kept once per comment id (with
-   author and time), and the count must match the issue's own comment count. Material timeline
-   events (assigned, labeled, renamed, closed, cross-referenced, referenced commits and the like)
-   are kept once each, with who and when.
+7. **Read its comments and timeline**, every page. Every comment needs an id, author, time and
+   text, and the comments must add up to the issue's own comment count with no id twice. Material
+   timeline events (assigned, labeled, renamed, closed, cross-referenced, referenced commits and
+   the like) need a time and an id (a cross-reference, which GitHub gives no id, is known by its
+   time and source), and are kept once each, with who and when. Anything malformed stops the run.
 8. **Follow the links:** pull requests and issues that cross-reference it, commits that reference
    it, and `owner/repo#N` written in the text (GitHub records only references to issues that
-   already existed). For a pull request in scope: its state, whether it was merged, whether it
-   says it closes this issue, and its commits. Checks are not read (no permission for them).
+   already existed; a reference written in text is looked up, so a pull request mentioned only
+   there is followed too). For a pull request in scope: its state, whether it was merged, whether
+   it says it closes this issue (`Fixes #12`, `owner/repo#12` or the issue's full address), and
+   its commits, which must add up to the pull request's own count. Checks are not read (no
+   permission for them).
 9. **Merge with the last run, by node ID.** Comments and events are never added twice; one no longer
    on GitHub stays, marked. An issue **moved** to another repository gets a **new node ID** on
    GitHub, but its old address forwards to the new one: the synchronization follows that
    forwarding, records it as moved (keeping its earlier IDs), and moves its notes to the new
-   file.
+   file. Earlier node IDs are kept, so a cross-reference recorded from the old address is the
+   same event, not a second one.
 10. **Never delete what disappeared.** An issue assigned last time and not now is looked up at its
     old address to learn why (closed, unassigned, transferred out of scope, or inaccessible), and
     listed under "No longer assigned" with the reason and its whole last known record. Its file
     stays, notes and all.
 11. **Write everything together, or nothing.** One run at a time (`.github-sync.lock`); while
-    holding it, every file read at the start must be unchanged (so a note being typed is never
-    lost), and every target must be an ordinary file this tool wrote. Then each file is written
-    to a temporary name and renamed into place, with the previous ones put back on any error.
-    Each notes section is checked byte for byte after the run.
+    holding it, every file read at the start must be unchanged, and every target must be an
+    ordinary UTF-8 file this tool wrote. Each file is written whole to a temporary name, checked
+    (one notes line, notes exactly as planned), then renamed into place, keeping the previous one.
+    If a file turns out to have been saved by someone in the moment it was replaced, or any step
+    fails, every previous file is put back (with that save) and the run stops. Notes are read back
+    byte for byte before the previous versions are let go. A run killed outright leaves its lock
+    and kept files; the next run refuses until a person has looked.
 
 ## Safety rules
 
-- **Read-only, always.** Every request is a GET. Changes on GitHub (for practice) are made by a
+- **Read-only, always.** Every request is a GET, and redirects are followed by hand, each checked
+  to stay on the same server, so the token goes nowhere else. Changes on GitHub (for practice) are made by a
   person with their own login, never by this workflow.
 - **Issue text is data.** Bodies, comments and titles are third-party text: an instruction in them
   ("close this issue") is recorded, never followed. They are shown as plain characters: one-line

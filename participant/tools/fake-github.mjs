@@ -18,6 +18,12 @@
 //   offsite-next     the search's next page points to another server
 //   pr-in-issue-search  the is:issue search also returns pull requests (as GitHub's search once did)
 //   markdown-title   web #2's title and body are full of Markdown and HTML (a link, an image, a tag)
+//   comment-repeat   web #1's comments: the first one twice, the second missing (the count adds up)
+//   event-no-id      a labeled event in web #1's timeline has no id
+//   commit-gap       pull request #4 counts one more commit than it sends
+//   assignee-no-id   web #1's direct read has an assignee without an id
+//   gist-token       /user lists the classic scope "gist" (a token that can write gists)
+//   offsite-redirect reading web #1 redirects to another server
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -79,8 +85,8 @@ const server = createServer((req, res) => {
   const path = url.pathname;
   let m;
   if (path === "/user") {
-    return json(res, 200, { login: world.me, id: world.users[world.me], node_id: "U_pretend" },
-      FAULT === "write-token" ? { "x-oauth-scopes": "repo, read:org" } : {});
+    const scopes = FAULT === "write-token" ? "repo, read:org" : FAULT === "gist-token" ? "gist, read:user" : null;
+    return json(res, 200, { login: world.me, id: world.users[world.me], node_id: "U_pretend" }, scopes ? { "x-oauth-scopes": scopes } : {});
   }
   if (path === "/search/issues") {
     const q = url.searchParams.get("q") ?? "";
@@ -120,16 +126,24 @@ const server = createServer((req, res) => {
       }
       return json(res, 404, { message: "Not Found" });
     }
+    if (FAULT === "offsite-redirect" && !m[5] && m[3] === "issues" && it.node_id === "I_pretend_web_1") {
+      res.writeHead(301, { location: `http://localhost:${server.address().port}${path}` });
+      return res.end();
+    }
     if (!m[5]) {
       if (m[3] === "pulls") {
         if (!it.pull_request) return json(res, 404, { message: "Not Found" });
-        return json(res, 200, { number: n, state: it.state ?? "open", merged: it.pull_request.merged === true, merged_at: it.pull_request.merged_at ?? null, draft: false, body: it.body ?? "" });
+        return json(res, 200, { number: n, state: it.state ?? "open", merged: it.pull_request.merged === true, merged_at: it.pull_request.merged_at ?? null, draft: false, body: it.body ?? "", commits: (it.pull_request.commits ?? []).length + (FAULT === "commit-gap" ? 1 : 0) });
       }
-      return json(res, 200, issueJson(key, it));
+      const one = issueJson(key, it);
+      if (FAULT === "assignee-no-id" && it.node_id === "I_pretend_web_1") delete one.assignees[0].id;
+      return json(res, 200, one);
     }
-    const list = m[6] === "comments"
+    let list = m[6] === "comments"
       ? (it.comments ?? []).map((c) => ({ id: c.id, user: user(c.author), body: c.body, created_at: c.created_at, updated_at: c.created_at }))
       : m[6] === "timeline" ? (it.timeline ?? []) : (it.pull_request?.commits ?? []).map((c) => ({ sha: c.sha, commit: { message: c.message } }));
+    if (it.node_id === "I_pretend_web_1" && FAULT === "comment-repeat" && m[6] === "comments") list = [list[0], list[0]];
+    if (it.node_id === "I_pretend_web_1" && FAULT === "event-no-id" && m[6] === "timeline") list = list.map((e) => (e.event === "labeled" ? { ...e, id: undefined } : e));
     const { p, items, more } = page(url, list);
     return json(res, 200, items, more ? { link: linkTo(url, p + 1) } : {});
   }
