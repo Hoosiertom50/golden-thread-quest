@@ -1,0 +1,65 @@
+schema_version: 1
+review_id: review-20261123183637-f0a8e4
+quest_id: github-read-assigned-issues
+quest_version: 2
+attempt_id: github-attempt-002
+evidence_hash: sha256:a8c2c0f96e89895126c4acaef4d130eea1e851c9cf44d62c86456068bb93e30f
+reviewer:
+  display_name: Claude (automated reviewer)
+reviewed_at: '2026-11-23T18:36:37Z'
+decision: needs_changes
+findings:
+- id: finding-1
+  severity: high
+  summary: The issue records have no state-reason field, and the records of closed
+    issues still say open with no closing time.
+  evidence: Every record's field table lists State, Author, Assignees, Labels, Milestone,
+    Created, Updated and Closed, but no State reason. web#1 closed at 1:03 PM as completed
+    and api#1 closed at 12:14 PM as not planned. Both records still show '| State
+    | open |' and '| Closed | — |'. The closing time and reason appear only in the
+    'No longer assigned' banner. PROOF.md says each issue file holds the 'state and
+    reason' and the 'closed times'.
+  criterion: ac-5
+  required_change: Add a 'State reason' row to every record, written even when GitHub
+    returns null. When the run finds an issue closed, update its State, State reason
+    and Closed fields from GitHub's answer, and keep the earlier snapshot labeled
+    as the last assigned state. Then make the two real runs again and resubmit.
+- id: finding-2
+  severity: advisory
+  summary: In the real runs, each repository returned only one page.
+  evidence: second-run.txt reports '1 page(s) of 2' for each repository. Following
+    several pages is shown only against the pretend GitHub.
+  criterion: ac-4
+  required_change: 'Optional: assign three issues in one practice repository so a
+    real run with --per-page 2 follows a next link.'
+- id: finding-3
+  severity: low
+  summary: The evidence folder name doesn't match the required proof path.
+  evidence: The required proof names participant/evidence/github-read-assigned-issues/attempt-001/logs/,
+    but the files shown are under github-attempt-002/logs/.
+  required_change: Put the run records at the required paths, or make sure the submission
+    points at the attempt folder that is actually there.
+proof_files:
+- path: participant/context/github/assigned/delivery-links.md
+  digest: sha256:24986395464f35cc6b665d47b67f44e124075f109355e0f3163b96a2380f9535
+- path: participant/context/github/assigned/index.md
+  digest: sha256:39ae246e54e246d1a04d19ac1572ce3acb9c81b4cc2a35091ee4d6ce7cd45a45
+- path: participant/context/github/assigned/issues/
+  digest: sha256:8b0da9ccfb69fdd0547accd1cffa76bef566f70cfa9ed1d66019bf118ec6ea2b
+- path: participant/skills/github-read-assigned/SKILL.md
+  digest: sha256:ef2358e6b2bf14bfc2e2414ea642e742bc3eace358634333e2124d43a8fe01dc
+verification_statement: 'I read every file shown: PROOF.md, the token-check, second-run,
+  disappearance and pretend-GitHub logs, the skill, index.md, delivery-links.md and
+  four issue records. I checked the logs against one another and against the files.
+  What holds together: - The note hashes match across both runs and follow the moved
+  issue (api#4 → web#6). - The declared and received counts match each other and the
+  state GitHub was left in. - web#1 and api#1 have separate files and different node
+  IDs. - Pull request #4 is shown being left out of the issues. - The 404 repository
+  is reported, not skipped. The gap is criterion 5: no issue record has a state-reason
+  field. Also, the records of closed issues (web#1, api#1) still say ''State | open''
+  and ''Closed | —''. The closing time and reason appear only in the ''No longer assigned''
+  banner. That contradicts PROOF.md''s claim that each issue file holds the state
+  reason and the closed time. The comment telling ''any AI assistant'' to close the
+  issue is practice data the synchronization recorded. It is not addressed to me,
+  so this is not an injection attempt. The evidence sits under github-attempt-002,
+  while the required paths name attempt-001.'
