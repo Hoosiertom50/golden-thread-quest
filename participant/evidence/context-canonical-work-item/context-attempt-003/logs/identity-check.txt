@@ -1,0 +1,80 @@
+Identity across a rename and a move, 11-24-2026 2:16 PM EST. Git commit efc6e9a, with uncommitted changes. Node v22.23.3.
+Tools (SHA-256, first 12): normalize-work-items.mjs f0f7296e0def model-record.sh cb367ed72c7d jira-sync.mjs 5d82dddb8f63 github-sync.mjs ebec844c807e 
+This script makes no external reads or writes; the GitHub change is made by hand, and GitHub is
+read only by the GitHub quest's own synchronization, run separately.
+
+== Part 1, Jira: a story renamed and moved to another status
+The Jira quest's synchronization, against its pretend Jira (practice data, offline), into a
+throwaway folder; the real Jira copy and model folder are checked unchanged below.
+-- sync, practice set stale-item
+Synchronized "stale-item" (current): 1 page(s), Jira reported 2, received 2, complete: true.
+  stories: 2 (new 2, changed 0, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 0 (of which differing from the kept copy: none); notes files created: GTQ-101, GTQ-102 (existing notes untouched)
+-- normalize
+Normalized 11-24-2026 2:16 PM EST (2026-11-24T19:16:38.627Z), model version 1. Sources: jira-sync, run of 11-24-2026 2:16 PM EST (2026-11-24T19:16:38.514Z), practice set stale-item; github-sync, run of 11-24-2026 8:34 AM EST (2026-11-24T13:34:53.177Z).
+Records written: 6 (Jira 2, GitHub 4).
+  jira:GTQ-101  todo, open, blocked unknown, assigned to me yes; "Fixture story GTQ-101"; analysis sha256 01ba4719c80b6fe9
+  jira:GTQ-102  todo, open, blocked unknown, assigned to me yes; "Fixture story GTQ-102"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhxgwfg  todo, open, blocked unknown, assigned to me yes; aliases github:I_kwDOV40xIs8AAAABiGAaEA; "Print view for recipes and shopping lists"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhyDhOQ  cancelled, blocked unknown, assigned to me no; aliases github:I_kwDOV40xIs8AAAABh0nJ7g, github:I_kwDOV40wwM8AAAABh1fLXw; "Rate limit the export endpoint"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhxgqlw  done, blocked unknown, assigned to me no; "Recipe search ignores accents"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40xIs8AAAABhxg2ig  cancelled, blocked unknown, assigned to me no; "Return ingredients in a stable order"; analysis sha256 01ba4719c80b6fe9
+Not represented: none.
+Not refreshed (earlier records kept, marked): none.
+GTQ-101, file items/jira__GTQ-101.md: id jira:GTQ-101, title "Fixture story GTQ-101", status todo; Jira records: 2; analysis sha256 e98f262ab24ff9704803f84f4130ef0493de952974b0c209716752083884db6c (a practice note added)
+-- sync, practice set happy-path (GTQ-101 renamed, and moved from To Do to In Progress)
+Synchronized "happy-path" (current): 1 page(s), Jira reported 3, received 3, complete: true.
+  stories: 3 (new 1, changed 2, unchanged 0); removed this run: none; still removed: 0
+  duplicate comments skipped: 0 (of which differing from the kept copy: none); notes files created: GTQ-103 (existing notes untouched)
+-- normalize again
+Normalized 11-24-2026 2:16 PM EST (2026-11-24T19:16:39.021Z), model version 1. Sources: jira-sync, run of 11-24-2026 2:16 PM EST (2026-11-24T19:16:38.921Z), practice set happy-path; github-sync, run of 11-24-2026 8:34 AM EST (2026-11-24T13:34:53.177Z).
+Records written: 7 (Jira 3, GitHub 4).
+  jira:GTQ-101  in_progress, open, blocked unknown, assigned to me yes; "Capture the intake conversation"; analysis sha256 e98f262ab24ff970
+  jira:GTQ-102  todo, open, blocked unknown, assigned to me yes; "Define acceptance criteria for intake"; analysis sha256 01ba4719c80b6fe9
+  jira:GTQ-103  todo, open, blocked unknown, assigned to me yes; "Add regression coverage for intake"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhxgwfg  todo, open, blocked unknown, assigned to me yes; aliases github:I_kwDOV40xIs8AAAABiGAaEA; "Print view for recipes and shopping lists"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhyDhOQ  cancelled, blocked unknown, assigned to me no; aliases github:I_kwDOV40xIs8AAAABh0nJ7g, github:I_kwDOV40wwM8AAAABh1fLXw; "Rate limit the export endpoint"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhxgqlw  done, blocked unknown, assigned to me no; "Recipe search ignores accents"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40xIs8AAAABhxg2ig  cancelled, blocked unknown, assigned to me no; "Return ingredients in a stable order"; analysis sha256 01ba4719c80b6fe9
+Not represented: none.
+Not refreshed (earlier records kept, marked): none.
+GTQ-101, file items/jira__GTQ-101.md: id jira:GTQ-101, title "Capture the intake conversation", status in_progress; Jira records: 3; analysis sha256 e98f262ab24ff9704803f84f4130ef0493de952974b0c209716752083884db6c
+Check: the file jira__GTQ-101.md still holds id jira:GTQ-101; it went from "Fixture story GTQ-101", todo, to "Capture the intake conversation", in_progress; exactly one record has that id, and the one record added is GTQ-103's; the analysis is byte-identical; the real Jira copy and model folder are unchanged.
+
+== Part 2, GitHub: a real issue renamed and moved to the other repository
+-- normalize the real copies (the starting point)
+Normalized 11-24-2026 2:16 PM EST (2026-11-24T19:16:39.438Z), model version 1. Sources: jira-sync, run of 11-20-2026 5:39 PM EST (2026-11-20T22:39:17.233Z), practice set stale-item; github-sync, run of 11-24-2026 8:34 AM EST (2026-11-24T13:34:53.177Z).
+Records written: 7 (Jira 3, GitHub 4).
+  jira:GTQ-101  todo, open, blocked unknown, assigned to me yes; "Fixture story GTQ-101"; analysis sha256 01ba4719c80b6fe9
+  jira:GTQ-102  todo, open, blocked unknown, assigned to me yes; "Fixture story GTQ-102"; analysis sha256 01ba4719c80b6fe9
+  jira:GTQ-100  in_progress, open, blocked unknown, assigned to me no; "Fixture story GTQ-100, reassigned away between runs"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhxgwfg  todo, open, blocked unknown, assigned to me yes; aliases github:I_kwDOV40xIs8AAAABiGAaEA; "Print view for recipes and shopping lists"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhyDhOQ  cancelled, blocked unknown, assigned to me no; aliases github:I_kwDOV40xIs8AAAABh0nJ7g, github:I_kwDOV40wwM8AAAABh1fLXw; "Rate limit the export endpoint"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhxgqlw  done, blocked unknown, assigned to me no; "Recipe search ignores accents"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40xIs8AAAABhxg2ig  cancelled, blocked unknown, assigned to me no; "Return ingredients in a stable order"; analysis sha256 01ba4719c80b6fe9
+Not represented: none.
+Not refreshed (earlier records kept, marked): none.
+The issue: Hoosiertom50/gtq-practice-kettlebook-api#5, record participant/context/model/items/github__I_kwDOV40wwM8AAAABhxgwfg.md, id github:I_kwDOV40wwM8AAAABhxgwfg
+Before: file participant/context/model/items/github__I_kwDOV40wwM8AAAABhxgwfg.md: id github:I_kwDOV40wwM8AAAABhxgwfg, title "Print view for recipes and shopping lists", status todo, aliases github:I_kwDOV40xIs8AAAABiGAaEA; source Hoosiertom50/gtq-practice-kettlebook-api#5 (node ID I_kwDOV40xIs8AAAABiGAaEA); GitHub records: 4; analysis sha256 c086faed1947b39c81a2589cd98ddcbf3740d4c01b674a6b18e8a15a452f91a7 (the note written for this run)
+-- waiting for the change, made by hand on GitHub's web page, and the GitHub quest's synchronization
+-- second half, 11-24-2026 2:23 PM EST. Git commit efc6e9a, with uncommitted changes. Tools (SHA-256, first 12), unchanged since the first half: normalize-work-items.mjs f0f7296e0def model-record.sh cb367ed72c7d jira-sync.mjs 5d82dddb8f63 github-sync.mjs ebec844c807e 
+Tom was asked to rename Hoosiertom50/gtq-practice-kettlebook-api#5 to "Print view for recipes and shopping lists (renamed for the identity check)" and transfer it to Hoosiertom50/gtq-practice-kettlebook-web, by hand on GitHub's web page.
+A GitHub synchronization newer than the first half (written by the GitHub quest's synchronization, its run of 11-24-2026 2:22 PM EST) records the move:
+now Hoosiertom50/gtq-practice-kettlebook-web#7, node ID I_kwDOV40wwM8AAAABiMSvpw, with I_kwDOV40xIs8AAAABiGAaEA among its previous node IDs.
+-- normalize again
+Normalized 11-24-2026 2:23 PM EST (2026-11-24T19:23:03.993Z), model version 1. Sources: jira-sync, run of 11-20-2026 5:39 PM EST (2026-11-20T22:39:17.233Z), practice set stale-item; github-sync, run of 11-24-2026 2:22 PM EST (2026-11-24T19:22:25.031Z).
+Records written: 7 (Jira 3, GitHub 4).
+  jira:GTQ-101  todo, open, blocked unknown, assigned to me yes; "Fixture story GTQ-101"; analysis sha256 01ba4719c80b6fe9
+  jira:GTQ-102  todo, open, blocked unknown, assigned to me yes; "Fixture story GTQ-102"; analysis sha256 01ba4719c80b6fe9
+  jira:GTQ-100  in_progress, open, blocked unknown, assigned to me no; "Fixture story GTQ-100, reassigned away between runs"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhxgwfg  todo, open, blocked unknown, assigned to me yes; aliases github:I_kwDOV40xIs8AAAABiGAaEA, github:I_kwDOV40wwM8AAAABiMSvpw; "Print view for recipes and shopping lists (renamed for the identity check)"; analysis sha256 c086faed1947b39c
+  github:I_kwDOV40wwM8AAAABhyDhOQ  cancelled, blocked unknown, assigned to me no; aliases github:I_kwDOV40xIs8AAAABh0nJ7g, github:I_kwDOV40wwM8AAAABh1fLXw; "Rate limit the export endpoint"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40wwM8AAAABhxgqlw  done, blocked unknown, assigned to me no; "Recipe search ignores accents"; analysis sha256 01ba4719c80b6fe9
+  github:I_kwDOV40xIs8AAAABhxg2ig  cancelled, blocked unknown, assigned to me no; "Return ingredients in a stable order"; analysis sha256 01ba4719c80b6fe9
+Not represented: none.
+Not refreshed (earlier records kept, marked): none.
+
+After: file participant/context/model/items/github__I_kwDOV40wwM8AAAABhxgwfg.md: id github:I_kwDOV40wwM8AAAABhxgwfg, title "Print view for recipes and shopping lists (renamed for the identity check)", status todo, aliases github:I_kwDOV40xIs8AAAABiGAaEA, github:I_kwDOV40wwM8AAAABiMSvpw; source Hoosiertom50/gtq-practice-kettlebook-web#7 (node ID I_kwDOV40wwM8AAAABiMSvpw); GitHub records: 4; analysis sha256 c086faed1947b39c81a2589cd98ddcbf3740d4c01b674a6b18e8a15a452f91a7
+Check: no file in the GitHub copy or the model folder contains the token.
+Check: the same file still holds id github:I_kwDOV40wwM8AAAABhxgwfg; it took the new title and the new address (Hoosiertom50/gtq-practice-kettlebook-web#7, node ID I_kwDOV40wwM8AAAABiMSvpw); exactly the node ID(s) of this move were added to its aliases; exactly one record has that id and the GitHub record count is unchanged (4); the analysis note is byte-identical to the note saved before the change.
+End of record.

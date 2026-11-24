@@ -1,0 +1,17 @@
+schema_version: 1
+submission_id: submission-20261124192542-bd95b5
+quest_id: context-canonical-work-item
+quest_version: 2
+attempt_id: context-attempt-003
+content_hash: sha256:0712635ae6916b38d69640fddb0bd843f482590f57e30c39c8e21a7864f9c2dd
+evidence_hash: sha256:016dc2ec6d49ad8cdcfc718960660c87ed5daf0e8fcaedb9ac9fe562749f0f8b
+submitted_at: '2026-11-24T19:25:42Z'
+submitted_by: thomascarter
+secret_scan_clean: true
+proof_files:
+- path: participant/context/model/examples.md
+  digest: sha256:336c96cbdf9bbc606b25760be14f5d7c7c04a023e7591ada6b2da3f2fb95a6c4
+- path: participant/context/model/mappings/
+  digest: sha256:5a92ae922332f7dd3133516458ca1e4dbc459890f118a3fe63f14bea0714ca74
+- path: participant/context/model/work-item.md
+  digest: sha256:e001022ab3ff7d27ef0ff0180e5ce2e96cd79f2ba2706ac25e0221e310fe6b97

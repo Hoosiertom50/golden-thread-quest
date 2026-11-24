@@ -187,3 +187,8 @@ Every change this application made to your files, newest last.
 - `2026-11-23T21:11:11Z` github-read-assigned-issues: locally_validated → submitted (Ask a reviewer to decide.)
 - `2026-11-23T21:11:11Z` Submitted github-read-assigned-issues for review as submission-20261123211111-9effcf.
 - `2026-11-23T21:23:02Z` Review of github-read-assigned-issues: approved by Claude (automated reviewer).
+- `2026-11-24T13:13:39Z` Started context-canonical-work-item as attempt context-attempt-003.
+- `2026-11-24T19:24:53Z` context-canonical-work-item: in_progress → evidence_ready (Assert that the required proof is assembled.)
+- `2026-11-24T19:25:22Z` context-canonical-work-item: evidence_ready → locally_validated (Record that every required validator returned a qualifying result.)
+- `2026-11-24T19:25:42Z` context-canonical-work-item: locally_validated → submitted (Ask a reviewer to decide.)
+- `2026-11-24T19:25:42Z` Submitted context-canonical-work-item for review as submission-20261124192542-bd95b5.

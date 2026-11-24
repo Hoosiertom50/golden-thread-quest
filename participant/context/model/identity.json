@@ -1,0 +1,40 @@
+{
+  "about": "Canonical identities and every alias seen for each; written by normalize-work-items.mjs. An alias is never given to two items.",
+  "model_version": 1,
+  "items": {
+    "jira:GTQ-101": {
+      "aliases": [],
+      "file": "items/jira__GTQ-101.md"
+    },
+    "jira:GTQ-102": {
+      "aliases": [],
+      "file": "items/jira__GTQ-102.md"
+    },
+    "jira:GTQ-100": {
+      "aliases": [],
+      "file": "items/jira__GTQ-100.md"
+    },
+    "github:I_kwDOV40wwM8AAAABhxgwfg": {
+      "aliases": [
+        "github:I_kwDOV40xIs8AAAABiGAaEA",
+        "github:I_kwDOV40wwM8AAAABiMSvpw"
+      ],
+      "file": "items/github__I_kwDOV40wwM8AAAABhxgwfg.md"
+    },
+    "github:I_kwDOV40wwM8AAAABhyDhOQ": {
+      "aliases": [
+        "github:I_kwDOV40xIs8AAAABh0nJ7g",
+        "github:I_kwDOV40wwM8AAAABh1fLXw"
+      ],
+      "file": "items/github__I_kwDOV40wwM8AAAABhyDhOQ.md"
+    },
+    "github:I_kwDOV40wwM8AAAABhxgqlw": {
+      "aliases": [],
+      "file": "items/github__I_kwDOV40wwM8AAAABhxgqlw.md"
+    },
+    "github:I_kwDOV40xIs8AAAABhxg2ig": {
+      "aliases": [],
+      "file": "items/github__I_kwDOV40xIs8AAAABhxg2ig.md"
+    }
+  }
+}
