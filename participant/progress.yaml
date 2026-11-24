@@ -288,9 +288,10 @@ attempts:
   quest_id: context-canonical-work-item
   quest_version: 2
   content_hash: sha256:0712635ae6916b38d69640fddb0bd843f482590f57e30c39c8e21a7864f9c2dd
-  state: submitted
+  state: verified
   started_at: '2026-11-24T13:13:39Z'
-  updated_at: '2026-11-24T19:25:42Z'
+  updated_at: '2026-11-24T19:36:25Z'
   evidence_path: participant/evidence/context-canonical-work-item/context-attempt-003
   submission_id: submission-20261124192542-bd95b5
-updated_at: '2026-11-24T19:25:42Z'
+  review_id: review-20261124193625-17425a
+updated_at: '2026-11-24T19:36:25Z'

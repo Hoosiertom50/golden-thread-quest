@@ -1,0 +1,33 @@
+schema_version: 1
+review_id: review-20261124193625-17425a
+quest_id: context-canonical-work-item
+quest_version: 2
+attempt_id: context-attempt-003
+evidence_hash: sha256:016dc2ec6d49ad8cdcfc718960660c87ed5daf0e8fcaedb9ac9fe562749f0f8b
+reviewer:
+  display_name: Claude (automated reviewer)
+reviewed_at: '2026-11-24T19:36:25Z'
+decision: approved
+findings: []
+proof_files:
+- path: participant/context/model/examples.md
+  digest: sha256:336c96cbdf9bbc606b25760be14f5d7c7c04a023e7591ada6b2da3f2fb95a6c4
+- path: participant/context/model/mappings/
+  digest: sha256:5a92ae922332f7dd3133516458ca1e4dbc459890f118a3fe63f14bea0714ca74
+- path: participant/context/model/work-item.md
+  digest: sha256:e001022ab3ff7d27ef0ff0180e5ce2e96cd79f2ba2706ac25e0221e310fe6b97
+verification_statement: 'Automated review. I read all five evidence files: PROOF.md,
+  work-item.md, both mapping documents, examples.md and the two logs. I checked that
+  the logs agree with each other. Each analysis note was added after the first normalization,
+  so its hash changes once and then stays the same. The GitHub item keeps its first
+  node ID as its identity, with the two later node IDs as aliases; this move history
+  is the same in examples.md and identity-check.txt. Both logs record the same SHA-256
+  hashes for the four tools. The identity log shows one record updated in place for
+  a Jira rename and status change and for a real GitHub rename and move between repositories.
+  The unmappable log shows exit 2, a reason for each refused item, no record for GTQ-150
+  or GTQ-151, and GTQ-102 kept and marked "Not refreshed". I found no text aimed at
+  the reviewer, so there is no prompt injection. Notes that don''t affect the decision:
+  the logs are in context-attempt-003 rather than the listed attempt-001 path (the
+  pre-check passed), the GitHub login appears in shared examples, and an earlier version
+  of the script wrote to GitHub before it was disclosed and rewritten. Each of the
+  12 acceptance criteria was matched to text quoted word for word from the evidence.'
